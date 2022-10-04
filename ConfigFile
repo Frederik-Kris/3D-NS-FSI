@@ -1,0 +1,119 @@
+/* ________________________________________________________________________________________________
+ *
+ * CONFIGURATION FILE
+ * 
+ * This file specifies all settings, constants and parameters for the program. The intention is
+ * that it should not be necessary to change or comment/uncomment stuff all around the source code
+ * to customize a simulation. Ideally, everything should be specified here.
+ * ________________________________________________________________________________________________
+ */
+
+//---------------------------------------------------------------------------------
+// Simulation Parameters
+//---------------------------------------------------------------------------------
+
+// Number of grid points in x, y and z direction, respectively:
+NI = 41
+NJ = 3
+NK = 41
+
+// Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
+// or "end_time" to simulate until a given time. See the next two settings.
+stopCriterion = "end_time"
+
+// Number of timesteps to compute. If stopTimeLevel is zero or negative, the simulation result will
+// be the the initial condition. With stopTimeLevel = 1, one timestep will be computed, etc.
+// This setting is only used if stopCriterion = "timesteps".
+stopTimeLevel = 1300
+
+// How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
+// or negative, the simulation result will be the initial condition.
+// This setting is only used if stopCriterion = "end_time".
+t_end = 10.
+
+// Constant specifying the inviscid stability criterion.
+// Theoretically, it should work as long as it's <2, but some margin may be necessary.
+convStabilityLimit = 1.4
+
+// Constant specifying the viscous stability criterion
+// Should give stability when >-1.5 , but some margin may be necessary.
+viscStabilityLimit = -1.1
+
+// Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
+filterInterval = 0
+
+//---------------------------------------------------------------------------------
+// Parameters for output, e.g. saving/plotting solutions
+//---------------------------------------------------------------------------------
+
+// Wall clock time (in seconds) between status/progression reports written to screen.
+statusReportInterval = 3.
+
+// Booleans to specify what flow variables to store:
+save_rho   = true
+save_rho_u = false
+save_rho_v = false
+save_rho_w = false
+save_E     = false
+save_u     = true
+save_v     = true
+save_w     = true
+save_p     = true
+save_T     = true
+save_mu    = false
+save_kappa = false
+
+// Save initial condition?
+save_IC = false
+
+// Save final solution? (Last time level, at time t_end)
+save_final = true
+
+// Save at constant intervals? (Not including IC, interval length specified below)
+save_intervals = false
+
+// Dimensionless time between each save:
+save_period = 100.
+
+// How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
+// Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
+saveForParaview = true
+saveForMatlab   = true
+
+// Plot-plane orientation. Select a spatial direction (axis) that the plot-plane should be normal to. Choose "x", "y" or "z".
+saveNormalAxis = "y"
+
+// Plot-plane offset. What value should the index (for the direction selected above) be? Should be non-negative and smaller 
+// than the grid size in that direction. E.g., if "y" was selected, this number should be within [0, NJ-1].
+saveConstantIndex = 1
+
+//---------------------------------------------------------------------------------
+// Physical Constants
+//---------------------------------------------------------------------------------
+
+// Ratio of specific heats:
+Gamma = 1.4
+
+// Reference Prandtl number:
+Pr = 0.72
+
+// Specific gas constant:
+R = 287.
+
+// Stagnation Reynolds number:
+Re = 100.
+
+// Constants C_1 and C_2 in Sutherland's law:
+sutherlands_C1 = 1.458E-6
+sutherlands_C2 = 110.4
+
+// Reference Mach number:
+M_0 = 0.4
+
+// Reference temperature IN KELVIN, NOT DIMENSIONLESS:
+T_0 = 300.
+
+// Physical dimensionless size of the domain:
+L_x = 5.
+L_y = 0.05
+L_z = 1.
