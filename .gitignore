@@ -1,4 +1,7 @@
 output/*
+Debug/*
+Release/*
+!*/makefile
 *.o
 *.d
 *.mk
