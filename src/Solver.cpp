@@ -192,7 +192,7 @@ void Solver::updateTimeStepSize()
 // To stop at an exact time, one last timestep with an adapted dt is required to hit the end-time.
 bool Solver::checkStoppingCriterion()
 {
-	bool stopSimulating = true;
+	bool stopSimulating = true;		// until the opposite is proven.
 	switch (params.stopCriterion)
 	{
 	case StopCriterionEnum::timesteps:
@@ -217,10 +217,6 @@ bool Solver::checkStoppingCriterion()
 void Solver::marchTimeStep()
 {
 	applyFilter_ifAppropriate(rho,   interm_rho  );
-//	applyFilter_ifAppropriate(rho_u, interm_rho_u);
-//	applyFilter_ifAppropriate(rho_v, interm_rho_v);
-//	applyFilter_ifAppropriate(rho_w, interm_rho_w);
-//	applyFilter_ifAppropriate(E,     interm_E    );
 
 	compute_RK4_step_continuity(rho_u, rho_v, rho_w, k1_rho  );  // Compute step 1 (k1), i.e. the slopes at
 	compute_RK4_step_xMomentum (rho_u,               k1_rho_u);  // time t, using Euler's method.

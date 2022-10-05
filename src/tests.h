@@ -200,7 +200,7 @@ void testArray3D()
 void testArrayWithSettings()
 {
 	ConfigSettings settings;
-	if (settings.error)
+	if (settings.errorOccurred)
 		return;
 	Array3D_d u(settings.NI, settings.NJ, settings.NK);
 	uint counter{0};

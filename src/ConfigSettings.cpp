@@ -17,11 +17,11 @@ ConfigSettings::ConfigSettings()
 // If something goes wrong, the 'error' member is assigned true. Caller should check this.
 void ConfigSettings::loadSettings()
 {
-	error = false;
+	errorOccurred = false;	// <- until the opposite is proven
 	Config cfg;
 	tryOpenConfigFile(cfg);
 
-	if (!error)
+	if (!errorOccurred)
 		tryReadSettingValues(cfg);
 }
 
@@ -36,13 +36,13 @@ void ConfigSettings::tryOpenConfigFile(Config& cfg)
 	{
 		cout << "File I/O error: " << ex.what() << endl
 			 << "Make sure the 'ConfigFile' exists in correct path." << endl;
-		error = true;
+		errorOccurred = true;
 	}
 	catch (libconfig::ParseException& ex)
 	{
 		cout << "Parse error in ConfigFile: " << ex.what() << endl
 			 << "See documentation for 'libconfig' library and ensure that the 'ConfigFile' is structured correctly." << endl;
-		error = true;
+		errorOccurred = true;
 	}
 }
 
@@ -58,7 +58,7 @@ void ConfigSettings::tryReadSettingValues(Config& cfg)
 		cout << "ConfigFile setting not found: " << ex.what() << endl
 			 << "Did you specify the entire setting path? (group.setting)" << endl
 			 << "Is the name in 'ConfigFile' the same as in the 'lookup' in the code?" << endl;
-		error = true;
+		errorOccurred = true;
 	}
 	catch (libconfig::SettingTypeException& ex)
 	{
@@ -67,7 +67,7 @@ void ConfigSettings::tryReadSettingValues(Config& cfg)
 			 << "Integers must NOT have a decimal point. Floating points must have a decimal point (1. or 1.0, not 1)."
 			 << "Strings must be in \"double quotes\"." << endl
 			 << "See the documentation of the 'libconfig' library for info on how to specify data types." << endl;
-		error = true;
+		errorOccurred = true;
 	}
 }
 
@@ -92,7 +92,7 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	else
 	{
 		cout << "Error when reading ConfigFile. 'stopCriterion' needs to be 'timesteps' or 'end_time'." << endl;
-		error = true;
+		errorOccurred = true;
 	}
 
 	convStabilityLimit = cfg.lookup("convStabilityLimit");
@@ -130,7 +130,7 @@ void ConfigSettings::readSettingValues(Config& cfg)
 		else if(saveNormalAxisString=="z")
 			saveNormalAxis = saveNormalAxisEnum::z;
 		else
-			error = true;
+			errorOccurred = true;
 		saveConstantIndex = cfg.lookup("saveConstantIndex");
 	}
 

@@ -62,7 +62,7 @@ public:
 	double T_0;					// Reference temperature, NOT DIMENSIONLESS
 	double L_x, L_y, L_z;		// Physical dimensionless size of domain
 
-	bool error;					// Error flag, set true if reading the 'ConfigFile' fails
+	bool errorOccurred;			// Error flag, set true if reading the 'ConfigFile' fails
 private:
 	void tryOpenConfigFile(Config& cfg);
 	void tryReadSettingValues(Config& cfg);
