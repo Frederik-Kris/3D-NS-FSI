@@ -6,18 +6,6 @@
  */
 
 
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// TODO: Maybe write another version of momentum and energy step functions, which
-//       pre-computes the most used array reads, and see which one is fastest.
-//       Even consider having only one RK4 step func for all the cons vars, to
-//       take advantage of pre-computed neighbors.
-// TODO: Consider using another array class, from a library. Eigen would be
-//       perfect, if it supported 3D.
-// TODO: Maybe create a function that computes the residuals, that can be used also
-//       for BC. Could pass neighbor values or info about how to find them.
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
 #include "Solver.h"
 
 // Default constructor.
