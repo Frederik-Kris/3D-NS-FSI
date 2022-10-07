@@ -13,9 +13,22 @@
 #include "Array3D_d.h"
 #include "ConfigSettings.h"
 
+// Top level class, containing all variables and methods needed to run a simulation.
 class Simulation
 {
-	Solver solver;
+public:
+	Simulation();
+private:
+	void updateTimeStepSize();
+	bool checkStoppingCriterion();
+
+	ConfigSettings params;		// Parameters and settings, imported from ConfigFile
+	Solver solver;				// Solver class, for handling numerical method.
+	vector<double> normHistory_rho,  normHistory_rho_u, // Vectors of the development of the change-norms.
+			normHistory_rho_v, normHistory_rho_w, normHistory_E;
+	uint timeLevel;                                     // No. of timesteps computed. Zero is IC.
+	double t;		// Simulated time
+	Clock wallClockTimer;								// Timer that starts when simulation starts
 };
 
 
