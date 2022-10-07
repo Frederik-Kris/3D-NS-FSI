@@ -14,11 +14,13 @@
 class Mesh
 {
 public:
-	Mesh();
-	void setGridSpacings();
-	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new);
+	Mesh(uint nMeshNodesX, uint nMeshNodesY, uint nMeshNodesZ,
+		double domainLengthX, double domainLengthY, double domainLengthZ);
+	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
+									uint filterInterval, uint timeLevel);
 	void computeNorms_conservedVariables();
 	void swapConservedVariables();
+	uint NI, NJ, NK;									// Mesh size. Number of nodes in x,y,z directions
 	Array3D_d rho, rho_u, rho_v, rho_w, E;				// Conserved variables
 	Array3D_d u, v, w, p, T;							// Primitive variables
 	Array3D_d mu, kappa;								// Transport properties
@@ -31,6 +33,7 @@ public:
 	interm_rho_w, interm_E;
 	double dx, dy, dz;									// Grid spacing in x-, y- and z-direction
 private:
+	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );
 	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 };
 

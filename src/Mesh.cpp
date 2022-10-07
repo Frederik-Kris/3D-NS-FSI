@@ -7,17 +7,59 @@
 
 #include "Mesh.h"
 
-Mesh::Mesh()
+Mesh::Mesh(uint nMeshNodesX, uint nMeshNodesY, uint nMeshNodesZ,
+		double domainLengthX, double domainLengthY, double domainLengthZ ) :
+NI{nMeshNodesX}, NJ{nMeshNodesY}, NK{nMeshNodesZ},
+rho     (NI, NJ, NK),
+rho_u   (NI, NJ, NK),
+rho_v   (NI, NJ, NK),
+rho_w   (NI, NJ, NK),
+E       (NI, NJ, NK),
+u       (NI, NJ, NK),
+v       (NI, NJ, NK),
+w       (NI, NJ, NK),
+p       (NI, NJ, NK),
+T       (NI, NJ, NK),
+mu      (NI, NJ, NK),
+kappa   (NI, NJ, NK),
+k1_rho  (NI, NJ, NK),
+k2_rho  (NI, NJ, NK),
+k3_rho  (NI, NJ, NK),
+k4_rho  (NI, NJ, NK),
+k1_rho_u(NI, NJ, NK),
+k2_rho_u(NI, NJ, NK),
+k3_rho_u(NI, NJ, NK),
+k4_rho_u(NI, NJ, NK),
+k1_rho_v(NI, NJ, NK),
+k2_rho_v(NI, NJ, NK),
+k3_rho_v(NI, NJ, NK),
+k4_rho_v(NI, NJ, NK),
+k1_rho_w(NI, NJ, NK),
+k2_rho_w(NI, NJ, NK),
+k3_rho_w(NI, NJ, NK),
+k4_rho_w(NI, NJ, NK),
+k1_E    (NI, NJ, NK),
+k2_E    (NI, NJ, NK),
+k3_E    (NI, NJ, NK),
+k4_E    (NI, NJ, NK),
+interm_rho  (NI, NJ, NK),
+interm_rho_u(NI, NJ, NK),
+interm_rho_v(NI, NJ, NK),
+interm_rho_w(NI, NJ, NK),
+interm_E    (NI, NJ, NK)
 {
-
+	setGridSpacings(domainLengthX, domainLengthY, domainLengthZ);
 }
 
+
 // Calculate the space between nodes in the grid, based on domain size and no. of nodes.
-void Solver::setGridSpacings()
+void Mesh::setGridSpacings(double domainLengthX,
+							 double domainLengthY,
+							 double domainLengthZ )
 {
-	dx = params.L_x / (params.NI - 1);
-	dy = params.L_y / (params.NJ - 1);
-	dz = params.L_z / (params.NK - 1);
+	dx = domainLengthX / (NI - 1);
+	dy = domainLengthY / (NJ - 1);
+	dz = domainLengthZ / (NK - 1);
 	cout << "Grid spacings set: dx = " << dx << " , dy = " << dy << " , dz = " << dz << endl;
 }
 
@@ -25,12 +67,13 @@ void Solver::setGridSpacings()
 // result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
 // Only filters if the modulo of time level plus one, by the filter interval is zero.
 // This causes the first filtering to happen as late as possible.
-void Solver::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage)
+void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
+									uint filterInterval, uint timeLevel)
 {
-	if(params.filterInterval > 0)
-		if( (timeLevel+1) % params.filterInterval == 0 )
+	if(filterInterval > 0)
+		if( (timeLevel+1) % filterInterval == 0 )
 		{
-			uint iMax{params.NI-1}, jMax{params.NJ-1}, kMax{params.NK-1};
+			uint iMax{NI-1}, jMax{NJ-1}, kMax{NK-1};
 			// Copy boundary nodes:
 			for(uint i{0}; i<=iMax; ++i)
 				for(uint j{0}; j<=jMax; ++j)
@@ -65,7 +108,7 @@ void Solver::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& var
 }
 
 // Compute the norm of change in the conserved variables, and store in the history vectors.
-void Solver::computeNorms_conservedVariables()
+void Mesh::computeNorms_conservedVariables()
 {
 	normHistory_rho  .push_back( getNormOfChange(rho  , interm_rho  ) );
 	normHistory_rho_u.push_back( getNormOfChange(rho_u, interm_rho_u) );
@@ -76,7 +119,7 @@ void Solver::computeNorms_conservedVariables()
 
 // Swap the contents of all the arrays of conserved variables and the intermediate arrays, by move-semantics.
 // This operation is super fast and needs no extra copy. Only the ownership of the data is changed.
-void Solver::swapConservedVariables()
+void Mesh::swapConservedVariables()
 {
 	rho  .dataSwap(interm_rho  );
 	rho_u.dataSwap(interm_rho_u);
@@ -87,10 +130,10 @@ void Solver::swapConservedVariables()
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.
 // E.g. to check convergence of solution.
-double Solver::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
+double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredChanges = 0;
-	uint numberOfMeshNodes = params.NI * params.NJ * params.NK;
+	uint numberOfMeshNodes = NI * NJ * NK;
 	for(uint i=0; i<numberOfMeshNodes; ++i)
 		sumOfSquaredChanges += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredChanges );
