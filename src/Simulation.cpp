@@ -20,6 +20,7 @@ t{0}, timeLevel{0}
 		solver.marchTimeStep();
 		output.processIntermediateOutput(params, statusReportTimer, t, solver.dt);
 	}
+	const vector<const vector<double>*> convergenceHistoryPointers = {&normHistory_rho, &normHistory_rho_u, &normHistory_rho_v, &normHistory_rho_w, &normHistory_E};
 	output.processFinalOutput(params);
 }
 
