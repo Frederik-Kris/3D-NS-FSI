@@ -17,7 +17,7 @@ params{params},
 mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z)
 {
 	applyStagnation_IC();
-	updateTimeStepSize(mesh.p, mesh.rho, mesh.u, mesh.v, mesh.w);
+	updateTimeStepSize(0);
 }
 
 // Applies stagnation initial condition (IC) by setting the values of flow variables at every node
@@ -127,9 +127,9 @@ void Solver::getDerivedVariables_atPoint(double u_P,double v_P, double w_P, doub
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
 // TODO: This function is long. Consider splitting it up into smaller ones.
-void Solver::marchTimeStep()
+void Solver::marchTimeStep(uint timeLevel)
 {
-	applyFilter_ifAppropriate(rho,   interm_rho  );
+	mesh.applyFilter_ifAppropriate(mesh.rho, mesh.interm_rho, params.filterInterval, timeLevel);
 
 	compute_RK4_step_continuity(rho_u, rho_v, rho_w, k1_rho  );  // Compute step 1 (k1), i.e. the slopes at
 	compute_RK4_step_xMomentum (rho_u,               k1_rho_u);  // time t, using Euler's method.
@@ -212,9 +212,9 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d
 		{
 			for(uint k{1}; k<params.NK-1; ++k)
 			{
-				RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*dx)
-							       - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*dy)
-							       - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*dz);
+				RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx)
+							       - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy)
+							       - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*mesh.dz);
 			}
 		}
 	}
@@ -225,16 +225,18 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d
 // computed in the calling function etc. Result is stored in argument 'RK4_slope'.
 void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_slope)
 {
-	double neg_1_div_2dx   = -1. / ( 2 * dx );       // <- The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node are
-	double neg_1_div_2dz   = -1. / ( 2 * dz );       //    pre-computed, outside the loop.
-	double pos_2_div_3dxdx =  2. / ( 3 * dx * dx );
-	double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
-	double neg_1_div_6dxdy = -1. / ( 6 * dx * dy );
-	double pos_1_div_4dxdy =  1. / ( 4 * dx * dy );
-	double neg_1_div_6dxdz = -1. / ( 6 * dx * dz );
-	double pos_1_div_4dxdz =  1. / ( 4 * dx * dz );
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node are
+	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );       //    pre-computed, outside the loop.
+	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
+	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
+	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
+	double neg_1_div_6dxdy = -1. / ( 6 * mesh.dx * mesh.dy );
+	double pos_1_div_4dxdy =  1. / ( 4 * mesh.dx * mesh.dy );
+	double neg_1_div_6dxdz = -1. / ( 6 * mesh.dx * mesh.dz );
+	double pos_1_div_4dxdz =  1. / ( 4 * mesh.dx * mesh.dz );
+
+	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -265,16 +267,18 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 // computed in the calling function etc. Result is stored in argument 'RK4_slope'.
 void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_slope)
 {
-	double neg_1_div_2dx   = -1. / ( 2 * dx );       // <- The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node are
-	double neg_1_div_2dz   = -1. / ( 2 * dz );       //    pre-computed, outside the loop.
-	double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
-	double pos_2_div_3dydy =  2. / ( 3 * dy * dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
-	double neg_1_div_6dxdy = -1. / ( 6 * dx * dy );
-	double pos_1_div_4dydx =  1. / ( 4 * dy * dx );
-	double neg_1_div_6dzdy = -1. / ( 6 * dz * dy );
-	double pos_1_div_4dydz =  1. / ( 4 * dy * dz );
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node are
+	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );       //    pre-computed, outside the loop.
+	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
+	double pos_2_div_3dydy =  2. / ( 3 * mesh.dy * mesh.dy );
+	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
+	double neg_1_div_6dxdy = -1. / ( 6 * mesh.dx * mesh.dy );
+	double pos_1_div_4dydx =  1. / ( 4 * mesh.dy * mesh.dx );
+	double neg_1_div_6dzdy = -1. / ( 6 * mesh.dz * mesh.dy );
+	double pos_1_div_4dydz =  1. / ( 4 * mesh.dy * mesh.dz );
+
+	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -305,16 +309,18 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 // computed in the calling function etc. Result is stored in argument 'RK4_slope'.
 void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_slope)
 {
-	double neg_1_div_2dx   = -1. / ( 2 * dx );       // <- The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node are
-	double neg_1_div_2dz   = -1. / ( 2 * dz );       //    pre-computed, outside the loop.
-	double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
-	double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
-	double pos_2_div_3dzdz =  2. / ( 3 * dz * dz );
-	double pos_1_div_4dzdx =  1. / ( 4 * dz * dx );
-	double neg_1_div_6dxdz = -1. / ( 6 * dx * dz );
-	double pos_1_div_4dzdy =  1. / ( 4 * dz * dy );
-	double neg_1_div_6dydz = -1. / ( 6 * dy * dz );
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node are
+	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );       //    pre-computed, outside the loop.
+	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
+	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
+	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
+	double pos_1_div_4dzdx =  1. / ( 4 * mesh.dz * mesh.dx );
+	double neg_1_div_6dxdz = -1. / ( 6 * mesh.dx * mesh.dz );
+	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
+	double neg_1_div_6dydz = -1. / ( 6 * mesh.dy * mesh.dz );
+
+	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -345,22 +351,24 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 // computed in the calling function etc. Result is stored in argument 'RK4_slope'.
 void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 {
-	double neg_1_div_2dx   = -1. / ( 2 * dx );       // <- The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node are
-	double neg_1_div_2dz   = -1. / ( 2 * dz );       //    pre-computed, outside the loop.
-	double pos_2_div_3dxdx =  2. / ( 3 * dx * dx );
-	double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
-	double neg_1_div_6dydx = -1. / ( 6 * dy * dx );
-	double neg_1_div_6dzdx = -1. / ( 6 * dz * dx );
-	double pos_1_div_4dydx =  1. / ( 4 * dy * dx );
-	double pos_1_div_4dzdx =  1. / ( 4 * dz * dx );
-	double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
-	double pos_2_div_3dydy =  2. / ( 3 * dy * dy );
-	double neg_1_div_6dzdy = -1. / ( 6 * dz * dy );
-	double pos_1_div_4dzdy =  1. / ( 4 * dz * dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
-	double pos_2_div_3dzdz =  2. / ( 3 * dz * dz );
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node are
+	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );       //    pre-computed, outside the loop.
+	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
+	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
+	double neg_1_div_6dydx = -1. / ( 6 * mesh.dy * mesh.dx );
+	double neg_1_div_6dzdx = -1. / ( 6 * mesh.dz * mesh.dx );
+	double pos_1_div_4dydx =  1. / ( 4 * mesh.dy * mesh.dx );
+	double pos_1_div_4dzdx =  1. / ( 4 * mesh.dz * mesh.dx );
+	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
+	double pos_2_div_3dydy =  2. / ( 3 * mesh.dy * mesh.dy );
+	double neg_1_div_6dzdy = -1. / ( 6 * mesh.dz * mesh.dy );
+	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
+	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
+	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
 	double rho_H_0 = 1. / ( params.Gamma - 1 );     // <- Dimensionless reference enthalpy
+
+	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &T{mesh.T}, &mu{mesh.mu}, &kappa{mesh.kappa}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -434,6 +442,7 @@ void Solver::updatePrimitiveVariables(const Array3D_d& rho, const Array3D_d& rho
 	double sutherlands_Sc = params.T_0 / params.sutherlands_C2;
 	double ScPlusOne = 1 + sutherlands_Sc;
 	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
+	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &T{mesh.T}, &mu{mesh.mu}, &kappa{mesh.kappa};
 
 	for (uint i{1}; i<params.NI-1; ++i)
 		for (uint j{1}; j<params.NJ-1; ++j)
@@ -463,81 +472,6 @@ void Solver::updatePrimitiveVariables(const Array3D_d& rho, const Array3D_d& rho
 		for (uint j{1}; j<params.NJ-1; ++j)
 			for (uint k{1}; k<params.NK-1; ++k)
 				kappa(i,j,k) = mu(i,j,k) * prandtlFactor;
-}
-
-// Applies channel flow boundary conditions, by setting the variables in the outer nodes.
-// Two walls with no-slip condition, no heat flux and no pressure gradient. Periodic BC in one direction.
-// Inlet: Parabolic velocity profile from incompressible analytic solution is gradually applied from stagnation. Zero temperature perturbation, pressure extrapolated.
-// Outlet: Zero pressure perturbation. Density and momentums extrapolated.
-void Solver::applyInjectionBC_risingInletVelocityChannelFlow(Array3D_d& rho, Array3D_d& rho_u, Array3D_d& rho_v, Array3D_d& rho_w, Array3D_d& E, double time)
-{
-	uint iMax{params.NI - 1}, jMax{params.NJ - 1}, kMax{params.NK - 1};
-	double gammaMinusOne = params.Gamma - 1;
-	double sutherlands_Sc = params.T_0 / params.sutherlands_C2;
-	double ScPlusOne = 1 + sutherlands_Sc;
-	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
-	for (uint j{1}; j<=jMax-1; ++j)
-		for (uint k{1}; k<=kMax-1; ++k)
-		{
-			double z = k * dz;
-			double u_parabolic = 4. * params.M_0 * ( z - z*z );
-			u(0,j,k) = min( 0.2*t*u_parabolic, u_parabolic );
-			v(0,j,k) = 0;
-			w(0,j,k) = 0;
-			p(0,j,k) = 2*p(1,j,k) - p(2,j,k);
-			T(0,j,k) = 0;
-			getDerivedVariables_atPoint(u(0,j,k), v(0,j,k), w(0,j,k), p(0,j,k), T(0,j,k), rho(0,j,k), rho_u(0,j,k), rho_v(0,j,k), rho_w(0,j,k), E(0,j,k), mu(0,j,k), kappa(0,j,k));
-
-			rho  (iMax, j, k) = 2*rho  (iMax-1, j, k) - rho  (iMax-2, j, k);
-			rho_u(iMax, j, k) = 2*rho_u(iMax-1, j, k) - rho_u(iMax-2, j, k);
-			rho_v(iMax, j, k) = 2*rho_v(iMax-1, j, k) - rho_v(iMax-2, j, k);
-			rho_w(iMax, j, k) = 2*rho_w(iMax-1, j, k) - rho_w(iMax-2, j, k);
-			p(iMax,j,k) = 0;
-			u(iMax,j,k) = rho_u(iMax,j,k) / (1+rho(iMax,j,k));
-			v(iMax,j,k) = rho_v(iMax,j,k) / (1+rho(iMax,j,k));
-			w(iMax,j,k) = rho_w(iMax,j,k) / (1+rho(iMax,j,k));
-			T(iMax,j,k) = (params.Gamma * p(iMax,j,k) - rho(iMax,j,k))/(1 + rho(iMax,j,k));
-			E(iMax,j,k) = p(iMax,j,k) / gammaMinusOne + (1 + rho(iMax,j,k))/2 * ( pow(u(iMax,j,k),2) + pow(v(iMax,j,k),2) + pow(w(iMax,j,k),2) );
-			mu(iMax,j,k) = pow( 1+T(iMax,j,k), 1.5 ) * ScPlusOne / ( params.Re*( T(iMax,j,k) + ScPlusOne ) );
-			kappa(iMax,j,k) = mu(iMax,j,k) * prandtlFactor;
-		}
-	for (uint i{0}; i<=iMax; ++i)
-		for (uint k{1}; k<=kMax-1; ++k)
-		{
-			u  (i,0,k) = u(i,jMax-1,k);
-			v  (i,0,k) = v(i,jMax-1,k);
-			w  (i,0,k) = w(i,jMax-1,k);
-			p  (i,0,k) = p(i,jMax-1,k);
-			T  (i,0,k) = T(i,jMax-1,k);
-			getDerivedVariables_atPoint(u(i,0,k), v(i,0,k), w(i,0,k), p(i,0,k), T(i,0,k), rho(i,0,k), rho_u(i,0,k), rho_v(i,0,k), rho_w(i,0,k), E(i,0,k), mu(i,0,k), kappa(i,0,k));
-
-			u  (i, jMax, k) = u(i, 1, k);
-			v  (i, jMax, k) = v(i, 1, k);
-			w  (i, jMax, k) = w(i, 1, k);
-			p  (i, jMax, k) = p(i, 1, k);
-			T  (i, jMax, k) = T(i, 1, k);
-			getDerivedVariables_atPoint(u(i, jMax, k), v(i, jMax, k), w(i, jMax, k), p(i, jMax, k), T(i, jMax, k),
-					rho(i, jMax, k), rho_u(i, jMax, k), rho_v(i, jMax, k), rho_w(i, jMax, k), E(i, jMax, k), mu(i, jMax, k), kappa(i, jMax, k));
-		}
-	for (uint i{0}; i<=iMax; ++i)
-		for (uint j{0}; j<=jMax; ++j)
-		{
-
-			u(i,j,0) = 0;	// No-slip
-			v(i,j,0) = 0;
-			w(i,j,0) = 0;
-			p(i,j,0) = (4*p(i,j,1) - p(i,j,2))/3;	// 2nd order Neumann BC (zero gradient)
-			T(i,j,0) = (4*T(i,j,1) - T(i,j,2))/3;
-			getDerivedVariables_atPoint(u(i,j,0), v(i,j,0), w(i,j,0), p(i,j,0), T(i,j,0), rho(i,j,0), rho_u(i,j,0), rho_v(i,j,0), rho_w(i,j,0), E(i,j,0), mu(i,j,0), kappa(i,j,0));
-
-			u(i,j,kMax) = 0;	// No-slip
-			v(i,j,kMax) = 0;
-			w(i,j,kMax) = 0;
-			p(i,j,kMax) = (4*p(i,j,kMax-1) - p(i,j,kMax-2))/3;	// 2nd order Neumann BC (zero gradient)
-			T(i,j,kMax) = (4*T(i,j,kMax-1) - T(i,j,kMax-2))/3;
-			getDerivedVariables_atPoint(u(i,j,kMax), v(i,j,kMax), w(i,j,kMax), p(i,j,kMax), T(i,j,kMax),
-					rho(i,j,kMax), rho_u(i,j,kMax), rho_v(i,j,kMax), rho_w(i,j,kMax), E(i,j,kMax), mu(i,j,kMax), kappa(i,j,kMax));
-		}
 }
 
 // Uses all the intermediate solutions for a variable, k1,2,3,4, to advance the variable from t to t+dt

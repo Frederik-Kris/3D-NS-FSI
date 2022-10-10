@@ -26,7 +26,7 @@ private:
 	double getViscousTimeStepLimit();
 	void getDerivedVariables_atPoint(double u_0,double v_0, double w_0, double p_0, double T_0,
 			double& rho_0, double& rho_u_0, double& rho_v_0, double& rho_w_0, double& E_0, double& mu_0, double& kappa_0);
-	void marchTimeStep();
+	void marchTimeStep(uint timeLevel);
 	void compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
                                            Array3D_d& RK4_slope);
 	void compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_slope);
@@ -37,13 +37,12 @@ private:
 			                               Array3D_d& intermSolution, double timeIncrement);
 	void updatePrimitiveVariables(const Array3D_d& rho, const Array3D_d& rho_u, const Array3D_d& rho_v,
                                   const Array3D_d& rho_w, const Array3D_d& E);
-	void applyInjectionBC_risingInletVelocityChannelFlow(Array3D_d& rho, Array3D_d& rho_u, Array3D_d& rho_v, Array3D_d& rho_w, Array3D_d& E, double time);
 	void compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2, const Array3D_d& k3, const Array3D_d& k4,
 								const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new);
 
-	ConfigSettings params;								// Parameters and settings, imported from ConfigFile
-	Mesh mesh;											// Computational mesh, containing flow variables
-	double dt;											// Time-step size
+	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
+	Mesh mesh;						// Computational mesh, containing flow variables
+	double dt;						// Time-step size
 };
 
 
