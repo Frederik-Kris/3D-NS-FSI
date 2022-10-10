@@ -117,29 +117,29 @@ vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 {
 	vector<const Array3D_d*> flowVariables;
 	if ( params.save_rho )
-		flowVariables.push_back(&mesh.rho);
+		flowVariables.push_back(&mesh.conservedVariables.rho);
 	if ( params.save_rho_u )
-		flowVariables.push_back(&mesh.rho_u);
+		flowVariables.push_back(&mesh.conservedVariables.rho_u);
 	if ( params.save_rho_v )
-		flowVariables.push_back(&mesh.rho_v);
+		flowVariables.push_back(&mesh.conservedVariables.rho_v);
 	if ( params.save_rho_w )
-		flowVariables.push_back(&mesh.rho_w);
+		flowVariables.push_back(&mesh.conservedVariables.rho_w);
 	if ( params.save_E )
-		flowVariables.push_back(&mesh.E);
+		flowVariables.push_back(&mesh.conservedVariables.rho_E);
 	if ( params.save_u )
-		flowVariables.push_back(&mesh.u);
+		flowVariables.push_back(&mesh.primitiveVariables.u);
 	if ( params.save_v )
-		flowVariables.push_back(&mesh.v);
+		flowVariables.push_back(&mesh.primitiveVariables.v);
 	if ( params.save_w )
-		flowVariables.push_back(&mesh.w);
+		flowVariables.push_back(&mesh.primitiveVariables.w);
 	if ( params.save_p )
-		flowVariables.push_back(&mesh.p);
+		flowVariables.push_back(&mesh.primitiveVariables.p);
 	if ( params.save_T )
-		flowVariables.push_back(&mesh.T);
+		flowVariables.push_back(&mesh.primitiveVariables.T);
 	if ( params.save_mu )
-		flowVariables.push_back(&mesh.mu);
+		flowVariables.push_back(&mesh.transportProperties.mu);
 	if ( params.save_kappa )
-		flowVariables.push_back(&mesh.kappa);
+		flowVariables.push_back(&mesh.transportProperties.kappa);
 	return flowVariables;
 }
 

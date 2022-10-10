@@ -27,18 +27,18 @@ void Solver::applyStagnation_IC()
 	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  // <- Decide primitive variables
 	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;  // <- Other variables follow equations.
 	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	mesh.u    .setAll(u_IC);
-	mesh.v    .setAll(v_IC);
-	mesh.w    .setAll(w_IC);
-	mesh.p    .setAll(p_IC);
-	mesh.T    .setAll(T_IC);
-	mesh.rho  .setAll(rho_IC);
-	mesh.rho_u.setAll(rho_u_IC);
-	mesh.rho_v.setAll(rho_v_IC);
-	mesh.rho_w.setAll(rho_w_IC);
-	mesh.E	  .setAll(E_IC);
-	mesh.mu   .setAll(mu_IC);
-	mesh.kappa.setAll(kappa_IC);
+	mesh.primitiveVariables.u    .setAll(u_IC);
+	mesh.primitiveVariables.v    .setAll(v_IC);
+	mesh.primitiveVariables.w    .setAll(w_IC);
+	mesh.primitiveVariables.p    .setAll(p_IC);
+	mesh.primitiveVariables.T    .setAll(T_IC);
+	mesh.conservedVariables.rho  .setAll(rho_IC);
+	mesh.conservedVariables.rho_u.setAll(rho_u_IC);
+	mesh.conservedVariables.rho_v.setAll(rho_v_IC);
+	mesh.conservedVariables.rho_w.setAll(rho_w_IC);
+	mesh.conservedVariables.rho_E.setAll(E_IC);
+	mesh.transportProperties.mu   .setAll(mu_IC);
+	mesh.transportProperties.kappa.setAll(kappa_IC);
 	cout << "Done" << endl << endl;
 }
 
@@ -49,18 +49,18 @@ void Solver::applyUniformFlow_IC()
 	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
 	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;      // <- Other variables follow equations.
 	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	mesh.u    .setAll(u_IC);
-	mesh.v    .setAll(v_IC);
-	mesh.w    .setAll(w_IC);
-	mesh.p    .setAll(p_IC);
-	mesh.T    .setAll(T_IC);
-	mesh.rho  .setAll(rho_IC);
-	mesh.rho_u.setAll(rho_u_IC);
-	mesh.rho_v.setAll(rho_v_IC);
-	mesh.rho_w.setAll(rho_w_IC);
-	mesh.E	  .setAll(E_IC);
-	mesh.mu   .setAll(mu_IC);
-	mesh.kappa.setAll(kappa_IC);
+	mesh.primitiveVariables.u    .setAll(u_IC);
+	mesh.primitiveVariables.v    .setAll(v_IC);
+	mesh.primitiveVariables.w    .setAll(w_IC);
+	mesh.primitiveVariables.p    .setAll(p_IC);
+	mesh.primitiveVariables.T    .setAll(T_IC);
+	mesh.conservedVariables.rho  .setAll(rho_IC);
+	mesh.conservedVariables.rho_u.setAll(rho_u_IC);
+	mesh.conservedVariables.rho_v.setAll(rho_v_IC);
+	mesh.conservedVariables.rho_w.setAll(rho_w_IC);
+	mesh.conservedVariables.rho_E.setAll(E_IC);
+	mesh.transportProperties.mu   .setAll(mu_IC);
+	mesh.transportProperties.kappa.setAll(kappa_IC);
 }
 
 // Set the time step size (dt) as large as possible, within the stability criterion.
@@ -79,7 +79,8 @@ void Solver::updateTimeStepSize(double t)
 // Find the inviscid time step limit (CFL condition):
 double Solver::getInviscidTimeStepLimit()
 {
-	const Array3D_d& p{mesh.p}, &rho{mesh.rho}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w};
+	const Array3D_d& p{mesh.primitiveVariables.p}, &rho{mesh.conservedVariables.rho},
+		&u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w};
 	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
 	for (uint i{0}; i<mesh.nNodesTotal; ++i)
 	{
@@ -96,7 +97,7 @@ double Solver::getInviscidTimeStepLimit()
 // Find the viscous time step limit (von Neumann condition):
 double Solver::getViscousTimeStepLimit()
 {
-	const Array3D_d& mu{mesh.mu}, &rho{mesh.rho};
+	const Array3D_d& mu{mesh.transportProperties.mu}, &rho{mesh.conservedVariables.rho};
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
 	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
 	for (uint i{0}; i<mesh.nNodesTotal; ++i)
@@ -129,58 +130,22 @@ void Solver::getDerivedVariables_atPoint(double u_P,double v_P, double w_P, doub
 // TODO: This function is long. Consider splitting it up into smaller ones.
 void Solver::marchTimeStep(uint timeLevel)
 {
-	mesh.applyFilter_ifAppropriate(mesh.rho, mesh.interm_rho, params.filterInterval, timeLevel);
+	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.intermediateConservedVariables.rho, params.filterInterval, timeLevel);
 
-	compute_RK4_step_continuity(rho_u, rho_v, rho_w, k1_rho  );  // Compute step 1 (k1), i.e. the slopes at
-	compute_RK4_step_xMomentum (rho_u,               k1_rho_u);  // time t, using Euler's method.
-	compute_RK4_step_yMomentum (rho_v,               k1_rho_v);
-	compute_RK4_step_zMomentum (rho_w,               k1_rho_w);
-	compute_RK4_step_energy    (E,                   k1_E    );
 
-	computeIntermediateSolution(rho,   k1_rho,   interm_rho,   dt/2);   // Compute intermediate solutions at
-	computeIntermediateSolution(rho_u, k1_rho_u, interm_rho_u, dt/2);   // time t + dt/2, using the slopes k1.
-	computeIntermediateSolution(rho_v, k1_rho_v, interm_rho_v, dt/2);
-	computeIntermediateSolution(rho_w, k1_rho_w, interm_rho_w, dt/2);
-	computeIntermediateSolution(E,     k1_E,     interm_E,     dt/2);
+	computeRK4slopes(mesh.conservedVariables, mesh.RK4_slopes[0]);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
+	computeAllIntermediateSolutions(mesh.RK4_slopes[0], dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
+	updatePrimitiveVariables();
 
-	updatePrimitiveVariables(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E);
-	applyInjectionBC_risingInletVelocityChannelFlow(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E, t+dt/2);
+	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[1]);  // k2: The slopes at time t + dt/2
+	computeAllIntermediateSolutions(mesh.RK4_slopes[1], dt/2)	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
+	updatePrimitiveVariables();
 
-	compute_RK4_step_continuity(interm_rho_u, interm_rho_v, interm_rho_w, k2_rho  );  // k2: The slopes at time t + dt/2
-	compute_RK4_step_xMomentum (interm_rho_u,                             k2_rho_u);
-	compute_RK4_step_yMomentum (interm_rho_v,                             k2_rho_v);
-	compute_RK4_step_zMomentum (interm_rho_w,                             k2_rho_w);
-	compute_RK4_step_energy    (interm_E,                                 k2_E    );
+	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[2]);	// k3: Again, the slopes at time t + dt/2, but now using k2
+	computeAllIntermediateSolutions(mesh.RK4_slopes[2], dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
+	updatePrimitiveVariables();
 
-	computeIntermediateSolution(rho,   k2_rho,   interm_rho,   dt/2);   // Compute intermediate solutions at
-	computeIntermediateSolution(rho_u, k2_rho_u, interm_rho_u, dt/2);   // time t + dt/2, using the slopes k2.
-	computeIntermediateSolution(rho_v, k2_rho_v, interm_rho_v, dt/2);
-	computeIntermediateSolution(rho_w, k2_rho_w, interm_rho_w, dt/2);
-	computeIntermediateSolution(E,     k2_E,     interm_E,     dt/2);
-
-	updatePrimitiveVariables(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E);
-	applyInjectionBC_risingInletVelocityChannelFlow(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E, t+dt/2);
-
-	compute_RK4_step_continuity(interm_rho_u, interm_rho_v, interm_rho_w, k3_rho  );  // k3: Again, the slopes at time
-	compute_RK4_step_xMomentum (interm_rho_u,                             k3_rho_u);  //     t + dt/2, but now using k2
-	compute_RK4_step_yMomentum (interm_rho_v,                             k3_rho_v);
-	compute_RK4_step_zMomentum (interm_rho_w,                             k3_rho_w);
-	compute_RK4_step_energy    (interm_E,                                 k3_E    );
-
-	computeIntermediateSolution(rho,   k3_rho,   interm_rho,   dt);   // Compute intermediate solutions at
-	computeIntermediateSolution(rho_u, k3_rho_u, interm_rho_u, dt);   // time t + dt, using the slopes k3.
-	computeIntermediateSolution(rho_v, k3_rho_v, interm_rho_v, dt);
-	computeIntermediateSolution(rho_w, k3_rho_w, interm_rho_w, dt);
-	computeIntermediateSolution(E,     k3_E,     interm_E,     dt);
-
-	updatePrimitiveVariables(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E);
-	applyInjectionBC_risingInletVelocityChannelFlow(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E, t+dt);
-
-	compute_RK4_step_continuity(interm_rho_u, interm_rho_v, interm_rho_w, k4_rho  );  // k4: The slopes at time t + dt
-	compute_RK4_step_xMomentum (interm_rho_u,                             k4_rho_u);
-	compute_RK4_step_yMomentum (interm_rho_v,                             k4_rho_v);
-	compute_RK4_step_zMomentum (interm_rho_w,                             k4_rho_w);
-	compute_RK4_step_energy    (interm_E,                                 k4_E    );
+	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[3]);	// k4: The slopes at time t + dt
 
 	compute_RK4_final_step(k1_rho,   k2_rho,   k3_rho,   k4_rho,   rho  , interm_rho  );  // Use a weighted average of the four slopes
 	compute_RK4_final_step(k1_rho_u, k2_rho_u, k3_rho_u, k4_rho_u, rho_u, interm_rho_u);  // to advance the solution from time t, to
@@ -188,16 +153,24 @@ void Solver::marchTimeStep(uint timeLevel)
 	compute_RK4_final_step(k1_rho_w, k2_rho_w, k3_rho_w, k4_rho_w, rho_w, interm_rho_w);  // are stored in the 'interm' arrays, so the
 	compute_RK4_final_step(k1_E,     k2_E,     k3_E,     k4_E,     E    , interm_E    );  // norm of the change can be computed.
 
-	updatePrimitiveVariables(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E);
-	applyInjectionBC_risingInletVelocityChannelFlow(interm_rho, interm_rho_u, interm_rho_v, interm_rho_w, interm_E, t+dt);
+	updatePrimitiveVariables();
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
-	computeNorms_conservedVariables();	// Compute norm of the change between old and new time levels, and add to history.
+	mesh.computeNorms_conservedVariables();	// Compute norm of the change between old and new time levels, and add to history.
 	swapConservedVariables();			// Swap conserved variables to their main arrays by move-semantics.
 
 	t += dt;
 	++timeLevel;
 	updateTimeStepSize();
+}
+
+void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables, ConservedVariablesArrayGroup& RK4slopes)
+{
+	compute_RK4_step_continuity(conservedVariables.rho_u, conservedVariables.rho_v, conservedVariables.rho_w, RK4slopes.rho  );
+	compute_RK4_step_xMomentum (conservedVariables.rho_u,               									  RK4slopes.rho_u);
+	compute_RK4_step_yMomentum (conservedVariables.rho_v,               									  RK4slopes.rho_v);
+	compute_RK4_step_zMomentum (conservedVariables.rho_w,               									  RK4slopes.rho_w);
+	compute_RK4_step_energy    (conservedVariables.rho_E,                   								  RK4slopes.rho_E);
 }
 
 // Computes an RK4 step (slope: k1, ..., k4) for the mass density. The previous state of the momentum densities, rho_u,
@@ -236,7 +209,8 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 	double neg_1_div_6dxdz = -1. / ( 6 * mesh.dx * mesh.dz );
 	double pos_1_div_4dxdz =  1. / ( 4 * mesh.dx * mesh.dz );
 
-	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
+	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
+		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -278,7 +252,8 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 	double neg_1_div_6dzdy = -1. / ( 6 * mesh.dz * mesh.dy );
 	double pos_1_div_4dydz =  1. / ( 4 * mesh.dy * mesh.dz );
 
-	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
+	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
+		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -320,7 +295,8 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
 	double neg_1_div_6dydz = -1. / ( 6 * mesh.dy * mesh.dz );
 
-	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &mu{mesh.mu}; // For readability in math expression below.
+	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
+		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -368,7 +344,8 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
 	double rho_H_0 = 1. / ( params.Gamma - 1 );     // <- Dimensionless reference enthalpy
 
-	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &T{mesh.T}, &mu{mesh.mu}, &kappa{mesh.kappa}; // For readability in math expression below.
+	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
+		&T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa}; // For readability in math expression below.
 
 	for(uint i{1}; i<params.NI-1; ++i)
 	{
@@ -420,6 +397,15 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 	}
 }
 
+void Solver::computeAllIntermediateSolutions(const ConservedVariablesArrayGroup& RK4slopes, double timeIncrement)
+{
+	computeIntermediateSolution(mesh.conservedVariables.rho,   RK4slopes.rho,   mesh.intermediateConservedVariables.rho,   timeIncrement);
+	computeIntermediateSolution(mesh.conservedVariables.rho_u, RK4slopes.rho_u, mesh.intermediateConservedVariables.rho_u, timeIncrement);
+	computeIntermediateSolution(mesh.conservedVariables.rho_v, RK4slopes.rho_v, mesh.intermediateConservedVariables.rho_v, timeIncrement);
+	computeIntermediateSolution(mesh.conservedVariables.rho_w, RK4slopes.rho_w, mesh.intermediateConservedVariables.rho_w, timeIncrement);
+	computeIntermediateSolution(mesh.conservedVariables.rho_E, RK4slopes.rho_E, mesh.intermediateConservedVariables.rho_E, timeIncrement);
+}
+
 // Evaluates an intermediate solution of the given conserved variable, using the given RK4 step (slope)
 // and the appropriate time increment (dt/2 if k1 or k2 is given, dt if k3 is given).
 // Result is stored in 'intermSolution'. Only writes interior nodes.
@@ -435,14 +421,16 @@ void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, const Ar
 // Updates the primitive variables and transport properties, using the specified conserved variables.
 // The conserved variables can be given at time t (just pass the data-members rho, rho_u, ..., E),
 // or as intermediate solutions computed in the calling function etc. Only writes interior nodes!
-void Solver::updatePrimitiveVariables(const Array3D_d& rho, const Array3D_d& rho_u, const Array3D_d& rho_v,
-		                                 const Array3D_d& rho_w, const Array3D_d& E)
+void Solver::updatePrimitiveVariables()
 {
 	double gammaMinusOne = params.Gamma - 1;
 	double sutherlands_Sc = params.T_0 / params.sutherlands_C2;
 	double ScPlusOne = 1 + sutherlands_Sc;
 	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
-	const Array3D_d& p{mesh.p}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w}, &T{mesh.T}, &mu{mesh.mu}, &kappa{mesh.kappa};
+	const Array3D_d& rho_u{mesh.conservedVariables.rho_u}, &rho_v{mesh.conservedVariables.rho_v}, &rho_w{mesh.conservedVariables.rho_w},
+	&rho{mesh.conservedVariables.rho}, &rho_E{mesh.conservedVariables.rho_E},
+	&u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
+	&p{mesh.primitiveVariables.p}, &T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa};
 
 	for (uint i{1}; i<params.NI-1; ++i)
 		for (uint j{1}; j<params.NJ-1; ++j)
@@ -459,7 +447,7 @@ void Solver::updatePrimitiveVariables(const Array3D_d& rho, const Array3D_d& rho
 	for (uint i{1}; i<params.NI-1; ++i)
 		for (uint j{1}; j<params.NJ-1; ++j)
 			for (uint k{1}; k<params.NK-1; ++k)
-				p(i,j,k) = gammaMinusOne * ( E(i,j,k) - (rho(i,j,k)+1)/2 * (u(i,j,k)*u(i,j,k) + v(i,j,k)*v(i,j,k) + w(i,j,k)*w(i,j,k)) );
+				p(i,j,k) = gammaMinusOne * ( rho_E(i,j,k) - (rho(i,j,k)+1)/2 * (u(i,j,k)*u(i,j,k) + v(i,j,k)*v(i,j,k) + w(i,j,k)*w(i,j,k)) );
 	for (uint i{1}; i<params.NI-1; ++i)
 		for (uint j{1}; j<params.NJ-1; ++j)
 			for (uint k{1}; k<params.NK-1; ++k)

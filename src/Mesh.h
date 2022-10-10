@@ -21,13 +21,13 @@ public:
 									uint filterInterval, uint timeLevel);
 	ConservedVariablesScalars computeNorms_conservedVariables();
 	void swapConservedVariables();
-	uint NI, NJ, NK;									// Mesh size. Number of nodes in x,y,z directions
-	uint nNodesTotal;									// Total number of nodes in the mesh
-	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
-	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
-	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
-	ConservedVariablesArrayGroup RK4_slopes[4];			// 4 arrays for each conserved variable
-	ConservedVariablesArrayGroup conservedVariablesNew;	// Intermediate states of conserved variables.
+	uint NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
+	uint nNodesTotal;	// Total number of nodes in the mesh
+	ConservedVariablesArrayGroup conservedVariables;				// Mass density, momentum & total energy
+	PrimitiveVariablesArrayGroup primitiveVariables;				// Velocity, pressure & Temperature
+	TransportPropertiesArrayGroup transportProperties;				// Viscosity and thermal conductivity
+	ConservedVariablesArrayGroup RK4_slopes[4];						// 4 slopes for each conserved variable
+	ConservedVariablesArrayGroup intermediateConservedVariables;	// Intermediate states of conserved variables.
 	double dx, dy, dz;									// Grid spacing in x-, y- and z-direction
 private:
 	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );

@@ -15,7 +15,7 @@ conservedVariables(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
 RK4_slopes(NI, NJ, NK),
-conservedVariablesNew(NI, NJ, NK)
+intermediateConservedVariables(NI, NJ, NK)
 {
 	setGridSpacings(domainLengthX, domainLengthY, domainLengthZ);
 }
@@ -79,11 +79,11 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 // Compute the norm of change in the conserved variables, and store in the history vectors.
 ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
 {
-	double norm_rho  { getNormOfChange(rho  , interm_rho  ) };
-	double norm_rho_u{ getNormOfChange(rho_u, interm_rho_u) };
-	double norm_rho_v{ getNormOfChange(rho_v, interm_rho_v) };
-	double norm_rho_w{ getNormOfChange(rho_w, interm_rho_w) };
-	double norm_E    { getNormOfChange(E    , interm_E    ) };
+	double norm_rho  { getNormOfChange(conservedVariables.rho  , intermediateConservedVariables.rho  ) };
+	double norm_rho_u{ getNormOfChange(conservedVariables.rho_u, intermediateConservedVariables.rho_u) };
+	double norm_rho_v{ getNormOfChange(conservedVariables.rho_v, intermediateConservedVariables.rho_v) };
+	double norm_rho_w{ getNormOfChange(conservedVariables.rho_w, intermediateConservedVariables.rho_w) };
+	double norm_E    { getNormOfChange(conservedVariables.rho_E, intermediateConservedVariables.rho_E) };
 	return ConservedVariablesScalars(norm_rho, norm_rho_u, norm_rho_v, norm_rho_w, norm_E);
 }
 
@@ -91,11 +91,11 @@ ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
 // This operation is super fast and needs no extra copy. Only the ownership of the data is changed.
 void Mesh::swapConservedVariables()
 {
-	rho  .dataSwap(interm_rho  );
-	rho_u.dataSwap(interm_rho_u);
-	rho_v.dataSwap(interm_rho_v);
-	rho_w.dataSwap(interm_rho_w);
-	E    .dataSwap(interm_E    );
+	conservedVariables.rho  .dataSwap(intermediateConservedVariables.rho  );
+	conservedVariables.rho_u.dataSwap(intermediateConservedVariables.rho_u);
+	conservedVariables.rho_v.dataSwap(intermediateConservedVariables.rho_v);
+	conservedVariables.rho_w.dataSwap(intermediateConservedVariables.rho_w);
+	conservedVariables.rho_E.dataSwap(intermediateConservedVariables.rho_E);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.
