@@ -10,6 +10,7 @@
 
 #include "includes_and_names.h"
 #include "Array3D_d.h"
+#include "FlowVariableScalarStructs.h"
 
 class Mesh
 {
@@ -18,7 +19,7 @@ public:
 		double domainLengthX, double domainLengthY, double domainLengthZ);
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
 									uint filterInterval, uint timeLevel);
-	void computeNorms_conservedVariables();
+	ConservedVariablesScalars computeNorms_conservedVariables();
 	void swapConservedVariables();
 	uint NI, NJ, NK;									// Mesh size. Number of nodes in x,y,z directions
 	Array3D_d rho, rho_u, rho_v, rho_w, E;				// Conserved variables

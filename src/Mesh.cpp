@@ -54,8 +54,8 @@ interm_E    (NI, NJ, NK)
 
 // Calculate the space between nodes in the grid, based on domain size and no. of nodes.
 void Mesh::setGridSpacings(double domainLengthX,
-							 double domainLengthY,
-							 double domainLengthZ )
+						   double domainLengthY,
+						   double domainLengthZ )
 {
 	dx = domainLengthX / (NI - 1);
 	dy = domainLengthY / (NJ - 1);
@@ -108,13 +108,14 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 }
 
 // Compute the norm of change in the conserved variables, and store in the history vectors.
-void Mesh::computeNorms_conservedVariables()
+ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
 {
-	normHistory_rho  .push_back( getNormOfChange(rho  , interm_rho  ) );
-	normHistory_rho_u.push_back( getNormOfChange(rho_u, interm_rho_u) );
-	normHistory_rho_v.push_back( getNormOfChange(rho_v, interm_rho_v) );
-	normHistory_rho_w.push_back( getNormOfChange(rho_w, interm_rho_w) );
-	normHistory_E    .push_back( getNormOfChange(E    , interm_E    ) );
+	double norm_rho  { getNormOfChange(rho  , interm_rho  ) };
+	double norm_rho_u{ getNormOfChange(rho_u, interm_rho_u) };
+	double norm_rho_v{ getNormOfChange(rho_v, interm_rho_v) };
+	double norm_rho_w{ getNormOfChange(rho_w, interm_rho_w) };
+	double norm_E    { getNormOfChange(E    , interm_E    ) };
+	return ConservedVariablesScalars(norm_rho, norm_rho_u, norm_rho_v, norm_rho_w, norm_E);
 }
 
 // Swap the contents of all the arrays of conserved variables and the intermediate arrays, by move-semantics.
