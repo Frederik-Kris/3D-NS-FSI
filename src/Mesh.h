@@ -22,6 +22,7 @@ public:
 	ConservedVariablesScalars computeNorms_conservedVariables();
 	void swapConservedVariables();
 	uint NI, NJ, NK;									// Mesh size. Number of nodes in x,y,z directions
+	uint nNodesTotal;									// Total number of nodes in the mesh
 	Array3D_d rho, rho_u, rho_v, rho_w, E;				// Conserved variables
 	Array3D_d u, v, w, p, T;							// Primitive variables
 	Array3D_d mu, kappa;								// Transport properties

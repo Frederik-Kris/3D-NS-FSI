@@ -21,7 +21,9 @@ public:
 private:
 	void applyStagnation_IC();
 	void applyUniformFlow_IC();
-	void updateTimeStepSize(const Array3D_d& p, const Array3D_d& rho, const Array3D_d& u, const Array3D_d& v, const Array3D_d& w);
+	void updateTimeStepSize(double t);
+	double getInviscidTimeStepLimit();
+	double getViscousTimeStepLimit();
 	void getDerivedVariables_atPoint(double u_0,double v_0, double w_0, double p_0, double T_0,
 			double& rho_0, double& rho_u_0, double& rho_v_0, double& rho_w_0, double& E_0, double& mu_0, double& kappa_0);
 	void marchTimeStep();

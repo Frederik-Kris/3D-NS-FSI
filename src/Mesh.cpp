@@ -10,6 +10,7 @@
 Mesh::Mesh(uint nMeshNodesX, uint nMeshNodesY, uint nMeshNodesZ,
 		double domainLengthX, double domainLengthY, double domainLengthZ ) :
 NI{nMeshNodesX}, NJ{nMeshNodesY}, NK{nMeshNodesZ},
+nNodesTotal{NI*NJ*NK},
 rho     (NI, NJ, NK),
 rho_u   (NI, NJ, NK),
 rho_v   (NI, NJ, NK),

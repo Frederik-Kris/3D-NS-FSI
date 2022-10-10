@@ -63,39 +63,49 @@ void Solver::applyUniformFlow_IC()
 	mesh.kappa.setAll(kappa_IC);
 }
 
-// Set the time step size as large as possible, within the stability criterion.
+// Set the time step size (dt) as large as possible, within the stability criterion.
 // Computes two time step sizes, using the inviscid CFL condition, and the viscous von Neumann condition
 // and assigns the smallest one to dt (strictest criterion).
-void Solver::updateTimeStepSize(const Array3D_d& p, const Array3D_d& rho, const Array3D_d& u, const Array3D_d& v, const Array3D_d& w)
+void Solver::updateTimeStepSize(double t)
 {
-	// First, find the inviscid time step limit (CFL condition):
-	uint nNodes = params.NI * params.NJ * params.NK;
+	double dtConvective = getInviscidTimeStepLimit();
+	double dtInviscid   = getViscousTimeStepLimit();
+	// Choose the strictest criterion. If that will take us past the end-time, then adapt dt to hit t_end exactly:
+	dt = min( dtConvective, dtInviscid );
+	if ( params.stopCriterion == StopCriterionEnum::end_time && t + dt > params.t_end )
+		dt = params.t_end - t;
+}
+
+// Find the inviscid time step limit (CFL condition):
+double Solver::getInviscidTimeStepLimit()
+{
+	const Array3D_d& p{mesh.p}, &rho{mesh.rho}, &u{mesh.u}, &v{mesh.v}, &w{mesh.w};
 	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
-	for (uint i{0}; i<nNodes; ++i)
+	for (uint i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    //<- Speed of sound at node i
 		maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
 		maxSpectralRadiusY = max( maxSpectralRadiusY, c_i + fabs(v(i)) );
 		maxSpectralRadiusZ = max( maxSpectralRadiusZ, c_i + fabs(w(i)) );
 	}
-	double dt_conv = fabs(params.convStabilityLimit) / ( maxSpectralRadiusX / mesh.dx
-			                                           + maxSpectralRadiusY / mesh.dy
-												       + maxSpectralRadiusZ / mesh.dz );
+	return fabs(params.convStabilityLimit) / ( maxSpectralRadiusX / mesh.dx
+			                                 + maxSpectralRadiusY / mesh.dy
+											 + maxSpectralRadiusZ / mesh.dz );
+}
 
-	// Then find the viscous time step limit (von Neumann condition):
+// Find the viscous time step limit (von Neumann condition):
+double Solver::getViscousTimeStepLimit()
+{
+	const Array3D_d& mu{mesh.mu}, &rho{mesh.rho};
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
 	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
-	for (uint i{0}; i<nNodes; ++i)
+	for (uint i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double nu = mu(i) / (rho(i)+1) * viscosityModifier;
 		maxViscosityFactor = max( maxViscosityFactor, nu );
 	}
-	double dt_visc = fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/(dx*dx) + 1/(dy*dy) + 1/(dz*dz)) );
-
-	// Choose the strictest criterion. If that will take us past the end-time, then adapt dt to hit t_end exactly:
-	dt = min( dt_conv, dt_visc );
-	if ( params.stopCriterion == StopCriterionEnum::end_time && t + dt > params.t_end )
-		dt = params.t_end - t;
+	double dx_2{mesh.dx*mesh.dx}, dy_2{mesh.dy*mesh.dy}, dz_2{mesh.dz*mesh.dz};
+	return fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/dx_2 + 1/dy_2 + 1/dz_2) );
 }
 
 // Computes scalar values for conserved variables and transport properties, based on the primitive variables.
