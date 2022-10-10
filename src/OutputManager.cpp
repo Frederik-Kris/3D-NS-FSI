@@ -7,14 +7,21 @@
 
 #include "OutputManager.h"
 
-OutputManager::OutputManager()
+OutputManager::OutputManager() :
+savedSolutions{0}
 {
+}
+
+void OutputManager::processInitialOutput(const ConfigSettings& params)
+{
+	if ( params.save_IC )
+		storeCurrentSolution_csv();
 }
 
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
 // It will save solution if the next timestep would take the solution past the save-time.
 // Thus, in general it saves too early, but the deviation is dt at most.
-void Solver::processOutput(Clock& statusReportTimer)
+void OutputManager::processIntermediateOutput(const ConfigSettings& params, Clock& statusReportTimer, double t, double dt)
 {
 	double timeSinceSave = fmod(t, params.save_period);
 	if ( timeSinceSave + dt >= params.save_period && params.save_intervals )
@@ -27,9 +34,18 @@ void Solver::processOutput(Clock& statusReportTimer)
 	}
 }
 
+void OutputManager::processFinalOutput(const ConfigSettings& params)
+{
+	if ( params.save_final )
+		storeCurrentSolution_csv();
+	writeStatusReport_toScreen();
+	writeOutputTimes();
+	writeNormHistoryFiles();
+}
+
 // Check whether the influx and outflux of mass are equal, by integrating momentum over inlet and outlet boundaries.
 // Integration is done by double trapezoidal rule, i.e., a double loop summing the nodes in the inlet and outlet planes, wighting the outer nodes with 1/2.
-void Solver::checkMassConservation(double& inFluxSum, double& outFluxSum)
+void OutputManager::checkMassConservation(double& inFluxSum, double& outFluxSum)
 {
 	inFluxSum = outFluxSum = 0;
 	for (uint j=0; j<params.NJ; ++j)
@@ -51,7 +67,7 @@ void Solver::checkMassConservation(double& inFluxSum, double& outFluxSum)
 }
 
 // Store selected variables from the solution at current time level, using the format(s) specified
-void Solver::storeCurrentSolution_csv()
+void OutputManager::storeCurrentSolution_csv()
 {
 	if(params.saveForParaview)
 		storeCurrentSolution_csv_paraview();
@@ -64,7 +80,7 @@ void Solver::storeCurrentSolution_csv()
 // Writes a .csv file with the specified flow variables at the current time level.
 // The file is formatted to fit how ParaView wants to import it, with coordinates in the leftmost column.
 // Only the flow variables selected in the ConfigFile are saved.
-void Solver::storeCurrentSolution_csv_paraview()
+void OutputManager::storeCurrentSolution_csv_paraview()
 {
 	vector<Array3D_d*> flowVariables = getPlotVariables();
 	if ( flowVariables.empty() )
@@ -97,7 +113,7 @@ void Solver::storeCurrentSolution_csv_paraview()
 // Writes multiple .csv files with the specified flow variables at the current time level.
 // The file is formatted as a table or matrix, with the values from a specified 2D plane. Matlab
 // can read this file to a matrix. Only the flow variables selected in the ConfigFile are saved.
-void Solver::storeCurrentSolution_csv_matlab()
+void OutputManager::storeCurrentSolution_csv_matlab()
 {
 	vector<Array3D_d*> flowVariables = getPlotVariables();		// Get pointers to the arrays with data to save
 	vector<string> variableFileNames = getVariableFileNames();	// Get a vector with the names of the variables
@@ -118,7 +134,7 @@ void Solver::storeCurrentSolution_csv_matlab()
 }
 
 // Get a vector with pointers to the flow variables that should be saved.
-vector<Array3D_d*> Solver::getPlotVariables()
+vector<Array3D_d*> OutputManager::getPlotVariables()
 {
 	vector<Array3D_d*> flowVariables;
 	if ( params.save_rho )
@@ -150,7 +166,7 @@ vector<Array3D_d*> Solver::getPlotVariables()
 
 // Returns a camma-separated string with the names of the flow variables to save.
 // For ParaView to read a .csv file it needs the headers on the first line.
-string Solver::get_csvHeaderString()
+string OutputManager::get_csvHeaderString()
 {
 	string headers = "x, y, z";
 	if ( params.save_rho )
@@ -181,7 +197,7 @@ string Solver::get_csvHeaderString()
 }
 
 // Returns a vector of strings, which are the names of the variables to save.
-vector<string> Solver::getVariableFileNames()
+vector<string> OutputManager::getVariableFileNames()
 {
 	vector<string> variableNames;
 	if ( params.save_rho )
@@ -212,7 +228,7 @@ vector<string> Solver::getVariableFileNames()
 }
 
 // Write the values from a plane, defined in ConfigFile, of one flow variable. It's written like a comma separated table into 'outputFile'.
-void Solver::writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariable)
+void OutputManager::writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariable)
 {
 	switch(params.saveNormalAxis)
 	{
@@ -248,7 +264,7 @@ void Solver::writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariable)
 
 // Writes a brief report with progression, timestep size and wall clock time elapsed, etc.
 // 'setprecision' is used to control no. of significant digits, default is 6.
-void Solver::writeStatusReport_toScreen()
+void OutputManager::writeStatusReport_toScreen()
 {
 	cout << "Simulated time: t = " << t;
 	if (params.stopCriterion == StopCriterionEnum::end_time)
@@ -275,7 +291,7 @@ void Solver::writeStatusReport_toScreen()
 }
 
 // Write a file with a list of the actual times when the solution was saved. For debugging.
-void Solver::writeOutputTimes()
+void OutputManager::writeOutputTimes()
 {
 	ofstream timeFile;
 	string filename = "output/times.dat";
@@ -293,7 +309,7 @@ void Solver::writeOutputTimes()
 
 // Write files with lists of the norm of change for the conserved variables.
 // TODO: This function should be customizable to choose in ConfigFile whether to log norms of particular variables. OR, find out which variable is the best indicator for convergence, and only log that one.
-void Solver::writeNormHistoryFiles()
+void OutputManager::writeNormHistoryFiles()
 {
 	vector<string> filenames = {"output/norm_rho.dat", "output/norm_rho_u.dat", "output/norm_rho_v.dat", "output/norm_rho_w.dat", "output/norm_E.dat"};
 	vector<vector<double>*> normVectorPointers = {&normHistory_rho, &normHistory_rho_u, &normHistory_rho_v, &normHistory_rho_w, &normHistory_E};

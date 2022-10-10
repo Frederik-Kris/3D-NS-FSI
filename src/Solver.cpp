@@ -12,27 +12,12 @@
 // Initializes the ConfigSettings 'params', which loads settings and parameters from 'ConfigFile'.
 // Initializes all 3D arrays (but not their elements) containing flow variables and transport properties.
 // Starts the simulation.
-Solver::Solver() :
-params(),
-savedSolutions{ 0 },
-timeLevel{ 0 }, t{ 0 }
+Solver::Solver(const ConfigSettings& params) :
+params{params},
+mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z)
 {
-	setGridSpacings();
 	applyStagnation_IC();
-	if ( params.save_IC )
-		storeCurrentSolution_csv();
-	updateTimeStepSize();
-	Clock statusReportTimer;
-	while ( !checkStoppingCriterion() )
-	{
-		marchTimeStep();
-		processOutput(statusReportTimer);
-	}
-	if ( params.save_final )
-		storeCurrentSolution_csv();
-	writeStatusReport_toScreen();
-	writeOutputTimes();
-	writeNormHistoryFiles();
+	updateTimeStepSize(mesh.p, mesh.rho, mesh.u, mesh.v, mesh.w);
 }
 
 // Applies stagnation initial condition (IC) by setting the values of flow variables at every node
@@ -42,18 +27,18 @@ void Solver::applyStagnation_IC()
 	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  // <- Decide primitive variables
 	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;  // <- Other variables follow equations.
 	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	u    .setAll(u_IC);
-	v    .setAll(v_IC);
-	w    .setAll(w_IC);
-	p    .setAll(p_IC);
-	T    .setAll(T_IC);
-	rho  .setAll(rho_IC);
-	rho_u.setAll(rho_u_IC);
-	rho_v.setAll(rho_v_IC);
-	rho_w.setAll(rho_w_IC);
-	E	 .setAll(E_IC);
-	mu   .setAll(mu_IC);
-	kappa.setAll(kappa_IC);
+	mesh.u    .setAll(u_IC);
+	mesh.v    .setAll(v_IC);
+	mesh.w    .setAll(w_IC);
+	mesh.p    .setAll(p_IC);
+	mesh.T    .setAll(T_IC);
+	mesh.rho  .setAll(rho_IC);
+	mesh.rho_u.setAll(rho_u_IC);
+	mesh.rho_v.setAll(rho_v_IC);
+	mesh.rho_w.setAll(rho_w_IC);
+	mesh.E	  .setAll(E_IC);
+	mesh.mu   .setAll(mu_IC);
+	mesh.kappa.setAll(kappa_IC);
 	cout << "Done" << endl << endl;
 }
 
@@ -64,18 +49,53 @@ void Solver::applyUniformFlow_IC()
 	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
 	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;      // <- Other variables follow equations.
 	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	u    .setAll(u_IC);
-	v    .setAll(v_IC);
-	w    .setAll(w_IC);
-	p    .setAll(p_IC);
-	T    .setAll(T_IC);
-	rho  .setAll(rho_IC);
-	rho_u.setAll(rho_u_IC);
-	rho_v.setAll(rho_v_IC);
-	rho_w.setAll(rho_w_IC);
-	E	 .setAll(E_IC);
-	mu   .setAll(mu_IC);
-	kappa.setAll(kappa_IC);
+	mesh.u    .setAll(u_IC);
+	mesh.v    .setAll(v_IC);
+	mesh.w    .setAll(w_IC);
+	mesh.p    .setAll(p_IC);
+	mesh.T    .setAll(T_IC);
+	mesh.rho  .setAll(rho_IC);
+	mesh.rho_u.setAll(rho_u_IC);
+	mesh.rho_v.setAll(rho_v_IC);
+	mesh.rho_w.setAll(rho_w_IC);
+	mesh.E	  .setAll(E_IC);
+	mesh.mu   .setAll(mu_IC);
+	mesh.kappa.setAll(kappa_IC);
+}
+
+// Set the time step size as large as possible, within the stability criterion.
+// Computes two time step sizes, using the inviscid CFL condition, and the viscous von Neumann condition
+// and assigns the smallest one to dt (strictest criterion).
+void Solver::updateTimeStepSize(const Array3D_d& p, const Array3D_d& rho, const Array3D_d& u, const Array3D_d& v, const Array3D_d& w)
+{
+	// First, find the inviscid time step limit (CFL condition):
+	uint nNodes = params.NI * params.NJ * params.NK;
+	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
+	for (uint i{0}; i<nNodes; ++i)
+	{
+		double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    //<- Speed of sound at node i
+		maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
+		maxSpectralRadiusY = max( maxSpectralRadiusY, c_i + fabs(v(i)) );
+		maxSpectralRadiusZ = max( maxSpectralRadiusZ, c_i + fabs(w(i)) );
+	}
+	double dt_conv = fabs(params.convStabilityLimit) / ( maxSpectralRadiusX / mesh.dx
+			                                           + maxSpectralRadiusY / mesh.dy
+												       + maxSpectralRadiusZ / mesh.dz );
+
+	// Then find the viscous time step limit (von Neumann condition):
+	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
+	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
+	for (uint i{0}; i<nNodes; ++i)
+	{
+		double nu = mu(i) / (rho(i)+1) * viscosityModifier;
+		maxViscosityFactor = max( maxViscosityFactor, nu );
+	}
+	double dt_visc = fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/(dx*dx) + 1/(dy*dy) + 1/(dz*dz)) );
+
+	// Choose the strictest criterion. If that will take us past the end-time, then adapt dt to hit t_end exactly:
+	dt = min( dt_conv, dt_visc );
+	if ( params.stopCriterion == StopCriterionEnum::end_time && t + dt > params.t_end )
+		dt = params.t_end - t;
 }
 
 // Computes scalar values for conserved variables and transport properties, based on the primitive variables.

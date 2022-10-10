@@ -16,7 +16,9 @@ class OutputManager
 {
 public:
 	OutputManager();
-	void processOutput(Clock& statusReportTimer);
+	void processInitialOutput(const ConfigSettings& params);
+	void processIntermediateOutput(const ConfigSettings& params, Clock& statusReportTimer, double t, double dt);
+	void processFinalOutput(const ConfigSettings& params);
 	void checkMassConservation(double& inFluxSum, double& outFluxSum);
 private:
 	void storeCurrentSolution_csv();

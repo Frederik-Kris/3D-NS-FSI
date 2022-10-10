@@ -6,12 +6,12 @@
  */
 
 #include "includes_and_names.h"
-#include "Solver.h"
+#include "Simulation.h"
 #include "tests.h"
 
 int main()
 {
 	//testModulo();
-	Solver solver;
+	Simulation sim;
 	return 0;
 }
