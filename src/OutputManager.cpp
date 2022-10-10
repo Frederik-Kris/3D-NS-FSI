@@ -7,72 +7,51 @@
 
 #include "OutputManager.h"
 
-OutputManager::OutputManager() :
+OutputManager::OutputManager(const ConfigSettings& params) :
+params{params},
 savedSolutions{0}
 {
 }
 
-void OutputManager::processInitialOutput(const ConfigSettings& params)
+void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 {
 	if ( params.save_IC )
-		storeCurrentSolution_csv();
+		storeCurrentSolution_csv(mesh, t);
 }
 
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
 // It will save solution if the next timestep would take the solution past the save-time.
 // Thus, in general it saves too early, but the deviation is dt at most.
-void OutputManager::processIntermediateOutput(const ConfigSettings& params, Clock& statusReportTimer, double t, double dt)
+void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, uint timeLevel, double dt)
 {
 	double timeSinceSave = fmod(t, params.save_period);
 	if ( timeSinceSave + dt >= params.save_period && params.save_intervals )
-		storeCurrentSolution_csv();
+		storeCurrentSolution_csv(mesh, t);
 	double timeSinceStatusReport = statusReportTimer.getElapsedTime().asSeconds();
 	if ( timeSinceStatusReport >= params.statusReportInterval )
 	{
-		writeStatusReport_toScreen();
+		writeStatusReport_toScreen(t, timeLevel, dt);
 		statusReportTimer.restart();
 	}
 }
 
-void OutputManager::processFinalOutput(const ConfigSettings& params)
+void OutputManager::processFinalOutput(const Mesh& mesh, double t, uint timeLevel, double dt,
+								const vector<const vector<double>*> convergenceHistoryPointers)
 {
 	if ( params.save_final )
-		storeCurrentSolution_csv();
-	writeStatusReport_toScreen();
+		storeCurrentSolution_csv(mesh, t);
+	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
-	writeNormHistoryFiles();
-}
-
-// Check whether the influx and outflux of mass are equal, by integrating momentum over inlet and outlet boundaries.
-// Integration is done by double trapezoidal rule, i.e., a double loop summing the nodes in the inlet and outlet planes, wighting the outer nodes with 1/2.
-void OutputManager::checkMassConservation(double& inFluxSum, double& outFluxSum)
-{
-	inFluxSum = outFluxSum = 0;
-	for (uint j=0; j<params.NJ; ++j)
-	{
-		double inletColumnSum = 0, outletColumnSum = 0;
-		inletColumnSum  += rho_u(0          ,j,0)/2 + rho_u(0          ,j,params.NK-1)/2;	// Add the boundary nodes with weigth 1/2
-		outletColumnSum += rho_u(params.NI-1,j,0)/2 + rho_u(params.NI-1,j,params.NK-1)/2;
-		for(uint k=1; k<params.NK-1; ++k)
-		{
-			inletColumnSum  += rho_u(0,j,k);
-			outletColumnSum += rho_u(params.NI-1,j,k);
-		}
-		inletColumnSum  *= dz;
-		outletColumnSum *= dz;
-		double weightMultiplier = (j==0 || j==params.NJ-1)? 0.5 : 1.;
-		inFluxSum  += weightMultiplier * inletColumnSum;
-		outFluxSum += weightMultiplier * outletColumnSum;
-	}
+	writeConvergenceHistoryFiles(convergenceHistoryPointers);
 }
 
 // Store selected variables from the solution at current time level, using the format(s) specified
-void OutputManager::storeCurrentSolution_csv()
+void OutputManager::storeCurrentSolution_csv(const Mesh& mesh, double t)
 {
 	if(params.saveForParaview)
-		storeCurrentSolution_csv_paraview();
+		storeCurrentSolution_csv_paraview(mesh);
 	if (params.saveForMatlab)
-		storeCurrentSolution_csv_matlab();
+		storeCurrentSolution_csv_matlab(mesh);
 	++savedSolutions;
 	outputTimes.push_back(t);
 }
@@ -80,9 +59,9 @@ void OutputManager::storeCurrentSolution_csv()
 // Writes a .csv file with the specified flow variables at the current time level.
 // The file is formatted to fit how ParaView wants to import it, with coordinates in the leftmost column.
 // Only the flow variables selected in the ConfigFile are saved.
-void OutputManager::storeCurrentSolution_csv_paraview()
+void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 {
-	vector<Array3D_d*> flowVariables = getPlotVariables();
+	vector<const Array3D_d*> flowVariables = getPlotVariables(mesh);
 	if ( flowVariables.empty() )
 		return;
 
@@ -102,7 +81,7 @@ void OutputManager::storeCurrentSolution_csv_paraview()
 			for (uint k{0}; k<params.NK; ++k)
 			{
 				outputFile << endl;
-				double x{ i*dx }, y{ j*dy }, z{ k*dz};
+				double x{ i*mesh.dx }, y{ j*mesh.dy }, z{ k*mesh.dz};
 				outputFile << x << ", " << y << ", " << z;
 				for (Array3D_d* flowVar : flowVariables)
 					outputFile << ", " << (*flowVar)(i,j,k);
@@ -113,9 +92,9 @@ void OutputManager::storeCurrentSolution_csv_paraview()
 // Writes multiple .csv files with the specified flow variables at the current time level.
 // The file is formatted as a table or matrix, with the values from a specified 2D plane. Matlab
 // can read this file to a matrix. Only the flow variables selected in the ConfigFile are saved.
-void OutputManager::storeCurrentSolution_csv_matlab()
+void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
 {
-	vector<Array3D_d*> flowVariables = getPlotVariables();		// Get pointers to the arrays with data to save
+	vector<const Array3D_d*> flowVariables = getPlotVariables(mesh);		// Get pointers to the arrays with data to save
 	vector<string> variableFileNames = getVariableFileNames();	// Get a vector with the names of the variables
 
 	for(uint i=0; i<flowVariables.size(); ++i)	// Let i go from zero to no. of variables to save.
@@ -134,33 +113,33 @@ void OutputManager::storeCurrentSolution_csv_matlab()
 }
 
 // Get a vector with pointers to the flow variables that should be saved.
-vector<Array3D_d*> OutputManager::getPlotVariables()
+vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 {
-	vector<Array3D_d*> flowVariables;
+	vector<const Array3D_d*> flowVariables;
 	if ( params.save_rho )
-		flowVariables.push_back(&rho);
+		flowVariables.push_back(&mesh.rho);
 	if ( params.save_rho_u )
-		flowVariables.push_back(&rho_u);
+		flowVariables.push_back(&mesh.rho_u);
 	if ( params.save_rho_v )
-		flowVariables.push_back(&rho_v);
+		flowVariables.push_back(&mesh.rho_v);
 	if ( params.save_rho_w )
-		flowVariables.push_back(&rho_w);
+		flowVariables.push_back(&mesh.rho_w);
 	if ( params.save_E )
-		flowVariables.push_back(&E);
+		flowVariables.push_back(&mesh.E);
 	if ( params.save_u )
-		flowVariables.push_back(&u);
+		flowVariables.push_back(&mesh.u);
 	if ( params.save_v )
-		flowVariables.push_back(&v);
+		flowVariables.push_back(&mesh.v);
 	if ( params.save_w )
-		flowVariables.push_back(&w);
+		flowVariables.push_back(&mesh.w);
 	if ( params.save_p )
-		flowVariables.push_back(&p);
+		flowVariables.push_back(&mesh.p);
 	if ( params.save_T )
-		flowVariables.push_back(&T);
+		flowVariables.push_back(&mesh.T);
 	if ( params.save_mu )
-		flowVariables.push_back(&mu);
+		flowVariables.push_back(&mesh.mu);
 	if ( params.save_kappa )
-		flowVariables.push_back(&kappa);
+		flowVariables.push_back(&mesh.kappa);
 	return flowVariables;
 }
 
@@ -228,7 +207,7 @@ vector<string> OutputManager::getVariableFileNames()
 }
 
 // Write the values from a plane, defined in ConfigFile, of one flow variable. It's written like a comma separated table into 'outputFile'.
-void OutputManager::writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariable)
+void OutputManager::writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable)
 {
 	switch(params.saveNormalAxis)
 	{
@@ -264,7 +243,7 @@ void OutputManager::writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariab
 
 // Writes a brief report with progression, timestep size and wall clock time elapsed, etc.
 // 'setprecision' is used to control no. of significant digits, default is 6.
-void OutputManager::writeStatusReport_toScreen()
+void OutputManager::writeStatusReport_toScreen(double t, uint timeLevel, double dt)
 {
 	cout << "Simulated time: t = " << t;
 	if (params.stopCriterion == StopCriterionEnum::end_time)
@@ -284,9 +263,6 @@ void OutputManager::writeStatusReport_toScreen()
 	else
 		cout << endl;
 	cout << "Timestep size: dt = " << dt << endl;
-	double inletMassFlux=0, outletMassFlux=0;
-	checkMassConservation(inletMassFlux, outletMassFlux);
-	cout << "Inlet mass flux: " << inletMassFlux << " , Outlet mass flux: " << outletMassFlux << " , Difference: " << inletMassFlux-outletMassFlux << endl;
 	cout << "Wall clock time: " << setprecision(3) << wallClockTimer.getElapsedTime().asSeconds() << setprecision(6) << " sec" << endl << endl;
 }
 
@@ -309,10 +285,10 @@ void OutputManager::writeOutputTimes()
 
 // Write files with lists of the norm of change for the conserved variables.
 // TODO: This function should be customizable to choose in ConfigFile whether to log norms of particular variables. OR, find out which variable is the best indicator for convergence, and only log that one.
-void OutputManager::writeNormHistoryFiles()
+void OutputManager::writeConvergenceHistoryFiles(const vector<const vector<double>*> convergenceHistoryPointers)
 {
 	vector<string> filenames = {"output/norm_rho.dat", "output/norm_rho_u.dat", "output/norm_rho_v.dat", "output/norm_rho_w.dat", "output/norm_E.dat"};
-	vector<vector<double>*> normVectorPointers = {&normHistory_rho, &normHistory_rho_u, &normHistory_rho_v, &normHistory_rho_w, &normHistory_E};
+
 	for(uint i=0; i<filenames.size(); ++i)
 	{
 		ofstream normFile;
@@ -323,7 +299,7 @@ void OutputManager::writeNormHistoryFiles()
 				 << "Norm history was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 		}
 		else
-			for (double norm : *normVectorPointers.at(i))
+			for (double norm : *convergenceHistoryPointers.at(i))
 				normFile << norm << endl;
 		normFile.close();
 	}

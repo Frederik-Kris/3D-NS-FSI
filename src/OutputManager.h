@@ -11,29 +11,32 @@
 #include "includes_and_names.h"
 #include "Array3D_d.h"
 #include "ConfigSettings.h"
+#include "Mesh.h"
 
 class OutputManager
 {
 public:
-	OutputManager();
-	void processInitialOutput(const ConfigSettings& params);
-	void processIntermediateOutput(const ConfigSettings& params, Clock& statusReportTimer, double t, double dt);
-	void processFinalOutput(const ConfigSettings& params);
-	void checkMassConservation(double& inFluxSum, double& outFluxSum);
+	OutputManager(const ConfigSettings& params);
+	void processInitialOutput(const Mesh& mesh, double t);
+	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, uint timeLevel, double dt);
+	void processFinalOutput(const Mesh& mesh, double t, uint timeLevel, double dt,
+			const vector<const vector<double>*> convergenceHistoryPointers);
 private:
-	void storeCurrentSolution_csv();
-	void storeCurrentSolution_csv_paraview();
-	void storeCurrentSolution_csv_matlab();
-	vector<Array3D_d*> getPlotVariables();
+	void storeCurrentSolution_csv(const Mesh& mesh, double t);
+	void storeCurrentSolution_csv_paraview(const Mesh& mesh);
+	void storeCurrentSolution_csv_matlab(const Mesh& mesh);
+	vector<const Array3D_d*> getPlotVariables(const Mesh& mesh);
 	string get_csvHeaderString();
 	vector<string> getVariableFileNames();
-	void writePlaneTo_csv(ofstream& outputFile, Array3D_d* flowVariable);
-	void writeStatusReport_toScreen();
+	void writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable);
+	void writeStatusReport_toScreen(double t, uint timeLevel, double dt);
 	void writeOutputTimes();
-	void writeNormHistoryFiles();
+	void writeConvergenceHistoryFiles(const vector<const vector<double>*> convergenceHistoryPointers);
 
-	uint savedSolutions;                                // No. of times saved to disk
-	vector<double> outputTimes;                         // The exact times when solution was saved
+	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
+	uint savedSolutions;			// No. of times saved to disk
+	vector<double> outputTimes;     // The exact times when solution was saved
+	Clock wallClockTimer;			// Timer that starts when simulation starts
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */
