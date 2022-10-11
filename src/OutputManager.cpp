@@ -83,7 +83,7 @@ void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 				outputFile << endl;
 				double x{ i*mesh.dx }, y{ j*mesh.dy }, z{ k*mesh.dz};
 				outputFile << x << ", " << y << ", " << z;
-				for (Array3D_d* flowVar : flowVariables)
+				for (const Array3D_d* flowVar : flowVariables)
 					outputFile << ", " << (*flowVar)(i,j,k);
 			}
 	outputFile.close();

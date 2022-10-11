@@ -20,6 +20,7 @@ public:
 	Solver(const ConfigSettings& params);
 	void marchTimeStep(double t, uint timeLevel);
 	const vector<ConservedVariablesScalars>& getConvergenceHistory() const {return normHistory;}
+	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	Mesh mesh;	// Computational mesh, containing flow variables
 	double dt;	// Time-step size
 private:
@@ -45,7 +46,6 @@ private:
 	void compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2, const Array3D_d& k3, const Array3D_d& k4,
 								const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new);
 	void storeNormsOfChange();
-	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	vector<ConservedVariablesScalars> normHistory; // Vector of the developments of the change-norms.
 };
 

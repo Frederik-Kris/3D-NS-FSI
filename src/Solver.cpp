@@ -137,7 +137,7 @@ void Solver::marchTimeStep(double t, uint timeLevel)
 	updatePrimitiveVariables();
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k2);  // k2: The slopes at time t + dt/2
-	computeAllIntermediateSolutions(k2, dt/2)	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
+	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
@@ -420,10 +420,18 @@ void Solver::updatePrimitiveVariables()
 	double sutherlands_Sc = params.T_0 / params.sutherlands_C2;
 	double ScPlusOne = 1 + sutherlands_Sc;
 	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
-	const Array3D_d& rho_u{mesh.conservedVariables.rho_u}, &rho_v{mesh.conservedVariables.rho_v}, &rho_w{mesh.conservedVariables.rho_w},
-	&rho{mesh.conservedVariables.rho}, &rho_E{mesh.conservedVariables.rho_E},
-	&u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
-	&p{mesh.primitiveVariables.p}, &T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa};
+	const Array3D_d& rho_u{mesh.conservedVariables.rho_u},
+					&rho_v{mesh.conservedVariables.rho_v},
+					&rho_w{mesh.conservedVariables.rho_w},
+					&rho  {mesh.conservedVariables.rho},
+					&rho_E{mesh.conservedVariables.rho_E};
+	Array3D_d& u{mesh.primitiveVariables.u},
+			  &v{mesh.primitiveVariables.v},
+			  &w{mesh.primitiveVariables.w},
+			  &p{mesh.primitiveVariables.p},
+			  &T{mesh.primitiveVariables.T},
+			  &mu{mesh.transportProperties.mu},
+			  &kappa{mesh.transportProperties.kappa};
 
 	for (uint i{1}; i<params.NI-1; ++i)
 		for (uint j{1}; j<params.NJ-1; ++j)

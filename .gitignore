@@ -1,6 +1,6 @@
 output/*
-Debug/*
-Release/*
+/Debug/
+/Release/
 !*/makefile
 *.o
 *.d
