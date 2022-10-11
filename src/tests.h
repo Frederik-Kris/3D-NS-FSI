@@ -199,7 +199,7 @@ void testArray3D()
 
 void testArrayWithSettings()
 {
-	ConfigSettings settings;
+	ConfigSettings settings("ConfigFile");
 	if (settings.errorOccurred)
 		return;
 	Array3D_d u(settings.NI, settings.NJ, settings.NK);
