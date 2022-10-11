@@ -8,29 +8,29 @@
 #include "ConfigSettings.h"
 
 // Default constructor. Simply loads settings from ConfigFile, if possible.
-ConfigSettings::ConfigSettings()
+ConfigSettings::ConfigSettings(string filename)
 {
-	loadSettings();
+	loadSettings(filename);
 }
 
 // This function tries to load the settings from the 'ConfigFile', using the 'libconfig' library.
 // If something goes wrong, the 'error' member is assigned true. Caller should check this.
-void ConfigSettings::loadSettings()
+void ConfigSettings::loadSettings(string filename)
 {
 	errorOccurred = false;	// <- until the opposite is proven
 	Config cfg;
-	tryOpenConfigFile(cfg);
+	tryOpenConfigFile(cfg, filename);
 
 	if (!errorOccurred)
 		tryReadSettingValues(cfg);
 }
 
 // Tries to open and parse the 'ConfigFile'. If the file can't be opened or parsed, 'error' is assigned true.
-void ConfigSettings::tryOpenConfigFile(Config& cfg)
+void ConfigSettings::tryOpenConfigFile(Config& cfg, string filename)
 {
 	try
 	{
-		cfg.readFile("ConfigFile");
+		cfg.readFile(filename.c_str());
 	}
 	catch (libconfig::FileIOException& ex)
 	{

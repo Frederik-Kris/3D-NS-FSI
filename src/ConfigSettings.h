@@ -27,8 +27,8 @@ enum class saveNormalAxisEnum
 class ConfigSettings
 {
 public:
-	ConfigSettings();
-	void loadSettings();
+	ConfigSettings(string filename);
+	void loadSettings(string filename);
 	uint NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
 	uint stopTimeLevel;              // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
@@ -64,7 +64,7 @@ public:
 
 	bool errorOccurred;			// Error flag, set true if reading the 'ConfigFile' fails
 private:
-	void tryOpenConfigFile(Config& cfg);
+	void tryOpenConfigFile(Config& cfg, string filename);
 	void tryReadSettingValues(Config& cfg);
 	void readSettingValues(Config& cfg);
 };
