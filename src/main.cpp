@@ -11,7 +11,8 @@
 
 int main()
 {
-	//testModulo();
-	Simulation sim;
+	const ConfigSettings params("ConfigFile");	// Read parameters from config file.
+	Simulation sim(params);						// Initialize simulation with given parameters.
+	sim.run();									// Run simulation. Produce output as specified.
 	return 0;
 }

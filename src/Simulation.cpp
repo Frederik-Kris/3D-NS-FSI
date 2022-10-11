@@ -7,12 +7,16 @@
 
 #include "Simulation.h"
 
-Simulation::Simulation() :
-params(),
+Simulation::Simulation(const ConfigSettings& params) :
+params(params),
 solver(params),
 output(params),
 t{0}, timeLevel{0}
+{}
+
+void Simulation::run()
 {
+	solver.initialize();
 	output.processInitialOutput(solver.mesh, t);
 	Clock statusReportTimer;
 	while ( !checkStoppingCriterion() )

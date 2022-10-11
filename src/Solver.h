@@ -18,6 +18,7 @@ class Solver
 {
 public:
 	Solver(const ConfigSettings& params);
+	void initialize();
 	void marchTimeStep(double t, uint timeLevel);
 	const vector<ConservedVariablesScalars>& getConvergenceHistory() const {return normHistory;}
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile

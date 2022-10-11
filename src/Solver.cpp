@@ -9,12 +9,17 @@
 #include "Solver.h"
 
 // Default constructor.
-// Initializes the ConfigSettings 'params', which loads settings and parameters from 'ConfigFile'.
-// Initializes all 3D arrays (but not their elements) containing flow variables and transport properties.
-// Starts the simulation.
+// Takes ConfigSettings 'params', with necessary settings from config file
+// Initializes mesh with 3D arrays (but not their elements)
 Solver::Solver(const ConfigSettings& params) :
 params(params),
-mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z)
+mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z),
+dt{0}
+{
+}
+
+// Apply initial condition (IC) and set the time-step size based on the IC.
+void Solver::initialize()
 {
 	applyStagnation_IC();
 	updateTimeStepSize(0);
