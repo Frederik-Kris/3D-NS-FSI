@@ -14,8 +14,8 @@ nNodesTotal{NI*NJ*NK},
 conservedVariables(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
-RK4_slopes(NI, NJ, NK),
-intermediateConservedVariables(NI, NJ, NK)
+intermediateConservedVariables(NI, NJ, NK),
+RK4slopes(NI, NJ, NK)
 {
 	setGridSpacings(domainLengthX, domainLengthY, domainLengthZ);
 }

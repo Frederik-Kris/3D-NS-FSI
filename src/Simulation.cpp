@@ -10,18 +10,17 @@
 Simulation::Simulation() :
 params(),
 solver(params),
-output(),
+output(params),
 t{0}, timeLevel{0}
 {
-	output.processInitialOutput(params);
+	output.processInitialOutput(solver.mesh, t);
 	Clock statusReportTimer;
 	while ( !checkStoppingCriterion() )
 	{
-		solver.marchTimeStep();
-		output.processIntermediateOutput(params, statusReportTimer, t, solver.dt);
+		solver.marchTimeStep(t, timeLevel);
+		output.processIntermediateOutput(solver.mesh, statusReportTimer, t, timeLevel, solver.dt);
 	}
-	const vector<const vector<double>*> convergenceHistoryPointers = {&normHistory_rho, &normHistory_rho_u, &normHistory_rho_v, &normHistory_rho_w, &normHistory_E};
-	output.processFinalOutput(params);
+	output.processFinalOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory());
 }
 
 // Check if computing another timestep will violate the stopping criterion. Returns true if simulation should stop.

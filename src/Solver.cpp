@@ -13,7 +13,7 @@
 // Initializes all 3D arrays (but not their elements) containing flow variables and transport properties.
 // Starts the simulation.
 Solver::Solver(const ConfigSettings& params) :
-params{params},
+params(params),
 mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z)
 {
 	applyStagnation_IC();
@@ -127,41 +127,34 @@ void Solver::getDerivedVariables_atPoint(double u_P,double v_P, double w_P, doub
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
-// TODO: This function is long. Consider splitting it up into smaller ones.
-void Solver::marchTimeStep(uint timeLevel)
+void Solver::marchTimeStep(double t, uint timeLevel)
 {
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.intermediateConservedVariables.rho, params.filterInterval, timeLevel);
+	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
 
-
-	computeRK4slopes(mesh.conservedVariables, mesh.RK4_slopes[0]);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
-	computeAllIntermediateSolutions(mesh.RK4_slopes[0], dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
+	computeRK4slopes(mesh.conservedVariables, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
+	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
 	updatePrimitiveVariables();
 
-	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[1]);  // k2: The slopes at time t + dt/2
-	computeAllIntermediateSolutions(mesh.RK4_slopes[1], dt/2)	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
+	computeRK4slopes(mesh.intermediateConservedVariables, k2);  // k2: The slopes at time t + dt/2
+	computeAllIntermediateSolutions(k2, dt/2)	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
 
-	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[2]);	// k3: Again, the slopes at time t + dt/2, but now using k2
-	computeAllIntermediateSolutions(mesh.RK4_slopes[2], dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
+	computeRK4slopes(mesh.intermediateConservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
+	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
 
-	computeRK4slopes(mesh.intermediateConservedVariables, mesh.RK4_slopes[3]);	// k4: The slopes at time t + dt
-
-	compute_RK4_final_step(k1_rho,   k2_rho,   k3_rho,   k4_rho,   rho  , interm_rho  );  // Use a weighted average of the four slopes
-	compute_RK4_final_step(k1_rho_u, k2_rho_u, k3_rho_u, k4_rho_u, rho_u, interm_rho_u);  // to advance the solution from time t, to
-	compute_RK4_final_step(k1_rho_v, k2_rho_v, k3_rho_v, k4_rho_v, rho_v, interm_rho_v);  // t + dt. The solutions at the new time level
-	compute_RK4_final_step(k1_rho_w, k2_rho_w, k3_rho_w, k4_rho_w, rho_w, interm_rho_w);  // are stored in the 'interm' arrays, so the
-	compute_RK4_final_step(k1_E,     k2_E,     k3_E,     k4_E,     E    , interm_E    );  // norm of the change can be computed.
-
+	computeRK4slopes(mesh.intermediateConservedVariables, k4);	// k4: The slopes at time t + dt
+	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
-	mesh.computeNorms_conservedVariables();	// Compute norm of the change between old and new time levels, and add to history.
-	swapConservedVariables();			// Swap conserved variables to their main arrays by move-semantics.
+	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.
+	mesh.swapConservedVariables();	// Swap conserved variables to their main arrays by move-semantics.
 
 	t += dt;
 	++timeLevel;
-	updateTimeStepSize();
+	updateTimeStepSize(t);
 }
 
 void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables, ConservedVariablesArrayGroup& RK4slopes)
@@ -462,6 +455,16 @@ void Solver::updatePrimitiveVariables()
 				kappa(i,j,k) = mu(i,j,k) * prandtlFactor;
 }
 
+void Solver::computeRK4finalStepAllVariables()
+{
+	const ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
+	compute_RK4_final_step(k1.rho,   k2.rho,   k3.rho,   k4.rho,   mesh.conservedVariables.rho  , mesh.intermediateConservedVariables.rho  );  // Use a weighted average of the four slopes
+	compute_RK4_final_step(k1.rho_u, k2.rho_u, k3.rho_u, k4.rho_u, mesh.conservedVariables.rho_u, mesh.intermediateConservedVariables.rho_u);  // to advance the solution from time t, to
+	compute_RK4_final_step(k1.rho_v, k2.rho_v, k3.rho_v, k4.rho_v, mesh.conservedVariables.rho_v, mesh.intermediateConservedVariables.rho_v);  // t + dt. The solutions at the new time level
+	compute_RK4_final_step(k1.rho_w, k2.rho_w, k3.rho_w, k4.rho_w, mesh.conservedVariables.rho_w, mesh.intermediateConservedVariables.rho_w);  // are stored in the intermediate arrays, so the
+	compute_RK4_final_step(k1.rho_E, k2.rho_E, k3.rho_E, k4.rho_E, mesh.conservedVariables.rho_E, mesh.intermediateConservedVariables.rho_E);  // norm of the change can be computed.
+}
+
 // Uses all the intermediate solutions for a variable, k1,2,3,4, to advance the variable from t to t+dt
 void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 									const Array3D_d& k3, const Array3D_d& k4,
@@ -475,6 +478,11 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 				double residualValue = dtFactor*( k1(i,j,k) + 2*k2(i,j,k) + 2*k3(i,j,k) + k4(i,j,k) );
 				conservedVar_new(i,j,k) = conservedVar_old(i,j,k) + residualValue;
 			}
+}
+
+void Solver::storeNormsOfChange()
+{
+	normHistory.push_back(mesh.computeNorms_conservedVariables());
 }
 
 

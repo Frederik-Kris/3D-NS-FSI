@@ -18,6 +18,10 @@ class Solver
 {
 public:
 	Solver(const ConfigSettings& params);
+	void marchTimeStep(double t, uint timeLevel);
+	const vector<ConservedVariablesScalars>& getConvergenceHistory() const {return normHistory;}
+	Mesh mesh;	// Computational mesh, containing flow variables
+	double dt;	// Time-step size
 private:
 	void applyStagnation_IC();
 	void applyUniformFlow_IC();
@@ -26,7 +30,6 @@ private:
 	double getViscousTimeStepLimit();
 	void getDerivedVariables_atPoint(double u_0,double v_0, double w_0, double p_0, double T_0,
 			double& rho_0, double& rho_u_0, double& rho_v_0, double& rho_w_0, double& E_0, double& mu_0, double& kappa_0);
-	void marchTimeStep(uint timeLevel);
 	void computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables, ConservedVariablesArrayGroup& RK4slopes);
 	void compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
                                            Array3D_d& RK4_slope);
@@ -38,12 +41,12 @@ private:
 	void computeIntermediateSolution(const Array3D_d& conservedVar, const Array3D_d& RK4_slope,
 			                               Array3D_d& intermSolution, double timeIncrement);
 	void updatePrimitiveVariables();
+	void computeRK4finalStepAllVariables();
 	void compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2, const Array3D_d& k3, const Array3D_d& k4,
 								const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new);
-
+	void storeNormsOfChange();
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
-	Mesh mesh;						// Computational mesh, containing flow variables
-	double dt;						// Time-step size
+	vector<ConservedVariablesScalars> normHistory; // Vector of the developments of the change-norms.
 };
 
 

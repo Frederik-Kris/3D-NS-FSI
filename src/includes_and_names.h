@@ -18,6 +18,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <array>
 #include <exception>
 #include <math.h>
 #include <algorithm>

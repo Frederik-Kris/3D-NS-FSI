@@ -8,7 +8,7 @@
 #include "OutputManager.h"
 
 OutputManager::OutputManager(const ConfigSettings& params) :
-params{params},
+params(params),
 savedSolutions{0}
 {
 }
@@ -36,13 +36,13 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusRep
 }
 
 void OutputManager::processFinalOutput(const Mesh& mesh, double t, uint timeLevel, double dt,
-								const vector<const vector<double>*> convergenceHistoryPointers)
+								const vector<ConservedVariablesScalars> convergenceHistory)
 {
 	if ( params.save_final )
 		storeCurrentSolution_csv(mesh, t);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
-	writeConvergenceHistoryFiles(convergenceHistoryPointers);
+	writeConvergenceHistoryFiles(convergenceHistory);
 }
 
 // Store selected variables from the solution at current time level, using the format(s) specified
@@ -285,24 +285,33 @@ void OutputManager::writeOutputTimes()
 
 // Write files with lists of the norm of change for the conserved variables.
 // TODO: This function should be customizable to choose in ConfigFile whether to log norms of particular variables. OR, find out which variable is the best indicator for convergence, and only log that one.
-void OutputManager::writeConvergenceHistoryFiles(const vector<const vector<double>*> convergenceHistoryPointers)
+void OutputManager::writeConvergenceHistoryFiles(const vector<ConservedVariablesScalars>& convergenceHistory)
 {
-	vector<string> filenames = {"output/norm_rho.dat", "output/norm_rho_u.dat", "output/norm_rho_v.dat", "output/norm_rho_w.dat", "output/norm_E.dat"};
-
-	for(uint i=0; i<filenames.size(); ++i)
+	ofstream normFileRho, normFileRho_u, normFileRho_v, normFileRho_w, normFileRho_E;
+	normFileRho.  open( "output/norm_rho.dat"   );
+	normFileRho_u.open( "output/norm_rho_u.dat" );
+	normFileRho_v.open( "output/norm_rho_v.dat" );
+	normFileRho_w.open( "output/norm_rho_w.dat" );
+	normFileRho_E.open( "output/norm_rho_E.dat" );
+	if ( !normFileRho || !normFileRho_u || !normFileRho_v || !normFileRho_w || !normFileRho_E )
 	{
-		ofstream normFile;
-		normFile.open( filenames.at(i) );
-		if ( !normFile )
-		{
-			cout << "Could not open file:  " + filenames.at(i) << endl
-				 << "Norm history was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
-		}
-		else
-			for (double norm : *convergenceHistoryPointers.at(i))
-				normFile << norm << endl;
-		normFile.close();
+		cout << "Could not open a convergence history file. " << endl
+				<< "Norm history was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 	}
+	else
+		for (ConservedVariablesScalars norms : convergenceHistory)
+		{
+			normFileRho   << norms.rho   << endl;
+			normFileRho_u << norms.rho_u << endl;
+			normFileRho_v << norms.rho_v << endl;
+			normFileRho_w << norms.rho_w << endl;
+			normFileRho_E << norms.rho_E << endl;
+		}
+	normFileRho.  close();
+	normFileRho_u.close();
+	normFileRho_v.close();
+	normFileRho_w.close();
+	normFileRho_E.close();
 }
 
 
