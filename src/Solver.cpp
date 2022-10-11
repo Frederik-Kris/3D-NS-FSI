@@ -20,7 +20,7 @@ dt{0}
 // Apply initial condition (IC) and set the time-step size based on the IC.
 void Solver::initialize()
 {
-	applyStagnation_IC();
+	applyUniformFlow_IC();
 	updateTimeStepSize(0);
 }
 
@@ -50,7 +50,7 @@ void Solver::applyStagnation_IC()
 // Applies uniform flow initial condition (IC) by setting the values of flow variables at every node
 void Solver::applyUniformFlow_IC()
 {
-	cout << "Applying stagnation initial condition... ";
+	cout << "Applying oblique uniform flow initial condition... ";
 	double velocity = params.M_0 / sqrt(3);
 	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC);// and derive the others
@@ -154,7 +154,7 @@ TransportPropertiesScalars Solver::deriveTransportProperties(const PrimitiveVari
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
-void Solver::marchTimeStep(double t, uint timeLevel)
+void Solver::marchTimeStep(double& t, uint& timeLevel)
 {
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.intermediateConservedVariables.rho, params.filterInterval, timeLevel);
 	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};

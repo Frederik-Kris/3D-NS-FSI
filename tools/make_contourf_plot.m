@@ -1,20 +1,22 @@
 % Create filled contour plot from csv-file with the solution
 
-rho = readmatrix("output/rho_0.csv")';
-u   = readmatrix("output/u_0.csv")';
-v   = readmatrix("output/v_0.csv")';
-w   = readmatrix("output/w_0.csv")';
-p   = readmatrix("output/p_0.csv")';
-T   = readmatrix("output/T_0.csv")';
+close all
 
-x = linspace(0,5,41);
-z = linspace(0,1,41);
+rho = readmatrix("../output/rho_0.csv")';
+u   = readmatrix("../output/u_0.csv")';
+v   = readmatrix("../output/v_0.csv")';
+w   = readmatrix("../output/w_0.csv")';
+p   = readmatrix("../output/p_0.csv")';
+T   = readmatrix("../output/T_0.csv")';
 
-norm_rho   = readmatrix("output/norm_rho.dat");
-norm_rho_u = readmatrix("output/norm_rho_u.dat");
-norm_rho_v = readmatrix("output/norm_rho_v.dat");
-norm_rho_w = readmatrix("output/norm_rho_w.dat");
-norm_E     = readmatrix("output/norm_E.dat");
+x = linspace(0,1,21);
+z = linspace(0,1,21);
+
+norm_rho   = readmatrix("../output/norm_rho.dat");
+norm_rho_u = readmatrix("../output/norm_rho_u.dat");
+norm_rho_v = readmatrix("../output/norm_rho_v.dat");
+norm_rho_w = readmatrix("../output/norm_rho_w.dat");
+norm_E     = readmatrix("../output/norm_rho_E.dat");
 
 figure(1);
 [M, myPlot] = contourf(x, z, u, 30);
