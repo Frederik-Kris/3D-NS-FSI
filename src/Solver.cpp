@@ -8,8 +8,7 @@
 
 #include "Solver.h"
 
-// Default constructor.
-// Takes ConfigSettings 'params', with necessary settings from config file
+// Constructor. Takes ConfigSettings 'params', with necessary settings from config file
 // Initializes mesh with 3D arrays (but not their elements)
 Solver::Solver(const ConfigSettings& params) :
 params(params),
@@ -29,43 +28,47 @@ void Solver::initialize()
 void Solver::applyStagnation_IC()
 {
 	cout << "Applying stagnation initial condition... ";
-	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  // <- Decide primitive variables
-	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;  // <- Other variables follow equations.
-	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	mesh.primitiveVariables.u    .setAll(u_IC);
-	mesh.primitiveVariables.v    .setAll(v_IC);
-	mesh.primitiveVariables.w    .setAll(w_IC);
-	mesh.primitiveVariables.p    .setAll(p_IC);
-	mesh.primitiveVariables.T    .setAll(T_IC);
-	mesh.conservedVariables.rho  .setAll(rho_IC);
-	mesh.conservedVariables.rho_u.setAll(rho_u_IC);
-	mesh.conservedVariables.rho_v.setAll(rho_v_IC);
-	mesh.conservedVariables.rho_w.setAll(rho_w_IC);
-	mesh.conservedVariables.rho_E.setAll(E_IC);
-	mesh.transportProperties.mu   .setAll(mu_IC);
-	mesh.transportProperties.kappa.setAll(kappa_IC);
+	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  	// <- Decide primitive variables
+	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC); // and derive the others
+	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables);
+	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables);
+	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
+	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
+	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
+	mesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
+	mesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
+	mesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
+	mesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
+	mesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
+	mesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
+	mesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
+	mesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
+	mesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
 	cout << "Done" << endl << endl;
 }
 
 // Applies uniform flow initial condition (IC) by setting the values of flow variables at every node
 void Solver::applyUniformFlow_IC()
 {
+	cout << "Applying stagnation initial condition... ";
 	double velocity = params.M_0 / sqrt(3);
 	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
-	double rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC;      // <- Other variables follow equations.
-	getDerivedVariables_atPoint(u_IC, v_IC, w_IC, p_IC, T_IC, rho_IC, rho_u_IC, rho_v_IC, rho_w_IC, E_IC, mu_IC, kappa_IC);
-	mesh.primitiveVariables.u    .setAll(u_IC);
-	mesh.primitiveVariables.v    .setAll(v_IC);
-	mesh.primitiveVariables.w    .setAll(w_IC);
-	mesh.primitiveVariables.p    .setAll(p_IC);
-	mesh.primitiveVariables.T    .setAll(T_IC);
-	mesh.conservedVariables.rho  .setAll(rho_IC);
-	mesh.conservedVariables.rho_u.setAll(rho_u_IC);
-	mesh.conservedVariables.rho_v.setAll(rho_v_IC);
-	mesh.conservedVariables.rho_w.setAll(rho_w_IC);
-	mesh.conservedVariables.rho_E.setAll(E_IC);
-	mesh.transportProperties.mu   .setAll(mu_IC);
-	mesh.transportProperties.kappa.setAll(kappa_IC);
+	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC);// and derive the others
+	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables);
+	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables);
+	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
+	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
+	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
+	mesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
+	mesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
+	mesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
+	mesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
+	mesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
+	mesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
+	mesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
+	mesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
+	mesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
+	cout << "Done" << endl << endl;
 }
 
 // Set the time step size (dt) as large as possible, within the stability criterion.
@@ -114,20 +117,39 @@ double Solver::getViscousTimeStepLimit()
 	return fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/dx_2 + 1/dy_2 + 1/dz_2) );
 }
 
-// Computes scalar values for conserved variables and transport properties, based on the primitive variables.
-// Intent: Use this when applying initial conditions (IC) or boundary conditions (BC). Decide on the primitives and
-// use this function to get the values for the other flow variables. Subscript _P denotes scalar values in one point.
-void Solver::getDerivedVariables_atPoint(double u_P,double v_P, double w_P, double p_P, double T_P,
-		double& rho_P, double& rho_u_P, double& rho_v_P, double& rho_w_P, double& E_P, double& mu_P, double& kappa_P)
+// Computes scalar values for conserved variables, based on the primitive variables.
+// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
+// E.g., decide on the primitives and use this function to get the values for the other flow variables.
+// Subscript _P denotes scalar values in one point.
+ConservedVariablesScalars Solver::deriveConservedVariables(const PrimitiveVariablesScalars primitiveVariables)
 {
-	rho_P   = ( params.Gamma * p_P - T_P ) / ( 1 + T_P );
-	rho_u_P = (1 + rho_P) * u_P;
-	rho_v_P = (1 + rho_P) * v_P;
-	rho_w_P = (1 + rho_P) * w_P;
-	E_P     = p_P / ( params.Gamma - 1 ) + (1 + rho_P)/2 * ( u_P*u_P + v_P*v_P + w_P*w_P );
+	const double u{primitiveVariables.u}, v{primitiveVariables.v}, w{primitiveVariables.w}, p{primitiveVariables.p}, T{primitiveVariables.T};
+	double rho   = ( params.Gamma * p - T ) / ( 1 + T );
+	double rho_u = (1 + rho) * u;
+	double rho_v = (1 + rho) * v;
+	double rho_w = (1 + rho) * w;
+	double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
+	return ConservedVariablesScalars(rho, rho_u, rho_v, rho_w, rho_E);
+}
+
+PrimitiveVariablesScalars Solver::derivePrimitiveVariables(const ConservedVariablesScalars conservedVariables)
+{
+	const double rho{conservedVariables.rho}, rho_u{conservedVariables.rho_u}, rho_v{conservedVariables.rho_v}, rho_w{conservedVariables.rho_w}, rho_E{conservedVariables.rho_E};
+	double u = rho_u / rho;
+	double v = rho_v / rho;
+	double w = rho_w / rho;
+	double p = ( params.Gamma - 1 )*( rho_E - (1 + rho)/2 * ( u*u + v*v + w*w ));
+	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
+	return PrimitiveVariablesScalars(u, v, w, p, T);
+}
+
+TransportPropertiesScalars Solver::deriveTransportProperties(const PrimitiveVariablesScalars primitiveVariables)
+{
+	const double T{primitiveVariables.T};
 	double ScPlusOne = 1 + params.T_0 / params.sutherlands_C2;
-	mu_P    = pow( 1+T_P, 1.5 ) * ScPlusOne / ( params.Re*( T_P + ScPlusOne ) );
-	kappa_P = mu_P / ( (params.Gamma - 1) * params.Pr );
+	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
+	return TransportPropertiesScalars(mu, kappa);
 }
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.

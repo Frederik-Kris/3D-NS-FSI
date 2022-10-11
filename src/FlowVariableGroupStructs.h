@@ -23,6 +23,31 @@ public:
 	{}
 };
 
+struct PrimitiveVariablesScalars
+{
+public:
+	double u;	// Velocity component in x-direction
+	double v;	// Velocity component in y-direction
+	double w;	// Velocity component in z-direction
+	double p;	// Pressure
+	double T;	// Temperature
+
+	PrimitiveVariablesScalars(double u, double v, double w, double p, double T) :
+		u{u}, v{v}, w{w}, p{p}, T{T}
+	{}
+};
+
+struct TransportPropertiesScalars
+{
+public:
+	double mu;		// Dynamic viscosity
+	double kappa;	// Thermal conductivity
+
+	TransportPropertiesScalars(double mu, double kappa) :
+		mu{mu}, kappa{kappa}
+	{}
+};
+
 struct ConservedVariablesArrayGroup
 {
 	Array3D_d rho;		// Mass density
