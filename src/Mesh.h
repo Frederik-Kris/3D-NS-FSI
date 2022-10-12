@@ -9,7 +9,9 @@
 #define SRC_MESH_H_
 
 #include "includes_and_names.h"
+#include "ConfigSettings.h"
 #include "Array3D_d.h"
+#include "Boundary.h"
 #include "FlowVariableGroupStructs.h"
 
 struct IndexVectorGroup
@@ -23,8 +25,9 @@ struct IndexVectorGroup
 class Mesh
 {
 public:
-	Mesh(uint nMeshNodesX, uint nMeshNodesY, uint nMeshNodesZ,
-		double domainLengthX, double domainLengthY, double domainLengthZ);
+	Mesh(const ConfigSettings& params);
+	void setupBoundaries(const ConfigSettings& params);
+	void categorizeNodes();
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
 									uint filterInterval, uint timeLevel);
 	ConservedVariablesScalars computeNorms_conservedVariables();
@@ -39,6 +42,7 @@ public:
 	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
 	IndexVectorGroup nodeIndices;									// Indices to different types of nodes
 private:
+	vector<unique_ptr<Boundary>> boundaries;	// Collection of Boundary objects (domain edges and immersed)
 	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );
 	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 };

@@ -12,7 +12,7 @@
 // Initializes mesh with 3D arrays (but not their elements)
 Solver::Solver(const ConfigSettings& params) :
 params(params),
-mesh(params.NI, params.NJ, params.NK, params.L_x, params.L_y, params.L_z),
+mesh(params),
 dt{0}
 {
 }
@@ -20,6 +20,8 @@ dt{0}
 // Apply initial condition (IC) and set the time-step size based on the IC.
 void Solver::initialize()
 {
+	mesh.setupBoundaries(params);
+	mesh.categorizeNodes();
 	applyUniformFlow_IC();
 	updateTimeStepSize(0);
 }

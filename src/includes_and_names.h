@@ -32,6 +32,7 @@ using std::setprecision;
 using std::string;
 using std::to_string;
 using std::vector;
+using std::unique_ptr;
 using std::invalid_argument;
 using std::pow;
 using std::fabs;

@@ -10,11 +10,6 @@
 
 #include "includes_and_names.h"
 
-enum class BoundaryTypeEnum
-{
-	domainEdge, immersed
-};
-
 enum class DomainBoundaryNormalAxisEnum
 {
 	x, y, z
@@ -22,45 +17,31 @@ enum class DomainBoundaryNormalAxisEnum
 
 enum class BoundaryConditionTypeEnum
 {
-	inlet, outlet, adiabaticWall, isothermalWall, symmetry
+	inlet, outlet, adiabaticWall, isothermalWall, periodic, symmetry
 };
 
-class Boundary
-{
-protected:
-	Boundary(BoundaryTypeEnum boundaryType, BoundaryConditionTypeEnum bcType) :
-		boundaryType{boundaryType}, bcType{bcType} {}
-public:
-	virtual ~Boundary();
-	virtual void applyBoundaryCondition();
-	const BoundaryTypeEnum boundaryType;
-	BoundaryConditionTypeEnum bcType;
-};
-
-class DomainBoundary : public Boundary
+class MeshEdgeBoundary
 {
 public:
-	DomainBoundary(BoundaryConditionTypeEnum bcType,
+	MeshEdgeBoundary(BoundaryConditionTypeEnum bcType,
 				   DomainBoundaryNormalAxisEnum normalAxis,
 				   uint planeIndex) :
-					   Boundary(BoundaryTypeEnum::domainEdge, bcType),
 					   normalAxis{normalAxis},
 					   planeIndex{planeIndex}
 	{}
-	void applyBoundaryCondition() override;
+	virtual ~MeshEdgeBoundary();
+	virtual void applyBoundaryCondition();
 	const DomainBoundaryNormalAxisEnum normalAxis;
 	const uint planeIndex;
 };
 
-class ImmersedBoundary : public Boundary
+class ImmersedBoundary
 {
 public:
-	ImmersedBoundary(BoundaryConditionTypeEnum bcType,
-					 DomainBoundaryNormalAxisEnum normalAxis,
-					 uint planeIndex) :
-					   Boundary(BoundaryTypeEnum::immersed, bcType)
+	ImmersedBoundary(BoundaryConditionTypeEnum bcType)
 	{}
-	void applyBoundaryCondition() override;
+	virtual void applyBoundaryCondition();
+	virtual ~ImmersedBoundary();
 };
 
 #endif /* SRC_BOUNDARY_H_ */

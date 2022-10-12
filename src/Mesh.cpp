@@ -7,9 +7,8 @@
 
 #include "Mesh.h"
 
-Mesh::Mesh(uint nMeshNodesX, uint nMeshNodesY, uint nMeshNodesZ,
-		double domainLengthX, double domainLengthY, double domainLengthZ ) :
-NI{nMeshNodesX}, NJ{nMeshNodesY}, NK{nMeshNodesZ},
+Mesh::Mesh(const ConfigSettings& params) :
+NI{params.NI}, NJ{params.NJ}, NK{params.NK},
 nNodesTotal{NI*NJ*NK},
 conservedVariables(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
@@ -17,7 +16,7 @@ transportProperties(NI, NJ, NK),
 intermediateConservedVariables(NI, NJ, NK),
 RK4slopes(NI, NJ, NK)
 {
-	setGridSpacings(domainLengthX, domainLengthY, domainLengthZ);
+	setGridSpacings(params.L_x, params.L_y, params.L_z);
 }
 
 
@@ -30,6 +29,35 @@ void Mesh::setGridSpacings(double domainLengthX,
 	dy = domainLengthY / (NJ - 1);
 	dz = domainLengthZ / (NK - 1);
 	cout << "Grid spacings set: dx = " << dx << " , dy = " << dy << " , dz = " << dz << endl;
+}
+
+void Mesh::setupBoundaries(const ConfigSettings &params)
+{
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::inlet,
+														  DomainBoundaryNormalAxisEnum::x,
+														  0));
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::outlet,
+														  DomainBoundaryNormalAxisEnum::x,
+														  NI));
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
+														  DomainBoundaryNormalAxisEnum::y,
+														  0));
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
+														  DomainBoundaryNormalAxisEnum::y,
+														  NJ));
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
+														  DomainBoundaryNormalAxisEnum::z,
+														  0));
+	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
+														  DomainBoundaryNormalAxisEnum::z,
+														  NK));
+
+	boundaries.push_back(std::make_unique<ImmersedBoundary>(BoundaryConditionTypeEnum::adiabaticWall));
+}
+
+void Mesh::categorizeNodes()
+{
+
 }
 
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
