@@ -40,21 +40,31 @@ public:
 class DomainBoundary : public Boundary
 {
 public:
-	DomainBoundary(BoundaryTypeEnum boundaryType,
-				   BoundaryConditionTypeEnum bcType,
+	DomainBoundary(BoundaryConditionTypeEnum bcType,
 				   DomainBoundaryNormalAxisEnum normalAxis,
 				   uint planeIndex) :
-					   Boundary(boundaryType, bcType),
+					   Boundary(BoundaryTypeEnum::domainEdge, bcType),
 					   normalAxis{normalAxis},
 					   planeIndex{planeIndex}
 	{}
+	void applyBoundaryCondition() override;
 	const DomainBoundaryNormalAxisEnum normalAxis;
 	const uint planeIndex;
 };
 
 class ImmersedBoundary : public Boundary
 {
-
+public:
+	ImmersedBoundary(BoundaryConditionTypeEnum bcType,
+					 DomainBoundaryNormalAxisEnum normalAxis,
+					 uint planeIndex) :
+					   Boundary(BoundaryTypeEnum::immersed, bcType)
+	{}
+	void applyBoundaryCondition() override;
 };
 
 #endif /* SRC_BOUNDARY_H_ */
+
+
+
+
