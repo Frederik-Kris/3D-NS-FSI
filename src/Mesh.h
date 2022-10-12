@@ -12,6 +12,14 @@
 #include "Array3D_d.h"
 #include "FlowVariableGroupStructs.h"
 
+struct IndexVectorGroup
+{
+	vector<uint> fluidNodes;
+	vector<uint> activeNodes;
+	vector<uint> ghostNodes;
+	vector<uint> surfaceNodes;
+};
+
 class Mesh
 {
 public:
@@ -29,6 +37,7 @@ public:
 	TransportPropertiesArrayGroup transportProperties;				// Viscosity and thermal conductivity
 	ConservedVariablesArrayGroup intermediateConservedVariables;	// Intermediate states of conserved variables.
 	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
+	IndexVectorGroup nodeIndices;									// Indices to different types of nodes
 private:
 	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );
 	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
