@@ -34,12 +34,18 @@ void Mesh::setGridSpacings(double domainLengthX,
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<InletBoundary>(params.M_0, AxisOrientationEnum::x, 0));
-	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, NI));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, 0));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, NJ));
-	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, 0));
-	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, NK));
+	edgeBoundaries.push_back(std::make_unique<InletBoundary>(params.M_0, AxisOrientationEnum::x,
+																0, edgeBoundaries));
+	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x,
+																NI, edgeBoundaries));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y,
+																0, edgeBoundaries));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y,
+																NJ, edgeBoundaries));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z,
+																0, edgeBoundaries));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z,
+																NK, edgeBoundaries));
 
 	sf::Vector2<double> cylinderCentroidPosition(params.L_x / 5, params.L_y / 2);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
@@ -55,7 +61,17 @@ void Mesh::assertBoundaryConditionCompliance()
 
 void Mesh::categorizeNodes()
 {
+	// NEI DETTE BLIR TEIT. MÅ FLYTTE KODEN I IDENTIFY_OWNED... TIL MESH ELLER NOE
+	uint counter{0};
+	for(MeshEdgeBoundary boundary : edgeBoundaries)
+	{
+		if(counter > 0)
+		{
+			EdgeBoundaryCollection preExistingBoundaries(edgeBoundaries.begin(), edgeBoundaries.begin()+counter);
 
+		}
+		counter++;
+	}
 }
 
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered

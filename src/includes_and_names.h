@@ -11,8 +11,6 @@
 #ifndef SRC_INCLUDES_AND_NAMES_H_
 #define SRC_INCLUDES_AND_NAMES_H_
 
-
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>

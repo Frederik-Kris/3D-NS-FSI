@@ -43,8 +43,8 @@ public:
 	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
 	IndexVectorGroup nodeIndices;									// Indices to different types of nodes
 private:
-	vector<unique_ptr<MeshEdgeBoundary>> edgeBoundaries;		// Boundaries at the edges of the Cartesian mesh
-	vector<unique_ptr<ImmersedBoundary>> immersedBoundaries;	// Boundaries at immersed bodies
+	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
+	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies
 	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );
 	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 };
