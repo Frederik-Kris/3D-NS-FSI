@@ -27,6 +27,7 @@ class Mesh
 public:
 	Mesh(const ConfigSettings& params);
 	void setupBoundaries(const ConfigSettings& params);
+	void assertBoundaryConditionCompliance();
 	void categorizeNodes();
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
 									uint filterInterval, uint timeLevel);
@@ -42,7 +43,8 @@ public:
 	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
 	IndexVectorGroup nodeIndices;									// Indices to different types of nodes
 private:
-	vector<unique_ptr<Boundary>> boundaries;	// Collection of Boundary objects (domain edges and immersed)
+	vector<unique_ptr<MeshEdgeBoundary>> edgeBoundaries;		// Boundaries at the edges of the Cartesian mesh
+	vector<unique_ptr<ImmersedBoundary>> immersedBoundaries;	// Boundaries at immersed bodies
 	void setGridSpacings(double domainLengthX, double domainLengthY, double domainLengthZ );
 	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 };

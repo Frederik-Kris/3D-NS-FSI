@@ -31,28 +31,26 @@ void Mesh::setGridSpacings(double domainLengthX,
 	cout << "Grid spacings set: dx = " << dx << " , dy = " << dy << " , dz = " << dz << endl;
 }
 
+// Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::inlet,
-														  DomainBoundaryNormalAxisEnum::x,
-														  0));
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::outlet,
-														  DomainBoundaryNormalAxisEnum::x,
-														  NI));
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
-														  DomainBoundaryNormalAxisEnum::y,
-														  0));
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
-														  DomainBoundaryNormalAxisEnum::y,
-														  NJ));
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
-														  DomainBoundaryNormalAxisEnum::z,
-														  0));
-	boundaries.push_back(std::make_unique<MeshEdgeBoundary>(BoundaryConditionTypeEnum::periodic,
-														  DomainBoundaryNormalAxisEnum::z,
-														  NK));
+	edgeBoundaries.push_back(std::make_unique<InletBoundary>(params.M_0, AxisOrientationEnum::x, 0));
+	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, NI));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, 0));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, NJ));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, 0));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, NK));
 
-	boundaries.push_back(std::make_unique<ImmersedBoundary>(BoundaryConditionTypeEnum::adiabaticWall));
+	sf::Vector2<double> cylinderCentroidPosition(params.L_x / 5, params.L_y / 2);
+	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+																AxisOrientationEnum::z,
+																params.L_y/10));
+}
+
+// Sanity check for the combination of boundary conditions.
+void Mesh::assertBoundaryConditionCompliance()
+{
+	// Implement when creating general IBM.
 }
 
 void Mesh::categorizeNodes()
