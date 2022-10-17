@@ -23,6 +23,8 @@ void ConfigSettings::loadSettings(string filename)
 
 	if (!errorOccurred)
 		tryReadSettingValues(cfg);
+	if (!errorOccurred)
+		setDerivedParameters();
 }
 
 // Tries to open and parse the 'ConfigFile'. If the file can't be opened or parsed, 'error' is assigned true.
@@ -144,6 +146,13 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	L_x				= cfg.lookup("L_x");
 	L_y				= cfg.lookup("L_y");
 	L_z				= cfg.lookup("L_z");
+}
+
+// Set parameters that are not given in the config file.
+// They are derived from the given values etc.
+void ConfigSettings::setDerivedParameters()
+{
+	machinePrecisionBuffer = std::numeric_limits<double>::epsilon()*(L_x+L_y+L_z);
 }
 
 

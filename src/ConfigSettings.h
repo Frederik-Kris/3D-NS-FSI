@@ -63,10 +63,15 @@ public:
 	double L_x, L_y, L_z;		// Physical dimensionless size of domain
 
 	bool errorOccurred;			// Error flag, set true if reading the 'ConfigFile' fails
+
+	// Derived (not given in config file):
+
+	double machinePrecisionBuffer;
 private:
 	void tryOpenConfigFile(Config& cfg, string filename);
 	void tryReadSettingValues(Config& cfg);
 	void readSettingValues(Config& cfg);
+	void setDerivedParameters();
 };
 
 
