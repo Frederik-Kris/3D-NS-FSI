@@ -10,8 +10,8 @@
 
 
 #include "includes_and_names.h"
-#include "Array3D_d.h"
 #include <random>
+#include "Array3D.h"
 
 void testModulo()
 {

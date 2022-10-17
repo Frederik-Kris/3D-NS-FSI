@@ -8,8 +8,8 @@
 #ifndef SRC_OUTPUTMANAGER_H_
 #define SRC_OUTPUTMANAGER_H_
 
+#include "Array3D.h"
 #include "includes_and_names.h"
-#include "Array3D_d.h"
 #include "ConfigSettings.h"
 #include "Mesh.h"
 

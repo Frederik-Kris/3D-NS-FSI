@@ -10,6 +10,9 @@
 
 #include "includes_and_names.h"
 #include "CustomExceptions.h"
+#include "Array3D.h"
+#include "ConfigSettings.h"
+#include "Mesh.h"
 
 
 enum class AxisOrientationEnum
@@ -46,7 +49,8 @@ public:
 	MeshEdgeBoundary(AxisOrientationEnum normalAxis,
 					 EdgeIndexEnum planeIndex);
 	virtual ~MeshEdgeBoundary() = default;
-	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, const IndexBoundingBox meshSize);
+	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, const IndexBoundingBox meshSize,
+								Array3D_nodeType& nodeTypes);
 	virtual void applyBoundaryCondition();
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
@@ -101,7 +105,10 @@ class ImmersedBoundary
 public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
-	virtual void identifyGhostNodes(const IndexBoundingBox meshSize, double dx, double dy, double dz);
+	virtual void identifyGhostNodes(const ConfigSettings& params,
+									const IndexBoundingBox meshSize,
+									Array3D_nodeType& nodeTypes,
+									double dx, double dy, double dz);
 	virtual void applyBoundaryCondition();
 private:
 	vector<uint> ghostNodeIndices;
@@ -112,7 +119,10 @@ class CylinderBody : public ImmersedBoundary
 {
 public:
 	CylinderBody(sf::Vector3<double> centroidPosition, AxisOrientationEnum axis, double radius);
-	void identifyGhostNodes(const IndexBoundingBox meshSize, double dx, double dy, double dz) override;
+	void identifyGhostNodes(const ConfigSettings& params,
+							const IndexBoundingBox meshSize,
+							Array3D_nodeType& nodeTypes,
+							double dx, double dy, double dz) override;
 
 	void applyBoundaryCondition() override;
 private:
@@ -126,7 +136,10 @@ class SphereBody : public ImmersedBoundary
 {
 public:
 	SphereBody(sf::Vector3<double> centerPosition, double radius);
-	void identifyGhostNodes(const IndexBoundingBox meshSize, double dx, double dy, double dz) override;
+	void identifyGhostNodes(const ConfigSettings& params,
+							const IndexBoundingBox meshSize,
+							Array3D_nodeType& nodeTypes,
+							double dx, double dy, double dz) override;
 	void applyBoundaryCondition() override;
 private:
 	sf::Vector3<double> centerPosition;

@@ -5,12 +5,14 @@
  *      Author: frederik
  */
 
-#ifndef SRC_ARRAY3D_D_H_
-#define SRC_ARRAY3D_D_H_
+#ifndef SRC_ARRAY3D_H_
+#define SRC_ARRAY3D_H_
 
 
 
 #include "includes_and_names.h"
+
+
 
 // Simple 3D array type for double precision numbers.
 class Array3D_d
@@ -88,8 +90,54 @@ private:
 	vector<double> data;
 };
 
+enum class NodeTypeEnum
+{
+	FluidRegular, FluidEdge, Solid, Ghost
+};
+
+// Simple 3D array type for NodeTypeEnum
+class Array3D_nodeType
+{
+public:
+	// Constructor. Sets the size members and initializes the data-vector with correct size.
+	// Does NOT initialize the elements in the data-vector.
+	Array3D_nodeType(size_t length, size_t width, size_t height) :
+    length(length),
+	width(width),
+    height(height),
+    data(length * width * height)
+	{}
+
+	// Get reference to a node using 3D indices
+	inline NodeTypeEnum& operator()(size_t x, size_t y, size_t z)
+	{ return data[x * width * height + y * height + z]; }
+
+	// Get value of a node using 3D indices
+	inline NodeTypeEnum operator()(size_t x, size_t y, size_t z) const
+	{ return data[x * width * height + y * height + z]; }
+
+	// Get reference to a node using one index
+	inline NodeTypeEnum& operator()(size_t i)
+	{ return data[i]; }
+
+	// Get value of a node using one index
+	inline NodeTypeEnum operator()(size_t i) const
+	{ return data[i]; }
+
+	// Set all the nodes in the array to value 'type'
+	void setAll(NodeTypeEnum type)
+	{ data.assign(data.size(), type); }
+
+	// Swap contents of the array with another array, using move-semantics (no copy).
+	void dataSwap(Array3D_nodeType& other)
+	{ std::swap(data, other.data); }
+
+private:
+	size_t length, width, height;
+	vector<NodeTypeEnum> data;
+};
 
 
 
 
-#endif /* SRC_ARRAY3D_D_H_ */
+#endif /* SRC_ARRAY3D_H_ */

@@ -8,10 +8,10 @@
 #ifndef SRC_SIMULATION_H_
 #define SRC_SIMULATION_H_
 
+#include "Array3D.h"
 #include "includes_and_names.h"
 #include "Solver.h"
 #include "OutputManager.h"
-#include "Array3D_d.h"
 #include "ConfigSettings.h"
 
 // Top level class, containing all variables and methods needed to run a simulation.

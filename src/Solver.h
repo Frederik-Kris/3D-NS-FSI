@@ -8,9 +8,9 @@
 #ifndef SRC_SOLVER_H_
 #define SRC_SOLVER_H_
 
+#include "Array3D.h"
 #include "includes_and_names.h"
 #include "Mesh.h"
-#include "Array3D_d.h"
 #include "ConfigSettings.h"
 
 // Numerical solver class, which contains mesh with flow variables and methods needed to march in time.

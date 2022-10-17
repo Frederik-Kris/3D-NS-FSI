@@ -61,17 +61,18 @@ void Mesh::assertBoundaryConditionCompliance()
 	// Implement when creating general IBM.
 }
 
-void Mesh::categorizeNodes()
+void Mesh::categorizeNodes(const ConfigSettings& params)
 {
 	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
+	nodeTypes.setAll(NodeTypeEnum::FluidRegular);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(MeshEdgeBoundary boundary : edgeBoundaries)
-		boundary.identifyOwnedNodes(unclaimedNodes, meshSize);
+		boundary.identifyOwnedNodes(unclaimedNodes, meshSize, nodeTypes);
 
 	for(ImmersedBoundary boundary : immersedBoundaries)
 	{
-
+		boundary.identifyGhostNodes(params, meshSize, nodeTypes, dx, dy, dz);
 	}
 
 }
@@ -140,6 +141,14 @@ void Mesh::swapConservedVariables()
 	conservedVariables.rho_v.dataSwap(intermediateConservedVariables.rho_v);
 	conservedVariables.rho_w.dataSwap(intermediateConservedVariables.rho_w);
 	conservedVariables.rho_E.dataSwap(intermediateConservedVariables.rho_E);
+}
+
+static sf::Vector3i Mesh::getIndices3D(uint index1D)
+{
+	uint i = index1D / NJ*NK;
+	uint j = index1D % (NJ*NK) / NK;
+	uint k = index1D % (NJ*NK) % NK;
+	return sf::Vector3i(i,j,k);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.
