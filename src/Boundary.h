@@ -38,8 +38,6 @@ struct IndexBoundingBox
 	  {}
 };
 
-class MeshEdgeBoundary;
-typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
 
 // Base class for boundaries at the the edge of the Cartesian computational mesh.
 // Suggested derived types: Inlet, outlet, walls, periodic, symmetry...
@@ -94,9 +92,6 @@ public:
 	void applyBoundaryCondition() override;
 };
 
-class ImmersedBoundary;
-typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;
-
 // Base class for immersed boundaries.
 // Suggested derived types: Adiabatic wall and iso-thermal wall
 // or different shapes.
@@ -129,6 +124,13 @@ private:
 	sf::Vector3<double> centroidPosition;
 	AxisOrientationEnum axis;
 	double radius;
+
+	IndexBoundingBox getCylinderBoundingBox(const IndexBoundingBox& meshSize, double dx, double dy, double dz);
+	std::vector<uint>& getSolidNodesInCylinder(const ConfigSettings &params,
+			IndexBoundingBox indicesToCheck, double dx, double dy, double dz,
+			const IndexBoundingBox& meshSize, Array3D_nodeType& nodeTypes);
+	void findGhostNodes(const std::vector<uint>& solidNodeIndices,
+			const IndexBoundingBox& meshSize, const Array3D_nodeType& nodeTypes);
 };
 
 // Class to define boundary conditions at an immersed sphere:

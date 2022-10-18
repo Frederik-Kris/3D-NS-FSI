@@ -119,61 +119,109 @@ axis{axis},
 radius{radius}
 {}
 
+IndexBoundingBox CylinderBody::getCylinderBoundingBox(const IndexBoundingBox& meshSize, double dx, double dy, double dz)
+{
+	uint indexRadiusX { static_cast<uint>(ceil(radius / dx)) + 1 };
+	uint indexRadiusY { static_cast<uint>(ceil(radius / dy)) + 1 };
+	uint indexRadiusZ { static_cast<uint>(ceil(radius / dz)) + 1 };
+	uint centroidClosestIndexX { static_cast<uint>(round(centroidPosition.x / dx)) };
+	uint centroidClosestIndexY { static_cast<uint>(round(centroidPosition.y / dy)) };
+	uint centroidClosestIndexZ { static_cast<uint>(round(centroidPosition.z / dz)) };
+	IndexBoundingBox indicesToCheck = meshSize;
+	if (axis != AxisOrientationEnum::x)
+	{
+		indicesToCheck.iMin = centroidClosestIndexX - indexRadiusX;
+		indicesToCheck.iMax = centroidClosestIndexX + indexRadiusX;
+	}
+	if (axis != AxisOrientationEnum::y)
+	{
+		indicesToCheck.jMin = centroidClosestIndexY - indexRadiusY;
+		indicesToCheck.jMax = centroidClosestIndexY + indexRadiusY;
+	}
+	if (axis != AxisOrientationEnum::z)
+	{
+		indicesToCheck.kMin = centroidClosestIndexZ - indexRadiusZ;
+		indicesToCheck.kMax = centroidClosestIndexZ + indexRadiusZ;
+	}
+	return indicesToCheck;
+}
+
+vector<uint>& CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
+		IndexBoundingBox indicesToCheck, double dx, double dy, double dz,
+		const IndexBoundingBox& meshSize, Array3D_nodeType &nodeTypes)
+{
+	vector<uint> solidNodeIndices;
+	for (uint i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
+		for (uint j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
+			for (uint k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
+			{
+				double x { i * dx }, y { j * dy }, z { k * dz };
+				if (axis == AxisOrientationEnum::x)
+				{
+					double distanceFromCentroid { sqrt(
+							pow(y - centroidPosition.y, 2)
+									+ pow(z - centroidPosition.z, 2)) };
+					if (distanceFromCentroid < radius - params.machinePrecisionBuffer)
+					{
+						nodeTypes(i, j, k) = NodeTypeEnum::Solid;
+						solidNodeIndices.push_back( i * (meshSize.jMax + 1) * (meshSize.kMax + 1)
+												  + j * (meshSize.kMax + 1)
+												  + k);
+					}
+				}
+			}
+	return solidNodeIndices;
+}
+
+void CylinderBody::findGhostNodes(const vector<uint>& solidNodeIndices,
+		const IndexBoundingBox& meshSize, const Array3D_nodeType& nodeTypes)
+{
+	for (uint index1D : solidNodeIndices)
+	{
+		sf::Vector3i indices = Mesh::getIndices3D(index1D);
+		bool solidNodeHasFluidNeighbor { false };
+		if (indices.x > meshSize.iMin)
+			if (nodeTypes(indices.x - 1, indices.y, indices.z) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.x < meshSize.iMax)
+			if (nodeTypes(indices.x + 1, indices.y, indices.z) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.y > meshSize.jMin)
+			if (nodeTypes(indices.x, indices.y - 1, indices.z) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.y < meshSize.jMax)
+			if (nodeTypes(indices.x, indices.y + 1, indices.z) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.z > meshSize.kMin)
+			if (nodeTypes(indices.x, indices.y, indices.z - 1) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.z < meshSize.kMax)
+			if (nodeTypes(indices.x, indices.y, indices.z + 1) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (solidNodeHasFluidNeighbor)
+			ghostNodeIndices.push_back(index1D);
+	}
+}
+
 void CylinderBody::identifyGhostNodes(const ConfigSettings& params,
 									  const IndexBoundingBox meshSize,
 									  Array3D_nodeType& nodeTypes,
 									  double dx, double dy, double dz)
 {
-	uint indexRadiusX{static_cast<uint>( ceil(radius/dx) ) + 1};
-	uint indexRadiusY{static_cast<uint>( ceil(radius/dy) ) + 1};
-	uint indexRadiusZ{static_cast<uint>( ceil(radius/dz) ) + 1};
-	uint centroidClosestIndexX{static_cast<uint>( round(centroidPosition.x/dx) )};
-	uint centroidClosestIndexY{static_cast<uint>( round(centroidPosition.y/dy) )};
-	uint centroidClosestIndexZ{static_cast<uint>( round(centroidPosition.z/dz) )};
-	IndexBoundingBox indicesToCheck = meshSize;
-	if(axis != AxisOrientationEnum::x)
-	{
-		indicesToCheck.iMin = centroidClosestIndexX - indexRadiusX;
-		indicesToCheck.iMax = centroidClosestIndexX + indexRadiusX;
-	}
-	if(axis != AxisOrientationEnum::y)
-	{
-		indicesToCheck.jMin = centroidClosestIndexY - indexRadiusY;
-		indicesToCheck.jMax = centroidClosestIndexY + indexRadiusY;
-	}
-	if(axis != AxisOrientationEnum::z)
-	{
-		indicesToCheck.kMin = centroidClosestIndexZ - indexRadiusZ;
-		indicesToCheck.kMax = centroidClosestIndexZ + indexRadiusZ;
-	}
+	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(meshSize, dx, dy, dz);
 	vector<uint> solidNodeIndices;
-	for(uint i{indicesToCheck.iMin}; i<=indicesToCheck.iMax; ++i)
-		for(uint j{indicesToCheck.jMin}; j<=indicesToCheck.jMax; ++j)
-			for(uint k{indicesToCheck.kMin}; k<=indicesToCheck.kMax; ++k)
-			{
-				double x{i*dx}, y{j*dy}, z{k*dz};
-				if(axis == AxisOrientationEnum::x)
-				{
-					double distanceFromCentroid{sqrt( pow(y-centroidPosition.y, 2) + pow(z-centroidPosition.z, 2) )};
-					if(distanceFromCentroid < radius - params.machinePrecisionBuffer)
-					{
-						nodeTypes(i,j,k) = NodeTypeEnum::Solid;
-						solidNodeIndices.push_back( i * (meshSize.jMax+1) * (meshSize.kMax+1)
-												  + j * (meshSize.kMax+1)
-												  + k );
-					}
-				}
-			}
-	for(uint index1D : solidNodeIndices)
-	{
-		sf::Vector3i indices = Mesh::getIndices3D(index1D);
-		bool solidNodeHasFluidNeighbor =
-				nodeTypes(indices.x + 1, indices.y, indices.z) == NodeTypeEnum::FluidRegular
-			||	nodeTypes(indices.x - 1, indices.y, indices.z) == NodeTypeEnum::FluidRegular øææøå
-			// GJØR FERDIG DETTE. HUSK BOUND-CHECK!
+	solidNodeIndices = getSolidNodesInCylinder(params, indicesToCheck, dx, dy, dz, meshSize, nodeTypes);
+	findGhostNodes(solidNodeIndices, meshSize, nodeTypes);
 
-	}
 	// IKKE GLEM DENNE GANGEN Å SJEKKE REKURSIVT SÅNN AT IKKE VI MANGLER GHOSTS SOM LIGGER RUNDT IMAGE POINT!
+	// LAG EN FUNC SOM TAR INN VEKTOR MED GHOSTS, OG FINNER IMAGE POINT GREIER, OG RETURNERER NY-OPPSTÅTTE
+	// GHOSTS. DA KAN JEG KALLE DEN I WHILE, HELT TIL DET IKKE BLIR FLERE.
 }
 
 void CylinderBody::applyBoundaryCondition()

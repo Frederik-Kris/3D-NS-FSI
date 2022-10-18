@@ -34,22 +34,14 @@ void Mesh::setGridSpacings(double domainLengthX,
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<InletBoundary>(params.M_0, AxisOrientationEnum::x,
-																0, edgeBoundaries));
-	InletBoundary& inlet = *edgeBoundaries.back();
+	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
+	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
 
-	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x,
-																NI, edgeBoundaries));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y,
-																0, edgeBoundaries));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y,
-																NJ, edgeBoundaries));
-	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z,
-																0, edgeBoundaries));
-	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z,
-																NK, edgeBoundaries));
-
-	sf::Vector2<double> cylinderCentroidPosition(params.L_x / 5, params.L_y / 2);
+	sf::Vector3<double> cylinderCentroidPosition(params.L_x / 5, params.L_y / 2, 0);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
 																AxisOrientationEnum::z,
 																params.L_y/10));
@@ -67,12 +59,14 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	nodeTypes.setAll(NodeTypeEnum::FluidRegular);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
-	for(MeshEdgeBoundary boundary : edgeBoundaries)
-		boundary.identifyOwnedNodes(unclaimedNodes, meshSize, nodeTypes);
-
-	for(ImmersedBoundary boundary : immersedBoundaries)
+	for(auto&& boundary : edgeBoundaries)
 	{
-		boundary.identifyGhostNodes(params, meshSize, nodeTypes, dx, dy, dz);
+		boundary->identifyOwnedNodes(unclaimedNodes, meshSize, nodeTypes);
+	}
+
+	for(auto&& boundary : immersedBoundaries)
+	{
+		boundary->identifyGhostNodes(params, meshSize, nodeTypes, dx, dy, dz);
 	}
 
 }

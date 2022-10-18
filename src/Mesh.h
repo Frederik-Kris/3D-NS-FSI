@@ -14,6 +14,9 @@
 #include "Boundary.h"
 #include "FlowVariableGroupStructs.h"
 
+typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
+typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;
+
 struct IndexVectorGroup
 {
 	vector<uint> fluidNodes;
