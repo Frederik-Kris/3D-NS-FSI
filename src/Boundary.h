@@ -13,6 +13,7 @@
 #include "Array3D.h"
 #include "ConfigSettings.h"
 #include "Mesh.h"
+#include "Node.h"
 
 
 enum class AxisOrientationEnum
@@ -47,8 +48,7 @@ public:
 	MeshEdgeBoundary(AxisOrientationEnum normalAxis,
 					 EdgeIndexEnum planeIndex);
 	virtual ~MeshEdgeBoundary() = default;
-	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, const IndexBoundingBox meshSize,
-								Array3D_nodeType& nodeTypes);
+	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh& mesh);
 	virtual void applyBoundaryCondition();
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
@@ -100,51 +100,39 @@ class ImmersedBoundary
 public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
-	virtual void identifyGhostNodes(const ConfigSettings& params,
-									const IndexBoundingBox meshSize,
-									Array3D_nodeType& nodeTypes,
-									double dx, double dy, double dz);
+	virtual void identifyRelatedNodes(Mesh& mesh);
 	virtual void applyBoundaryCondition();
 private:
-	vector<uint> ghostNodeIndices;
+	vector<GhostNode> ghostNodes;
 };
 
 // Class to define boundary conditions at an immersed cylinder:
 class CylinderBody : public ImmersedBoundary
 {
 public:
-	CylinderBody(sf::Vector3<double> centroidPosition, AxisOrientationEnum axis, double radius);
-	void identifyGhostNodes(const ConfigSettings& params,
-							const IndexBoundingBox meshSize,
-							Array3D_nodeType& nodeTypes,
-							double dx, double dy, double dz) override;
+	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
+	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
 
 	void applyBoundaryCondition() override;
 private:
-	sf::Vector3<double> centroidPosition;
+	Vector3_d centroidPosition;
 	AxisOrientationEnum axis;
 	double radius;
 
-	IndexBoundingBox getCylinderBoundingBox(const IndexBoundingBox& meshSize, double dx, double dy, double dz);
-	std::vector<uint>& getSolidNodesInCylinder(const ConfigSettings &params,
-			IndexBoundingBox indicesToCheck, double dx, double dy, double dz,
-			const IndexBoundingBox& meshSize, Array3D_nodeType& nodeTypes);
-	void findGhostNodes(const std::vector<uint>& solidNodeIndices,
-			const IndexBoundingBox& meshSize, const Array3D_nodeType& nodeTypes);
+	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
+	void getSolidNodesInCylinder(const ConfigSettings& params, vector<uint>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh);
+	void findGhostNodes(const vector<uint>& solidNodeIndices, Mesh& mesh);
 };
 
 // Class to define boundary conditions at an immersed sphere:
 class SphereBody : public ImmersedBoundary
 {
 public:
-	SphereBody(sf::Vector3<double> centerPosition, double radius);
-	void identifyGhostNodes(const ConfigSettings& params,
-							const IndexBoundingBox meshSize,
-							Array3D_nodeType& nodeTypes,
-							double dx, double dy, double dz) override;
+	SphereBody(Vector3_d centerPosition, double radius);
+	void identifyRelatedNodes(Mesh& mesh) override;
 	void applyBoundaryCondition() override;
 private:
-	sf::Vector3<double> centerPosition;
+	Vector3_d centerPosition;
 	double radius;
 };
 

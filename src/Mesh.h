@@ -36,7 +36,8 @@ public:
 									uint filterInterval, uint timeLevel);
 	ConservedVariablesScalars computeNorms_conservedVariables();
 	void swapConservedVariables();
-	static sf::Vector3i getIndices3D(uint index1D);
+	Vector3_u getIndices3D(uint index1D) const;
+	Vector3_d getNodePosition(uint i, uint j, uint k) const;
 	uint NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	uint nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction

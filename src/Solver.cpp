@@ -21,7 +21,7 @@ dt{0}
 void Solver::initialize()
 {
 	mesh.setupBoundaries(params);
-	mesh.categorizeNodes();
+	mesh.categorizeNodes(params);
 	applyUniformFlow_IC();
 	updateTimeStepSize(0);
 }

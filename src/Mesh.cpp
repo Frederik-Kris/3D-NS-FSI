@@ -41,7 +41,7 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
 
-	sf::Vector3<double> cylinderCentroidPosition(params.L_x / 5, params.L_y / 2, 0);
+	Vector3_d cylinderCentroidPosition(params.L_x / 5, params.L_y / 2, 0);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
 																AxisOrientationEnum::z,
 																params.L_y/10));
@@ -137,12 +137,18 @@ void Mesh::swapConservedVariables()
 	conservedVariables.rho_E.dataSwap(intermediateConservedVariables.rho_E);
 }
 
-static sf::Vector3i Mesh::getIndices3D(uint index1D)
+Vector3_u Mesh::getIndices3D(uint index1D) const
 {
 	uint i = index1D / NJ*NK;
 	uint j = index1D % (NJ*NK) / NK;
 	uint k = index1D % (NJ*NK) % NK;
-	return sf::Vector3i(i,j,k);
+	return Vector3_u(i,j,k);
+}
+
+Vector3_d Mesh::getNodePosition(uint i, uint j, uint k) const
+{
+	double x { i * dx }, y { j * dy }, z { k * dz };
+	return Vector3_d(x, y, z);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.

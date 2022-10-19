@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <SFML/Graphics.hpp>
 #include <libconfig.h++>
+#include "SmallVectors.h"
 
 using std::cout;
 using std::ofstream;
