@@ -14,7 +14,8 @@ conservedVariables(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
 intermediateConservedVariables(NI, NJ, NK),
-RK4slopes(NI, NJ, NK)
+RK4slopes(NI, NJ, NK),
+nodeTypes(NI, NJ, NK)
 {
 	setGridSpacings(params.L_x, params.L_y, params.L_z);
 }
@@ -61,12 +62,12 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
 	{
-		boundary->identifyOwnedNodes(unclaimedNodes, meshSize, nodeTypes);
+		boundary->identifyOwnedNodes(unclaimedNodes, *this);
 	}
 
 	for(auto&& boundary : immersedBoundaries)
 	{
-		boundary->identifyGhostNodes(params, meshSize, nodeTypes, dx, dy, dz);
+		boundary->identifyRelatedNodes(params, *this);
 	}
 
 }
@@ -156,7 +157,7 @@ Vector3_d Mesh::getNodePosition(uint i, uint j, uint k) const
 	return Vector3_d(x, y, z);
 }
 
-IndexBoundingBox Mesh::getSurroundingNodes(Vector3_d point) const
+IndexBoundingBox Mesh::getSurroundingNodesBox(Vector3_d point) const
 {
 	uint iNext = static_cast<uint>( ceil( point.x / dx ) );
 	uint jNext = static_cast<uint>( ceil( point.y / dy ) );

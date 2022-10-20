@@ -28,7 +28,7 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 			indexBounds.iMin = indexBounds.iMax;
 			unclaimedNodes.iMax--;
 		}
-		else throw UnexpectedEnumValueException<EdgeIndexEnum>(planeIndex);
+		else throw std::logic_error("Unexpected enum value");
 		break;
 	case AxisOrientationEnum::y:
 		if(planeIndex == EdgeIndexEnum::min)
@@ -41,7 +41,7 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 			indexBounds.jMin = indexBounds.jMax;
 			unclaimedNodes.jMax--;
 		}
-		else throw UnexpectedEnumValueException<EdgeIndexEnum>(planeIndex);
+		else throw std::logic_error("Unexpected enum value");
 		break;
 	case AxisOrientationEnum::z:
 		if(planeIndex == EdgeIndexEnum::min)
@@ -54,17 +54,17 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 			indexBounds.kMin = indexBounds.kMax;
 			unclaimedNodes.kMax--;
 		}
-		else throw UnexpectedEnumValueException<EdgeIndexEnum>(planeIndex);
+		else throw std::logic_error("Unexpected enum value");
 		break;
 	default:
-		throw UnexpectedEnumValueException<AxisOrientationEnum>(normalAxis);
+		throw std::logic_error("Unexpected enum value");
 	}
 	for(uint i{indexBounds.iMin}; i<=indexBounds.iMax; ++i)
 		for(uint j{indexBounds.jMin}; j<=indexBounds.jMax; ++j)
 			for(uint k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
 			{
 				nodeIndices.push_back(mesh.getIndex1D(i,j,k));
-				mesh.nodeIndices(i,j,k) = NodeTypeEnum::FluidEdge;
+				mesh.nodeTypes(i,j,k) = NodeTypeEnum::FluidEdge;
 			}
 }
 
@@ -162,7 +162,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<
 					distanceFromCentroid = sqrt( pow(nodePosition.x - centroidPosition.x, 2)
 											   + pow(nodePosition.y - centroidPosition.y, 2));
 				else
-					throw UnexpectedEnumValueException<AxisOrientationEnum>(axis);
+					throw std::logic_error("Unexpected enum value");
 				if (distanceFromCentroid < radius - params.machinePrecisionBuffer)
 				{
 					mesh.nodeTypes(i, j, k) = NodeTypeEnum::Solid;
@@ -220,7 +220,7 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 	std::set<uint> newGhostNodes;
 	for(GhostNode ghostNode : ghostNodes)
 	{
-		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices.i, ghostNode.indices.j, ghostNode.indices.k);
+		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
 		Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
 		if	   (axis == AxisOrientationEnum::x)
 			centroidToGhost.x = 0;
@@ -229,12 +229,53 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 		else if(axis == AxisOrientationEnum::z)
 			centroidToGhost.z = 0;
 		else
-			throw UnexpectedEnumValueException<AxisOrientationEnum>(axis);
+			throw std::logic_error("Unexpected enum value");
 		double lengthFactor = (centroidToGhost.length() - radius) / centroidToGhost.length();
 		Vector3_d normalProbe = centroidToGhost * lengthFactor; // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes(mesh.getSurroundingNodes(ghostNode.imagePoint));
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+
+		{
+			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMax);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMin);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMax);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMin);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMax);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMin);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
+		{
+			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMax);
+			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
+				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
+		}
 	}
 	while(false)
 	{
@@ -254,6 +295,11 @@ SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
 centerPosition(centerPosition),
 radius{radius}
 {}
+
+void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
+{
+
+}
 
 void SphereBody::applyBoundaryCondition()
 {

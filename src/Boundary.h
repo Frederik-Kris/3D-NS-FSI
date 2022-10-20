@@ -8,8 +8,11 @@
 #ifndef SRC_BOUNDARY_H_
 #define SRC_BOUNDARY_H_
 
+struct IndexBoundingBox;
+class MeshEdgeBoundary;
+class ImmersedBoundary;
+
 #include "includes_and_names.h"
-#include "CustomExceptions.h"
 #include "Array3D.h"
 #include "ConfigSettings.h"
 #include "Mesh.h"
@@ -49,7 +52,7 @@ public:
 					 EdgeIndexEnum planeIndex);
 	virtual ~MeshEdgeBoundary() = default;
 	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh& mesh);
-	virtual void applyBoundaryCondition();
+	virtual void applyBoundaryCondition() = 0;
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
 private:
@@ -100,9 +103,9 @@ class ImmersedBoundary
 public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
-	virtual void identifyRelatedNodes(Mesh& mesh);
-	virtual void applyBoundaryCondition();
-private:
+	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
+	virtual void applyBoundaryCondition() = 0;
+protected:
 	vector<GhostNode> ghostNodes;
 };
 
@@ -129,7 +132,7 @@ class SphereBody : public ImmersedBoundary
 {
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
-	void identifyRelatedNodes(Mesh& mesh) override;
+	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
 	void applyBoundaryCondition() override;
 private:
 	Vector3_d centerPosition;

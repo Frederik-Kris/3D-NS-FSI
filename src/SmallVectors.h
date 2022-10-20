@@ -14,13 +14,15 @@ struct Vector3_d
 {
 	double x, y, z;
 	Vector3_d(double x, double y, double z) : x{x}, y{y}, z{z} {}
+	Vector3_d() = default;
 	double length() { return sqrt(pow(x,2)+pow(y,2)+pow(z,2)); }
 	inline Vector3_d operator+(Vector3_d other) const { return Vector3_d(x+other.x, y+other.y, z+other.z); }
 	inline Vector3_d operator-(Vector3_d other) const { return Vector3_d(x-other.x, y-other.y, z-other.z); }
 	inline Vector3_d operator*(double factor) const { return Vector3_d(x*factor, y*factor, z*factor); }
-	inline Vector3_d operator*(double factor, Vector3_d vector) const { return vector*factor; }
 	inline Vector3_d operator/(double divisor) const { return Vector3_d(x/divisor, y/divisor, z/divisor); }
 };
+
+inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*factor; }
 
 struct Vector3_u
 {

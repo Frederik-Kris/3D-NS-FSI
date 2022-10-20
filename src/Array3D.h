@@ -35,6 +35,14 @@ public:
 	inline double operator()(size_t x, size_t y, size_t z) const
 	{ return data[x * width * height + y * height + z]; }
 
+	// Get reference to a node using 3D indices in Vector3_u
+	inline double& operator()(Vector3_u indices)
+	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
+
+	// Get reference to a node using 3D indices in Vector3_u
+	inline double operator()(Vector3_u indices) const
+	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
+
 	// Get reference to a node using one index
 	inline double& operator()(size_t i)
 	{ return data[i]; }
@@ -115,6 +123,14 @@ public:
 	// Get value of a node using 3D indices
 	inline NodeTypeEnum operator()(size_t x, size_t y, size_t z) const
 	{ return data[x * width * height + y * height + z]; }
+
+	// Get reference to a node using 3D indices in vector
+	inline NodeTypeEnum& operator()(Vector3_u indices)
+	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
+
+	// Get value of a node using 3D indices in vector
+	inline NodeTypeEnum operator()(Vector3_u indices) const
+	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
 	// Get reference to a node using one index
 	inline NodeTypeEnum& operator()(size_t i)
