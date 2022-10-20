@@ -63,7 +63,7 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 		for(uint j{indexBounds.jMin}; j<=indexBounds.jMax; ++j)
 			for(uint k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
 			{
-				nodeIndices.push_back(i * (mesh.NI) * (mesh.NJ) + j * (mesh.NK) + k);
+				nodeIndices.push_back(mesh.getIndex1D(i,j,k));
 				mesh.nodeIndices(i,j,k) = NodeTypeEnum::FluidEdge;
 			}
 }
@@ -166,9 +166,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<
 				if (distanceFromCentroid < radius - params.machinePrecisionBuffer)
 				{
 					mesh.nodeTypes(i, j, k) = NodeTypeEnum::Solid;
-					solidNodeIndices.push_back( i * (mesh.NJ) * (mesh.NK)
-											  + j * (mesh.NK)
-											  + k);
+					solidNodeIndices.push_back(mesh.getIndex1D(i, j, k));
 				}
 			}
 }
@@ -219,9 +217,28 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
 	findGhostNodes(solidNodeIndices, mesh);
 
+	std::set<uint> newGhostNodes;
 	for(GhostNode ghostNode : ghostNodes)
 	{
 		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices.i, ghostNode.indices.j, ghostNode.indices.k);
+		Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
+		if	   (axis == AxisOrientationEnum::x)
+			centroidToGhost.x = 0;
+		else if(axis == AxisOrientationEnum::y)
+			centroidToGhost.y = 0;
+		else if(axis == AxisOrientationEnum::z)
+			centroidToGhost.z = 0;
+		else
+			throw UnexpectedEnumValueException<AxisOrientationEnum>(axis);
+		double lengthFactor = (centroidToGhost.length() - radius) / centroidToGhost.length();
+		Vector3_d normalProbe = centroidToGhost * lengthFactor; // from ghost to body intercept point
+		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
+		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
+		IndexBoundingBox surroundingNodes(mesh.getSurroundingNodes(ghostNode.imagePoint));
+	}
+	while(false)
+	{
+
 	}
 	// IKKE GLEM DENNE GANGEN Å SJEKKE REKURSIVT SÅNN AT IKKE VI MANGLER GHOSTS SOM LIGGER RUNDT IMAGE POINT!
 	// LAG EN FUNC SOM TAR INN VEKTOR MED GHOSTS, OG FINNER IMAGE POINT GREIER, OG RETURNERER NY-OPPSTÅTTE

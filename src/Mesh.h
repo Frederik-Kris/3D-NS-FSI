@@ -37,7 +37,9 @@ public:
 	ConservedVariablesScalars computeNorms_conservedVariables();
 	void swapConservedVariables();
 	Vector3_u getIndices3D(uint index1D) const;
+	uint getIndex1D(uint i, uint j, uint k) const;
 	Vector3_d getNodePosition(uint i, uint j, uint k) const;
+	IndexBoundingBox getSurroundingNodes(Vector3_d point) const;
 	uint NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	uint nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction

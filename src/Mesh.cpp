@@ -145,10 +145,27 @@ Vector3_u Mesh::getIndices3D(uint index1D) const
 	return Vector3_u(i,j,k);
 }
 
+uint Mesh::getIndex1D(uint i, uint j, uint k) const
+{
+	return i*NJ*NK + j*NK + k;
+}
+
 Vector3_d Mesh::getNodePosition(uint i, uint j, uint k) const
 {
 	double x { i * dx }, y { j * dy }, z { k * dz };
 	return Vector3_d(x, y, z);
+}
+
+IndexBoundingBox Mesh::getSurroundingNodes(Vector3_d point) const
+{
+	uint iNext = static_cast<uint>( ceil( point.x / dx ) );
+	uint jNext = static_cast<uint>( ceil( point.y / dy ) );
+	uint kNext = static_cast<uint>( ceil( point.z / dz ) );
+	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
+	surroundingBox.iMin = iNext - 1;
+	surroundingBox.jMin = jNext - 1;
+	surroundingBox.kMin = kNext - 1;
+	return surroundingBox;
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.
