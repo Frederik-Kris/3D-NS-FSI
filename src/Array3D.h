@@ -51,6 +51,16 @@ public:
 	inline double operator()(size_t i) const
 	{ return data[i]; }
 
+	// Get reference to a node using one index
+	// ->at(i) is more readable than ->operator(i), or (*array)(i)
+	inline double& at(size_t i)
+	{ return data[i]; }
+
+	// Get value of a node using one index
+	// ->at(i) is more readable than ->operator(i), or (*array)(i)
+	inline double at(size_t i) const
+	{ return data[i]; }
+
 	// Set all the nodes in the array to value 'd'
 	void setAll(double d)
 	{ data.assign(data.size(), d); }

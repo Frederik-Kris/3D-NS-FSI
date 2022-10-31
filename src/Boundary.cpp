@@ -73,16 +73,36 @@ InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum plane
   velocity{velocity}
 {}
 
-void InletBoundary::applyBoundaryCondition()
+void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
+	double inletVelocity = min(1., t/10.) * params.M_0; // TODO: move magic const 10 to params
+	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
+		inletVelocity *= -1;				// negative, for this to be an inlet.
 
+	for(uint index1D : nodeIndices)
+	{
+		if(normalAxis == AxisOrientationEnum::x)
+		{
+
+		}
+		else if(normalAxis == AxisOrientationEnum::y)
+		{
+
+		}
+		else if(normalAxis == AxisOrientationEnum::z)
+		{
+
+		}
+		else
+			throw std::logic_error("Unexpected enum value");
+	}
 }
 
 OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
 : MeshEdgeBoundary(normalAxis, planeIndex)
 {}
 
-void OutletBoundary::applyBoundaryCondition()
+void OutletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
 
 }
@@ -91,7 +111,7 @@ PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 : MeshEdgeBoundary(normalAxis, planeIndex)
 {}
 
-void PeriodicBoundary::applyBoundaryCondition()
+void PeriodicBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
 
 }
@@ -100,7 +120,7 @@ SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 : MeshEdgeBoundary(normalAxis, planeIndex)
 {}
 
-void SymmetryBoundary::applyBoundaryCondition()
+void SymmetryBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
 
 }
@@ -171,7 +191,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<
 			}
 }
 
-void CylinderBody::findGhostNodes(const vector<uint>& solidNodeIndices, Mesh& mesh)
+void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<uint>& solidNodeIndices, Mesh& mesh)
 {
 	IndexBoundingBox meshSize(mesh.NI-1, mesh.NJ-1, mesh.NK-1);
 	for (uint index1D : solidNodeIndices)
@@ -210,83 +230,70 @@ void CylinderBody::findGhostNodes(const vector<uint>& solidNodeIndices, Mesh& me
 	}
 }
 
+void CylinderBody::checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode)
+{
+	if (mesh.nodeTypes(surroundingNode) == NodeTypeEnum::Solid) {
+		newGhostNodes.emplace_back(surroundingNode);
+		mesh.nodeTypes(surroundingNode) = NodeTypeEnum::Ghost;
+	}
+}
+
+vector<GhostNode> CylinderBody::setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh)
+{
+	vector<GhostNode> newGhostNodes;
+	for (GhostNode& ghostNode : ghostNodesToProcess)
+	{
+		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
+		Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
+		if (axis == AxisOrientationEnum::x)
+			centroidToGhost.x = 0;
+		else if (axis == AxisOrientationEnum::y)
+			centroidToGhost.y = 0;
+		else if (axis == AxisOrientationEnum::z)
+			centroidToGhost.z = 0;
+		else
+			throw std::logic_error("Unexpected enum value");
+
+		double lengthFactor = (radius - centroidToGhost.length()) / centroidToGhost.length();
+		Vector3_d normalProbe = centroidToGhost * lengthFactor; // from ghost to body intercept point
+		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
+		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMax));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMin));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMax));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMin));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMax));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMin));
+		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
+				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMax));
+	}
+	return newGhostNodes;
+}
+
 void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 {
 	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(mesh);
 	vector<uint> solidNodeIndices;
 	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
-	findGhostNodes(solidNodeIndices, mesh);
+	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
 
-	std::set<uint> newGhostNodes;
-	for(GhostNode ghostNode : ghostNodes)
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes, mesh);
+	while(newGhostNodes.size() > 0)
 	{
-		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
-		Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
-		if	   (axis == AxisOrientationEnum::x)
-			centroidToGhost.x = 0;
-		else if(axis == AxisOrientationEnum::y)
-			centroidToGhost.y = 0;
-		else if(axis == AxisOrientationEnum::z)
-			centroidToGhost.z = 0;
-		else
-			throw std::logic_error("Unexpected enum value");
-		double lengthFactor = (centroidToGhost.length() - radius) / centroidToGhost.length();
-		Vector3_d normalProbe = centroidToGhost * lengthFactor; // from ghost to body intercept point
-		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
-		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
-
-		{
-			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMax);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMin);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMax);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMin);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMax);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMin);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
-		{
-			Vector3_u neighborNode(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMax);
-			if(mesh.nodeTypes(neighborNode) == NodeTypeEnum::Solid)
-				newGhostNodes.insert(mesh.getIndex1D(neighborNode));
-		}
+		newGhostNodes = setImagePointPositions(newGhostNodes, mesh);
 	}
-	while(false)
-	{
-
-	}
-	// IKKE GLEM DENNE GANGEN Å SJEKKE REKURSIVT SÅNN AT IKKE VI MANGLER GHOSTS SOM LIGGER RUNDT IMAGE POINT!
-	// LAG EN FUNC SOM TAR INN VEKTOR MED GHOSTS, OG FINNER IMAGE POINT GREIER, OG RETURNERER NY-OPPSTÅTTE
-	// GHOSTS. DA KAN JEG KALLE DEN I WHILE, HELT TIL DET IKKE BLIR FLERE.
 }
 
-void CylinderBody::applyBoundaryCondition()
+void CylinderBody::applyBoundaryCondition(Mesh& mesh)
 {
 
 }
@@ -301,7 +308,7 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 
 }
 
-void SphereBody::applyBoundaryCondition()
+void SphereBody::applyBoundaryCondition(Mesh& mesh)
 {
 
 }

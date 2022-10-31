@@ -52,10 +52,10 @@ public:
 					 EdgeIndexEnum planeIndex);
 	virtual ~MeshEdgeBoundary() = default;
 	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh& mesh);
-	virtual void applyBoundaryCondition() = 0;
+	virtual void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) = 0;
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
-private:
+protected:
 	vector<uint> nodeIndices;
 };
 
@@ -66,7 +66,7 @@ public:
 	InletBoundary(AxisOrientationEnum normalAxis,
 				  EdgeIndexEnum planeIndex,
 				  double velocity);
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 private:
 	double velocity;
 };
@@ -76,7 +76,7 @@ class OutletBoundary : public MeshEdgeBoundary
 {
 public:
 	OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
 // Class to define a periodic boundary condition:
@@ -84,7 +84,7 @@ class PeriodicBoundary : public MeshEdgeBoundary
 {
 public:
 	PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
 // Class to define a symmetry boundary condition:
@@ -92,7 +92,7 @@ class SymmetryBoundary : public MeshEdgeBoundary
 {
 public:
 	SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
 // Base class for immersed boundaries.
@@ -104,7 +104,7 @@ public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
 	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
-	virtual void applyBoundaryCondition() = 0;
+	virtual void applyBoundaryCondition(Mesh& mesh) = 0;
 protected:
 	vector<GhostNode> ghostNodes;
 };
@@ -116,7 +116,7 @@ public:
 	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
 
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(Mesh& mesh) override;
 private:
 	Vector3_d centroidPosition;
 	AxisOrientationEnum axis;
@@ -124,7 +124,9 @@ private:
 
 	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
 	void getSolidNodesInCylinder(const ConfigSettings& params, vector<uint>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh);
-	void findGhostNodes(const vector<uint>& solidNodeIndices, Mesh& mesh);
+	void findGhostNodesWithFluidNeighbors(const vector<uint>& solidNodeIndices, Mesh& mesh);
+	void checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode);
+	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
 };
 
 // Class to define boundary conditions at an immersed sphere:
@@ -133,7 +135,7 @@ class SphereBody : public ImmersedBoundary
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
-	void applyBoundaryCondition() override;
+	void applyBoundaryCondition(Mesh& mesh) override;
 private:
 	Vector3_d centerPosition;
 	double radius;

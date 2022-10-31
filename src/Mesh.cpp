@@ -61,15 +61,14 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
-	{
 		boundary->identifyOwnedNodes(unclaimedNodes, *this);
-	}
 
 	for(auto&& boundary : immersedBoundaries)
-	{
 		boundary->identifyRelatedNodes(params, *this);
-	}
 
+	for(uint index1D{0}; index1D<nNodesTotal; ++index1D)
+		if(nodeTypes(index1D) == NodeTypeEnum::FluidRegular)
+			activeNodeIndices.push_back(index1D);
 }
 
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
@@ -167,6 +166,15 @@ IndexBoundingBox Mesh::getSurroundingNodesBox(Vector3_d point) const
 	surroundingBox.jMin = jNext - 1;
 	surroundingBox.kMin = kNext - 1;
 	return surroundingBox;
+}
+
+void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
+{
+	for(auto&& boundary : edgeBoundaries)
+		boundary->applyBoundaryCondition(*this);
+
+	for(auto&& boundary : immersedBoundaries)
+		boundary->applyBoundaryCondition(*this);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.

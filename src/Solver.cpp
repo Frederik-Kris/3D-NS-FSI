@@ -22,7 +22,7 @@ void Solver::initialize()
 {
 	mesh.setupBoundaries(params);
 	mesh.categorizeNodes(params);
-	applyUniformFlow_IC();
+	applyStagnation_IC();
 	updateTimeStepSize(0);
 }
 
@@ -164,18 +164,22 @@ void Solver::marchTimeStep(double& t, uint& timeLevel)
 	computeRK4slopes(mesh.conservedVariables, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
 	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
 	updatePrimitiveVariables();
+	mesh.applyAllBoundaryConditions(t);
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k2);  // k2: The slopes at time t + dt/2
 	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
+	mesh.applyAllBoundaryConditions();
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
 	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
+	mesh.applyAllBoundaryConditions();
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k4);	// k4: The slopes at time t + dt
 	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
+	mesh.applyAllBoundaryConditions();
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
 	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.
