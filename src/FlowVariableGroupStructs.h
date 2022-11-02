@@ -105,6 +105,45 @@ struct RK4slopesArrayGroup
 	{}
 };
 
+// Computes scalar values for conserved variables, based on the primitive variables.
+// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
+// E.g., decide on the primitives and use this function to get the values for the conserved variables.
+inline ConservedVariablesScalars deriveConservedVariables(const PrimitiveVariablesScalars& primitiveVariables, const ConfigSettings& params)
+{
+	const double u{primitiveVariables.u}, v{primitiveVariables.v}, w{primitiveVariables.w}, p{primitiveVariables.p}, T{primitiveVariables.T};
+	double rho   = ( params.Gamma * p - T ) / ( 1 + T );
+	double rho_u = (1 + rho) * u;
+	double rho_v = (1 + rho) * v;
+	double rho_w = (1 + rho) * w;
+	double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
+	return ConservedVariablesScalars(rho, rho_u, rho_v, rho_w, rho_E);
+}
+
+// Computes scalar values for primitive variables, based on the conserved variables.
+// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
+// E.g., decide on the conserved and use this function to get the values for the primitive variables.
+inline PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariablesScalars& conservedVariables, const ConfigSettings& params)
+{
+	const double rho{conservedVariables.rho}, rho_u{conservedVariables.rho_u}, rho_v{conservedVariables.rho_v}, rho_w{conservedVariables.rho_w}, rho_E{conservedVariables.rho_E};
+	double u = rho_u / rho;
+	double v = rho_v / rho;
+	double w = rho_w / rho;
+	double p = ( params.Gamma - 1 )*( rho_E - (1 + rho)/2 * ( u*u + v*v + w*w ));
+	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
+	return PrimitiveVariablesScalars(u, v, w, p, T);
+}
+
+// Computes scalar values for transport properties, based on the primitive variables.
+// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
+inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVariablesScalars& primitiveVariables, const ConfigSettings& params)
+{
+	const double T{primitiveVariables.T};
+	double ScPlusOne = 1 + params.T_0 / params.sutherlands_C2;
+	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
+	return TransportPropertiesScalars(mu, kappa);
+}
+
 
 #endif /* SRC_FLOWVARIABLEGROUPSTRUCTS_H_ */
 

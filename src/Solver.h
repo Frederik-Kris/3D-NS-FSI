@@ -30,9 +30,6 @@ private:
 	void updateTimeStepSize(double t);
 	double getInviscidTimeStepLimit();
 	double getViscousTimeStepLimit();
-	ConservedVariablesScalars deriveConservedVariables(const PrimitiveVariablesScalars primitiveVariables);
-	PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariablesScalars conservedVariables);
-	TransportPropertiesScalars deriveTransportProperties(const PrimitiveVariablesScalars primitiveVariables);
 	void computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables, ConservedVariablesArrayGroup& RK4slopes);
 	void compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
                                            Array3D_d& RK4_slope);

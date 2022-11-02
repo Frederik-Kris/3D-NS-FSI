@@ -54,6 +54,24 @@ public:
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
+	void setFlowVariablesAtNode(uint index1D, const ConservedVariablesScalars&  conservedVariableScalars,
+											  const PrimitiveVariablesScalars&  primitiveVariableScalars,
+											  const TransportPropertiesScalars& transportPropertyScalars)
+	{
+		conservedVariables.rho  (index1D) = conservedVariableScalars.rho;
+		conservedVariables.rho_u(index1D) = conservedVariableScalars.rho_u;
+		conservedVariables.rho_v(index1D) = conservedVariableScalars.rho_v;
+		conservedVariables.rho_w(index1D) = conservedVariableScalars.rho_w;
+		conservedVariables.rho_E(index1D) = conservedVariableScalars.rho_E;
+		primitiveVariables.u(index1D) = primitiveVariableScalars.u;
+		primitiveVariables.v(index1D) = primitiveVariableScalars.v;
+		primitiveVariables.w(index1D) = primitiveVariableScalars.w;
+		primitiveVariables.p(index1D) = primitiveVariableScalars.p;
+		primitiveVariables.T(index1D) = primitiveVariableScalars.T;
+		transportProperties.mu   (index1D) = transportPropertyScalars.mu;
+		transportProperties.kappa(index1D) = transportPropertyScalars.kappa;
+	}
+
 	uint NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	uint nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction

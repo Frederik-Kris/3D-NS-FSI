@@ -119,40 +119,6 @@ double Solver::getViscousTimeStepLimit()
 	return fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/dx_2 + 1/dy_2 + 1/dz_2) );
 }
 
-// Computes scalar values for conserved variables, based on the primitive variables.
-// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
-// E.g., decide on the primitives and use this function to get the values for the other flow variables.
-// Subscript _P denotes scalar values in one point.
-ConservedVariablesScalars Solver::deriveConservedVariables(const PrimitiveVariablesScalars primitiveVariables)
-{
-	const double u{primitiveVariables.u}, v{primitiveVariables.v}, w{primitiveVariables.w}, p{primitiveVariables.p}, T{primitiveVariables.T};
-	double rho   = ( params.Gamma * p - T ) / ( 1 + T );
-	double rho_u = (1 + rho) * u;
-	double rho_v = (1 + rho) * v;
-	double rho_w = (1 + rho) * w;
-	double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
-	return ConservedVariablesScalars(rho, rho_u, rho_v, rho_w, rho_E);
-}
-
-PrimitiveVariablesScalars Solver::derivePrimitiveVariables(const ConservedVariablesScalars conservedVariables)
-{
-	const double rho{conservedVariables.rho}, rho_u{conservedVariables.rho_u}, rho_v{conservedVariables.rho_v}, rho_w{conservedVariables.rho_w}, rho_E{conservedVariables.rho_E};
-	double u = rho_u / rho;
-	double v = rho_v / rho;
-	double w = rho_w / rho;
-	double p = ( params.Gamma - 1 )*( rho_E - (1 + rho)/2 * ( u*u + v*v + w*w ));
-	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
-	return PrimitiveVariablesScalars(u, v, w, p, T);
-}
-
-TransportPropertiesScalars Solver::deriveTransportProperties(const PrimitiveVariablesScalars primitiveVariables)
-{
-	const double T{primitiveVariables.T};
-	double ScPlusOne = 1 + params.T_0 / params.sutherlands_C2;
-	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
-	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
-	return TransportPropertiesScalars(mu, kappa);
-}
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
@@ -164,22 +130,22 @@ void Solver::marchTimeStep(double& t, uint& timeLevel)
 	computeRK4slopes(mesh.conservedVariables, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
 	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions(t);
+	mesh.applyAllBoundaryConditions(t, params);
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k2);  // k2: The slopes at time t + dt/2
 	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions();
+	mesh.applyAllBoundaryConditions(t, params);
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
 	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions();
+	mesh.applyAllBoundaryConditions(t, params);
 
 	computeRK4slopes(mesh.intermediateConservedVariables, k4);	// k4: The slopes at time t + dt
 	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions();
+	mesh.applyAllBoundaryConditions(t, params);
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
 	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.

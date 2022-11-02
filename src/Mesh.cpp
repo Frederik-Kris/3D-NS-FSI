@@ -171,7 +171,7 @@ IndexBoundingBox Mesh::getSurroundingNodesBox(Vector3_d point) const
 void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	for(auto&& boundary : edgeBoundaries)
-		boundary->applyBoundaryCondition(*this);
+		boundary->applyBoundaryCondition(t, params, *this);
 
 	for(auto&& boundary : immersedBoundaries)
 		boundary->applyBoundaryCondition(*this);
