@@ -81,20 +81,36 @@ void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& param
 
 	for(uint index1D : nodeIndices)
 	{
+		double uScalar, vScalar, wScalar;
 		if(normalAxis == AxisOrientationEnum::x)
 		{
-
+			uScalar = inletVelocity;
+			vScalar = 0;
+			wScalar = 0;
 		}
 		else if(normalAxis == AxisOrientationEnum::y)
 		{
-
+			uScalar = 0;
+			vScalar = inletVelocity;
+			wScalar = 0;
 		}
 		else if(normalAxis == AxisOrientationEnum::z)
 		{
-
+			uScalar = 0;
+			vScalar = 0;
+			wScalar = inletVelocity;
 		}
 		else
 			throw std::logic_error("Unexpected enum value");
+		uint boundaryAdjacentIndex, nextToAdjacentIndex;
+		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
+		double pScalar = 2*mesh.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
+						 - mesh.primitiveVariables.p(nextToAdjacentIndex);
+		double TScalar = 0;
+		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
+		ConservedVariablesScalars   conservedVarsLocal = deriveConservedVariables (primitiveVarsLocal, params);
+		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
+		mesh.setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal);
 	}
 }
 
