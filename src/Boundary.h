@@ -58,40 +58,7 @@ public:
 protected:
 	vector<uint> nodeIndices;
 
-	void getAdjacentIndices(uint index1D, const Mesh& mesh, uint& boundaryAdjacentIndex, uint& nextToAdjacentIndex)
-	{
-		if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
-		{
-			boundaryAdjacentIndex = index1D + mesh.NJ*mesh.NK;
-			nextToAdjacentIndex = index1D + 2*mesh.NJ*mesh.NK;
-		}
-		else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
-		{
-			boundaryAdjacentIndex = index1D - mesh.NJ*mesh.NK;
-			nextToAdjacentIndex = index1D - 2*mesh.NJ*mesh.NK;
-		}
-		else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
-		{
-			boundaryAdjacentIndex = index1D + mesh.NK;
-			nextToAdjacentIndex = index1D + 2*mesh.NK;
-		}
-		else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
-		{
-			boundaryAdjacentIndex = index1D - mesh.NK;
-			nextToAdjacentIndex = index1D - 2*mesh.NK;
-		}
-		else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
-		{
-			boundaryAdjacentIndex = index1D + 1;
-			nextToAdjacentIndex = index1D + 2*1;
-		}
-		else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
-		{
-			boundaryAdjacentIndex = index1D - 1;
-			nextToAdjacentIndex = index1D - 2*1;
-		}
-	}
-
+	void getAdjacentIndices(uint index1D, const Mesh& mesh, uint& boundaryAdjacentIndex, uint& nextToAdjacentIndex);
 };
 
 // Class to define inlet boundary condition:

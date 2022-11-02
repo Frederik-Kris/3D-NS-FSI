@@ -32,8 +32,8 @@ void Solver::applyStagnation_IC()
 	cout << "Applying stagnation initial condition... ";
 	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  	// <- Decide primitive variables
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC); // and derive the others
-	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables);
-	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables);
+	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
+	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
 	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
 	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
 	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
@@ -56,8 +56,8 @@ void Solver::applyUniformFlow_IC()
 	double velocity = params.M_0 / sqrt(3);
 	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC);// and derive the others
-	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables);
-	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables);
+	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
+	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
 	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
 	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
 	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);

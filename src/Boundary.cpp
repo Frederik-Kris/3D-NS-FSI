@@ -68,6 +68,40 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 			}
 }
 
+void MeshEdgeBoundary::getAdjacentIndices(uint index1D, const Mesh& mesh, uint& boundaryAdjacentIndex, uint& nextToAdjacentIndex)
+{
+	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
+	{
+		boundaryAdjacentIndex = index1D + mesh.NJ*mesh.NK;
+		nextToAdjacentIndex = index1D + 2*mesh.NJ*mesh.NK;
+	}
+	else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
+	{
+		boundaryAdjacentIndex = index1D - mesh.NJ*mesh.NK;
+		nextToAdjacentIndex = index1D - 2*mesh.NJ*mesh.NK;
+	}
+	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
+	{
+		boundaryAdjacentIndex = index1D + mesh.NK;
+		nextToAdjacentIndex = index1D + 2*mesh.NK;
+	}
+	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
+	{
+		boundaryAdjacentIndex = index1D - mesh.NK;
+		nextToAdjacentIndex = index1D - 2*mesh.NK;
+	}
+	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
+	{
+		boundaryAdjacentIndex = index1D + 1;
+		nextToAdjacentIndex = index1D + 2*1;
+	}
+	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
+	{
+		boundaryAdjacentIndex = index1D - 1;
+		nextToAdjacentIndex = index1D - 2*1;
+	}
+}
+
 InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, double velocity)
 : MeshEdgeBoundary(normalAxis, planeIndex),
   velocity{velocity}
@@ -102,7 +136,7 @@ void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& param
 		}
 		else
 			throw std::logic_error("Unexpected enum value");
-		uint boundaryAdjacentIndex, nextToAdjacentIndex;
+		uint boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
 		double pScalar = 2*mesh.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
 						 - mesh.primitiveVariables.p(nextToAdjacentIndex);
