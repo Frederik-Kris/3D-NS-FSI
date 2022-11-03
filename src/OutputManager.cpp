@@ -22,7 +22,7 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
 // It will save solution if the next timestep would take the solution past the save-time.
 // Thus, in general it saves too early, but the deviation is dt at most.
-void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, uint timeLevel, double dt)
+void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt)
 {
 	double timeSinceSave = fmod(t, params.save_period);
 	if ( timeSinceSave + dt >= params.save_period && params.save_intervals )
@@ -35,7 +35,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusRep
 	}
 }
 
-void OutputManager::processFinalOutput(const Mesh& mesh, double t, uint timeLevel, double dt,
+void OutputManager::processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
 								const vector<ConservedVariablesScalars> convergenceHistory)
 {
 	if ( params.save_final )
@@ -76,9 +76,9 @@ void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 	}
 	outputFile << get_csvHeaderString();
 
-	for (uint i{0}; i<params.NI; ++i)
-		for (uint j{0}; j<params.NJ; ++j)
-			for (uint k{0}; k<params.NK; ++k)
+	for (size_t i{0}; i<params.NI; ++i)
+		for (size_t j{0}; j<params.NJ; ++j)
+			for (size_t k{0}; k<params.NK; ++k)
 			{
 				outputFile << endl;
 				double x{ i*mesh.dx }, y{ j*mesh.dy }, z{ k*mesh.dz};
@@ -97,7 +97,7 @@ void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
 	vector<const Array3D_d*> flowVariables = getPlotVariables(mesh);		// Get pointers to the arrays with data to save
 	vector<string> variableFileNames = getVariableFileNames();	// Get a vector with the names of the variables
 
-	for(uint i=0; i<flowVariables.size(); ++i)	// Let i go from zero to no. of variables to save.
+	for(size_t i=0; i<flowVariables.size(); ++i)	// Let i go from zero to no. of variables to save.
 	{
 		ofstream outputFile;
 		string filename = "output/" + variableFileNames.at(i) + "_" + to_string(savedSolutions) + ".csv";
@@ -212,28 +212,28 @@ void OutputManager::writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flow
 	switch(params.saveNormalAxis)
 	{
 	case saveNormalAxisEnum::x:
-		for(uint j=0; j<params.NJ; ++j)
+		for(size_t j=0; j<params.NJ; ++j)
 		{
 			outputFile << (*flowVariable)(params.saveConstantIndex, j, 0);
-			for(uint k=1; k<params.NK; ++k)
+			for(size_t k=1; k<params.NK; ++k)
 				outputFile << ", " << (*flowVariable)(params.saveConstantIndex, j, k);
 			outputFile << endl;
 		}
 		break;
 	case saveNormalAxisEnum::y:
-		for(uint i=0; i<params.NI; ++i)
+		for(size_t i=0; i<params.NI; ++i)
 		{
 			outputFile << (*flowVariable)(i, params.saveConstantIndex, 0);
-			for(uint k=1; k<params.NK; ++k)
+			for(size_t k=1; k<params.NK; ++k)
 				outputFile << ", " << (*flowVariable)(i, params.saveConstantIndex, k);
 			outputFile << endl;
 		}
 		break;
 	case saveNormalAxisEnum::z:
-		for(uint i=0; i<params.NI; ++i)
+		for(size_t i=0; i<params.NI; ++i)
 		{
 			outputFile << (*flowVariable)(i, 0, params.saveConstantIndex);
-			for(uint j=1; j<params.NJ; ++j)
+			for(size_t j=1; j<params.NJ; ++j)
 				outputFile << ", " << (*flowVariable)(i, j, params.saveConstantIndex);
 			outputFile << endl;
 		}
@@ -243,7 +243,7 @@ void OutputManager::writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flow
 
 // Writes a brief report with progression, timestep size and wall clock time elapsed, etc.
 // 'setprecision' is used to control no. of significant digits, default is 6.
-void OutputManager::writeStatusReport_toScreen(double t, uint timeLevel, double dt)
+void OutputManager::writeStatusReport_toScreen(double t, ulong timeLevel, double dt)
 {
 	cout << "Simulated time: t = " << t;
 	if (params.stopCriterion == StopCriterionEnum::end_time)

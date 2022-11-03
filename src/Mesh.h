@@ -32,20 +32,20 @@ public:
 	void categorizeNodes(const ConfigSettings& params);
 
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
-									uint filterInterval, uint timeLevel);
+									uint filterInterval, ulong timeLevel);
 
 	ConservedVariablesScalars computeNorms_conservedVariables();
 
 	void swapConservedVariables();
 
-	Vector3_u getIndices3D(uint index1D) const;
+	Vector3_u getIndices3D(size_t index1D) const;
 
-	uint getIndex1D(uint i, uint j, uint k) const;
+	size_t getIndex1D(size_t i, size_t j, size_t k) const;
 
-	uint getIndex1D(Vector3_u indices) const
+	size_t getIndex1D(Vector3_u indices) const
 	{ return getIndex1D(indices.i, indices.j, indices.k); }
 
-	Vector3_d getNodePosition(uint i, uint j, uint k) const;
+	Vector3_d getNodePosition(size_t i, size_t j, size_t k) const;
 
 	Vector3_d getNodePosition(Vector3_u indices) const
 	{ return getNodePosition(indices.i, indices.j, indices.k); }
@@ -54,7 +54,7 @@ public:
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
-	void setFlowVariablesAtNode(uint index1D, const ConservedVariablesScalars&  conservedVariableScalars,
+	void setFlowVariablesAtNode(size_t index1D, const ConservedVariablesScalars&  conservedVariableScalars,
 											  const PrimitiveVariablesScalars&  primitiveVariableScalars,
 											  const TransportPropertiesScalars& transportPropertyScalars)
 	{
@@ -72,15 +72,15 @@ public:
 		transportProperties.kappa(index1D) = transportPropertyScalars.kappa;
 	}
 
-	uint NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
-	uint nNodesTotal;	// Total number of nodes in the mesh
+	size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
+	size_t nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;				// Mass density, momentum & total energy
 	PrimitiveVariablesArrayGroup primitiveVariables;				// Velocity, pressure & Temperature
 	TransportPropertiesArrayGroup transportProperties;				// Viscosity and thermal conductivity
 	ConservedVariablesArrayGroup intermediateConservedVariables;	// Intermediate states of conserved variables.
 	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
-	vector<uint> activeNodeIndices;									// Indices to active fluid nodes
+	vector<size_t> activeNodeIndices;									// Indices to active fluid nodes
 	Array3D_nodeType nodeTypes;										// Type/category of each node (ghost, fluid, etc.)
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh

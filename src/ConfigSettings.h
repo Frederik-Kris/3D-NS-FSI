@@ -29,9 +29,9 @@ class ConfigSettings
 public:
 	ConfigSettings(string filename);
 	void loadSettings(string filename);
-	uint NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
+	size_t NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
-	uint stopTimeLevel;              // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
+	ulong stopTimeLevel;              // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
 	double convStabilityLimit;       // Constant specifying the inviscid stability criterion
 	double viscStabilityLimit;       // Constant specifying the viscous stability criterion
@@ -51,7 +51,7 @@ public:
 	bool saveForParaview; 				// Whether to save entire 3D solution in a single file for ParaView
 	bool saveForMatlab;					// Whether to save solution in a plane, in multiple files, for Matlab
 	saveNormalAxisEnum saveNormalAxis;	// Normal axis. Defines plot-plane angle if saveForMatlab is true
-	uint   saveConstantIndex;			// Plot-plane offset if saveForMatlab is true. Must be in [0, gridsize-1].
+	size_t   saveConstantIndex;			// Plot-plane offset if saveForMatlab is true. Must be in [0, gridsize-1].
 
 	double Gamma;				// Ratio of specific heats
 	double Pr;					// Prandtl number, assumed constant

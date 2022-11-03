@@ -92,7 +92,7 @@ double Solver::getInviscidTimeStepLimit()
 	const Array3D_d& p{mesh.primitiveVariables.p}, &rho{mesh.conservedVariables.rho},
 		&u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w};
 	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
-	for (uint i{0}; i<mesh.nNodesTotal; ++i)
+	for (size_t i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    //<- Speed of sound at node i
 		maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
@@ -110,7 +110,7 @@ double Solver::getViscousTimeStepLimit()
 	const Array3D_d& mu{mesh.transportProperties.mu}, &rho{mesh.conservedVariables.rho};
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
 	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
-	for (uint i{0}; i<mesh.nNodesTotal; ++i)
+	for (size_t i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double nu = mu(i) / (rho(i)+1) * viscosityModifier;
 		maxViscosityFactor = max( maxViscosityFactor, nu );
@@ -122,7 +122,7 @@ double Solver::getViscousTimeStepLimit()
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
-void Solver::marchTimeStep(double& t, uint& timeLevel)
+void Solver::marchTimeStep(double& t, ulong& timeLevel)
 {
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.intermediateConservedVariables.rho, params.filterInterval, timeLevel);
 	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
@@ -171,11 +171,11 @@ void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVaria
 void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
 		                                    Array3D_d& RK4_slope)
 {
-	for(uint i{1}; i<params.NI-1; ++i)
+	for(size_t i{1}; i<params.NI-1; ++i)
 	{
-		for(uint j{1}; j<params.NJ-1; ++j)
+		for(size_t j{1}; j<params.NJ-1; ++j)
 		{
-			for(uint k{1}; k<params.NK-1; ++k)
+			for(size_t k{1}; k<params.NK-1; ++k)
 			{
 				RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx)
 							       - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy)
@@ -204,11 +204,11 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(uint i{1}; i<params.NI-1; ++i)
+	for(size_t i{1}; i<params.NI-1; ++i)
 	{
-		for(uint j{1}; j<params.NJ-1; ++j)
+		for(size_t j{1}; j<params.NJ-1; ++j)
 		{
-			for(uint k{1}; k<params.NK-1; ++k)
+			for(size_t k{1}; k<params.NK-1; ++k)
 			{
 				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) )
 						         + neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) )
@@ -247,11 +247,11 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(uint i{1}; i<params.NI-1; ++i)
+	for(size_t i{1}; i<params.NI-1; ++i)
 	{
-		for(uint j{1}; j<params.NJ-1; ++j)
+		for(size_t j{1}; j<params.NJ-1; ++j)
 		{
-			for(uint k{1}; k<params.NK-1; ++k)
+			for(size_t k{1}; k<params.NK-1; ++k)
 			{
 				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) )
 						         + neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) )
@@ -290,11 +290,11 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(uint i{1}; i<params.NI-1; ++i)
+	for(size_t i{1}; i<params.NI-1; ++i)
 	{
-		for(uint j{1}; j<params.NJ-1; ++j)
+		for(size_t j{1}; j<params.NJ-1; ++j)
 		{
-			for(uint k{1}; k<params.NK-1; ++k)
+			for(size_t k{1}; k<params.NK-1; ++k)
 			{
 				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) )
 						         + neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) )
@@ -339,11 +339,11 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa}; // For readability in math expression below.
 
-	for(uint i{1}; i<params.NI-1; ++i)
+	for(size_t i{1}; i<params.NI-1; ++i)
 	{
-		for(uint j{1}; j<params.NJ-1; ++j)
+		for(size_t j{1}; j<params.NJ-1; ++j)
 		{
-			for(uint k{1}; k<params.NK-1; ++k)
+			for(size_t k{1}; k<params.NK-1; ++k)
 			{
 				double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
 				double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};
@@ -404,9 +404,9 @@ void Solver::computeAllIntermediateSolutions(const ConservedVariablesArrayGroup&
 void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, const Array3D_d& RK4_slope,
 		                                       Array3D_d& intermSolution, double timeIncrement)
 {
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				intermSolution(i,j,k) = conservedVar(i,j,k) + timeIncrement * RK4_slope(i,j,k);
 }
 
@@ -432,33 +432,33 @@ void Solver::updatePrimitiveVariables()
 			  &mu{mesh.transportProperties.mu},
 			  &kappa{mesh.transportProperties.kappa};
 
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				u(i,j,k) = rho_u(i,j,k) / ( rho(i,j,k) + 1 );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				v(i,j,k) = rho_v(i,j,k) / ( rho(i,j,k) + 1 );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				w(i,j,k) = rho_w(i,j,k) / ( rho(i,j,k) + 1 );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				p(i,j,k) = gammaMinusOne * ( rho_E(i,j,k) - (rho(i,j,k)+1)/2 * (u(i,j,k)*u(i,j,k) + v(i,j,k)*v(i,j,k) + w(i,j,k)*w(i,j,k)) );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				T(i,j,k) = ( params.Gamma * p(i,j,k) - rho(i,j,k) ) / ( 1+rho(i,j,k) );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				mu(i,j,k) = pow( 1+T(i,j,k), 1.5 ) * ScPlusOne / ( params.Re*( T(i,j,k) + ScPlusOne ) );
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 				kappa(i,j,k) = mu(i,j,k) * prandtlFactor;
 }
 
@@ -478,9 +478,9 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 									const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new)
 {
 	double dtFactor{dt / 6};
-	for (uint i{1}; i<params.NI-1; ++i)
-		for (uint j{1}; j<params.NJ-1; ++j)
-			for (uint k{1}; k<params.NK-1; ++k)
+	for (size_t i{1}; i<params.NI-1; ++i)
+		for (size_t j{1}; j<params.NJ-1; ++j)
+			for (size_t k{1}; k<params.NK-1; ++k)
 			{
 				double residualValue = dtFactor*( k1(i,j,k) + 2*k2(i,j,k) + 2*k3(i,j,k) + k4(i,j,k) );
 				conservedVar_new(i,j,k) = conservedVar_old(i,j,k) + residualValue;

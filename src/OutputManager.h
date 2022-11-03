@@ -18,8 +18,8 @@ class OutputManager
 public:
 	OutputManager(const ConfigSettings& params);
 	void processInitialOutput(const Mesh& mesh, double t);
-	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, uint timeLevel, double dt);
-	void processFinalOutput(const Mesh& mesh, double t, uint timeLevel, double dt,
+	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt);
+	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
 			const vector<ConservedVariablesScalars> convergenceHistory);
 private:
 	void storeCurrentSolution_csv(const Mesh& mesh, double t);
@@ -29,7 +29,7 @@ private:
 	string get_csvHeaderString();
 	vector<string> getVariableFileNames();
 	void writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable);
-	void writeStatusReport_toScreen(double t, uint timeLevel, double dt);
+	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 	void writeOutputTimes();
 	void writeConvergenceHistoryFiles(const vector<ConservedVariablesScalars>& convergenceHistory);
 

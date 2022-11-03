@@ -19,7 +19,7 @@ class Solver
 public:
 	Solver(const ConfigSettings& params);
 	void initialize();
-	void marchTimeStep(double& t, uint& timeLevel);
+	void marchTimeStep(double& t, ulong& timeLevel);
 	const vector<ConservedVariablesScalars>& getConvergenceHistory() const {return normHistory;}
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	Mesh mesh;						// Computational mesh, containing flow variables

@@ -31,11 +31,11 @@ enum class EdgeIndexEnum
 
 struct IndexBoundingBox
 {
-	uint iMin, iMax;
-	uint jMin, jMax;
-	uint kMin, kMax;
+	size_t iMin, iMax;
+	size_t jMin, jMax;
+	size_t kMin, kMax;
 
-	IndexBoundingBox(uint iMax, uint jMax, uint kMax)
+	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
 	: iMin{0}, iMax{iMax},
 	  jMin{0}, jMax{jMax},
 	  kMin{0}, kMax{kMax}
@@ -56,9 +56,9 @@ public:
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
 protected:
-	vector<uint> nodeIndices;
+	vector<size_t> nodeIndices;
 
-	void getAdjacentIndices(uint index1D, const Mesh& mesh, uint& boundaryAdjacentIndex, uint& nextToAdjacentIndex);
+	void getAdjacentIndices(size_t index1D, const Mesh& mesh, size_t& boundaryAdjacentIndex, size_t& nextToAdjacentIndex);
 };
 
 // Class to define inlet boundary condition:
@@ -125,8 +125,8 @@ private:
 	double radius;
 
 	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
-	void getSolidNodesInCylinder(const ConfigSettings& params, vector<uint>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh);
-	void findGhostNodesWithFluidNeighbors(const vector<uint>& solidNodeIndices, Mesh& mesh);
+	void getSolidNodesInCylinder(const ConfigSettings& params, vector<size_t>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh);
+	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh);
 	void checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode);
 	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
 };

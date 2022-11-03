@@ -73,7 +73,7 @@ public:
 	Array3D_d operator+(const Array3D_d& other) const
 	{
 		Array3D_d sumResult(length, width, height);
-		for(uint i{0}; i<data.size(); ++i)
+		for(size_t i{0}; i<data.size(); ++i)
 			sumResult.data[i] = this->data[i] + other.data[i];
 		return sumResult;
 	}
@@ -81,7 +81,7 @@ public:
 	// Assign each node as elementwise sum from 2 other arrays. NO intermediate array created.
 	void assignSum(const Array3D_d& A1, const Array3D_d& A2)
 	{
-		for(uint i{0}; i<data.size(); ++i)
+		for(size_t i{0}; i<data.size(); ++i)
 			this->data[i] = A1.data[i] + A2.data[i];
 	}
 

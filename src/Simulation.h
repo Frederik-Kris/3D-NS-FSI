@@ -28,7 +28,7 @@ private:
 	Solver solver;				// Solver class, for handling numerical method.
 	OutputManager output;		// Class for managing output to screen and files.
 	double t;					// Simulated time
-	uint timeLevel;				// No. of timesteps computed. Zero is IC.
+	ulong timeLevel;				// No. of timesteps computed. Zero is IC.
 };
 
 

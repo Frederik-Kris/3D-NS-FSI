@@ -26,8 +26,8 @@ inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*fact
 
 struct Vector3_u
 {
-	uint i, j, k;
-	Vector3_u(uint i, uint j, uint k) : i{i}, j{j}, k{k} {}
+	size_t i, j, k;
+	Vector3_u(size_t i, size_t j, size_t k) : i{i}, j{j}, k{k} {}
 };
 
 

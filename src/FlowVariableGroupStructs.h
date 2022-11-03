@@ -56,7 +56,7 @@ struct ConservedVariablesArrayGroup
 	Array3D_d rho_w;	// Momentum density in z-direction
 	Array3D_d rho_E;	// Total specific energy per volume
 
-	ConservedVariablesArrayGroup(uint gridSizeX, uint gridSizeY, uint gridSizeZ) :
+	ConservedVariablesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
 	rho  (gridSizeX, gridSizeY, gridSizeZ),
 	rho_u(gridSizeX, gridSizeY, gridSizeZ),
 	rho_v(gridSizeX, gridSizeY, gridSizeZ),
@@ -73,7 +73,7 @@ struct PrimitiveVariablesArrayGroup
 	Array3D_d p;	// Pressure
 	Array3D_d T;	// Temperature
 
-	PrimitiveVariablesArrayGroup(uint gridSizeX, uint gridSizeY, uint gridSizeZ) :
+	PrimitiveVariablesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
 	u(gridSizeX, gridSizeY, gridSizeZ),
 	v(gridSizeX, gridSizeY, gridSizeZ),
 	w(gridSizeX, gridSizeY, gridSizeZ),
@@ -87,7 +87,7 @@ struct TransportPropertiesArrayGroup
 	Array3D_d mu;		// Dynamic viscosity
 	Array3D_d kappa;	// Thermal conductivity
 
-	TransportPropertiesArrayGroup(uint gridSizeX, uint gridSizeY, uint gridSizeZ) :
+	TransportPropertiesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
 	mu   (gridSizeX, gridSizeY, gridSizeZ),
 	kappa(gridSizeX, gridSizeY, gridSizeZ)
 	{}
@@ -97,7 +97,7 @@ struct RK4slopesArrayGroup
 {
 	ConservedVariablesArrayGroup k1, k2, k3, k4; // 4 slopes per conserved variable
 
-	RK4slopesArrayGroup(uint gridSizeX, uint gridSizeY, uint gridSizeZ) :
+	RK4slopesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
 	k1(gridSizeX, gridSizeY, gridSizeZ),
 	k2(gridSizeX, gridSizeY, gridSizeZ),
 	k3(gridSizeX, gridSizeY, gridSizeZ),

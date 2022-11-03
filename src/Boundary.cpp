@@ -59,16 +59,16 @@ void MeshEdgeBoundary::identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh
 	default:
 		throw std::logic_error("Unexpected enum value");
 	}
-	for(uint i{indexBounds.iMin}; i<=indexBounds.iMax; ++i)
-		for(uint j{indexBounds.jMin}; j<=indexBounds.jMax; ++j)
-			for(uint k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
+	for(size_t i{indexBounds.iMin}; i<=indexBounds.iMax; ++i)
+		for(size_t j{indexBounds.jMin}; j<=indexBounds.jMax; ++j)
+			for(size_t k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
 			{
 				nodeIndices.push_back(mesh.getIndex1D(i,j,k));
 				mesh.nodeTypes(i,j,k) = NodeTypeEnum::FluidEdge;
 			}
 }
 
-void MeshEdgeBoundary::getAdjacentIndices(uint index1D, const Mesh& mesh, uint& boundaryAdjacentIndex, uint& nextToAdjacentIndex)
+void MeshEdgeBoundary::getAdjacentIndices(size_t index1D, const Mesh& mesh, size_t& boundaryAdjacentIndex, size_t& nextToAdjacentIndex)
 {
 	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
 	{
@@ -113,7 +113,7 @@ void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& param
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
 
-	for(uint index1D : nodeIndices)
+	for(size_t index1D : nodeIndices)
 	{
 		double uScalar, vScalar, wScalar;
 		if(normalAxis == AxisOrientationEnum::x)
@@ -136,7 +136,7 @@ void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& param
 		}
 		else
 			throw std::logic_error("Unexpected enum value");
-		uint boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
 		double pScalar = 2*mesh.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
 						 - mesh.primitiveVariables.p(nextToAdjacentIndex);
@@ -154,9 +154,9 @@ OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum pla
 
 void OutletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
-	for(uint index1D : nodeIndices)
+	for(size_t index1D : nodeIndices)
 	{
-		uint boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
 		double uScalar = 2*mesh.primitiveVariables.u(boundaryAdjacentIndex) // Linear extrapolation
 						 - mesh.primitiveVariables.u(nextToAdjacentIndex);
@@ -207,12 +207,12 @@ radius{radius}
 
 IndexBoundingBox CylinderBody::getCylinderBoundingBox(Mesh& mesh) const
 {
-	uint indexRadiusX { static_cast<uint>(ceil(radius / mesh.dx)) + 1 };
-	uint indexRadiusY { static_cast<uint>(ceil(radius / mesh.dy)) + 1 };
-	uint indexRadiusZ { static_cast<uint>(ceil(radius / mesh.dz)) + 1 };
-	uint centroidClosestIndexX { static_cast<uint>(round(centroidPosition.x / mesh.dx)) };
-	uint centroidClosestIndexY { static_cast<uint>(round(centroidPosition.y / mesh.dy)) };
-	uint centroidClosestIndexZ { static_cast<uint>(round(centroidPosition.z / mesh.dz)) };
+	size_t indexRadiusX { static_cast<size_t>(ceil(radius / mesh.dx)) + 1 };
+	size_t indexRadiusY { static_cast<size_t>(ceil(radius / mesh.dy)) + 1 };
+	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / mesh.dz)) + 1 };
+	size_t centroidClosestIndexX { static_cast<size_t>(round(centroidPosition.x / mesh.dx)) };
+	size_t centroidClosestIndexY { static_cast<size_t>(round(centroidPosition.y / mesh.dy)) };
+	size_t centroidClosestIndexZ { static_cast<size_t>(round(centroidPosition.z / mesh.dz)) };
 	IndexBoundingBox indicesToCheck(mesh.NI-1, mesh.NJ-1, mesh.NK-1);
 	if (axis != AxisOrientationEnum::x)
 	{
@@ -232,11 +232,11 @@ IndexBoundingBox CylinderBody::getCylinderBoundingBox(Mesh& mesh) const
 	return indicesToCheck;
 }
 
-void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<uint>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh)
+void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<size_t>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh)
 {
-	for (uint i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
-		for (uint j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
-			for (uint k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
+	for (size_t i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
+		for (size_t j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
+			for (size_t k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
 			{
 				double distanceFromCentroid{0};
 				Vector3_d nodePosition = mesh.getNodePosition(i, j, k);
@@ -259,10 +259,10 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<
 			}
 }
 
-void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<uint>& solidNodeIndices, Mesh& mesh)
+void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh)
 {
 	IndexBoundingBox meshSize(mesh.NI-1, mesh.NJ-1, mesh.NK-1);
-	for (uint index1D : solidNodeIndices)
+	for (size_t index1D : solidNodeIndices)
 	{
 		Vector3_u indices = mesh.getIndices3D(index1D);
 		bool solidNodeHasFluidNeighbor { false };
@@ -350,7 +350,7 @@ vector<GhostNode> CylinderBody::setImagePointPositions(vector<GhostNode>& ghostN
 void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 {
 	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(mesh);
-	vector<uint> solidNodeIndices;
+	vector<size_t> solidNodeIndices;
 	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
 

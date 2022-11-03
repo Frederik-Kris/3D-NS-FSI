@@ -66,7 +66,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	for(auto&& boundary : immersedBoundaries)
 		boundary->identifyRelatedNodes(params, *this);
 
-	for(uint index1D{0}; index1D<nNodesTotal; ++index1D)
+	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
 		if(nodeTypes(index1D) == NodeTypeEnum::FluidRegular)
 			activeNodeIndices.push_back(index1D);
 }
@@ -76,35 +76,35 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 // Only filters if the modulo of time level plus one, by the filter interval is zero.
 // This causes the first filtering to happen as late as possible.
 void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
-									uint filterInterval, uint timeLevel)
+									uint filterInterval, ulong timeLevel)
 {
 	if(filterInterval > 0)
 		if( (timeLevel+1) % filterInterval == 0 )
 		{
-			uint iMax{NI-1}, jMax{NJ-1}, kMax{NK-1};
+			size_t iMax{NI-1}, jMax{NJ-1}, kMax{NK-1};
 			// Copy boundary nodes:
-			for(uint i{0}; i<=iMax; ++i)
-				for(uint j{0}; j<=jMax; ++j)
+			for(size_t i{0}; i<=iMax; ++i)
+				for(size_t j{0}; j<=jMax; ++j)
 				{
 					variableTemporaryStorage(i,j,0   ) = filterVariable(i,j,0   );
 					variableTemporaryStorage(i,j,kMax) = filterVariable(i,j,kMax);
 				}
-			for(uint i{0}; i<=iMax; ++i)
-				for(uint k{1}; k<=kMax-1; ++k)
+			for(size_t i{0}; i<=iMax; ++i)
+				for(size_t k{1}; k<=kMax-1; ++k)
 				{
 					variableTemporaryStorage(i,0,   k) = filterVariable(i,0,   k);
 					variableTemporaryStorage(i,jMax,k) = filterVariable(i,jMax,k);
 				}
-			for(uint j{1}; j<=jMax-1; ++j)
-				for(uint k{1}; k<=kMax-1; ++k)
+			for(size_t j{1}; j<=jMax-1; ++j)
+				for(size_t k{1}; k<=kMax-1; ++k)
 				{
 					variableTemporaryStorage(0,   j,k) = filterVariable(0,   j,k);
 					variableTemporaryStorage(iMax,j,k) = filterVariable(iMax,j,k);
 				}
 			// Apply filter to interior nodes:
-			for(uint i{1}; i<=iMax-1; ++i)
-				for(uint j{1}; j<=jMax-1; ++j)
-					for(uint k{1}; k<=kMax-1; ++k)
+			for(size_t i{1}; i<=iMax-1; ++i)
+				for(size_t j{1}; j<=jMax-1; ++j)
+					for(size_t k{1}; k<=kMax-1; ++k)
 					{
 						variableTemporaryStorage(i,j,k) = 1./2.  *   filterVariable(i,j,k)
 														+ 1./12. * ( filterVariable(i+1,j,k) + filterVariable(i-1,j,k)
@@ -137,20 +137,20 @@ void Mesh::swapConservedVariables()
 	conservedVariables.rho_E.dataSwap(intermediateConservedVariables.rho_E);
 }
 
-Vector3_u Mesh::getIndices3D(uint index1D) const
+Vector3_u Mesh::getIndices3D(size_t index1D) const
 {
-	uint i = index1D / NJ*NK;
-	uint j = index1D % (NJ*NK) / NK;
-	uint k = index1D % (NJ*NK) % NK;
+	size_t i = index1D / NJ*NK;
+	size_t j = index1D % (NJ*NK) / NK;
+	size_t k = index1D % (NJ*NK) % NK;
 	return Vector3_u(i,j,k);
 }
 
-uint Mesh::getIndex1D(uint i, uint j, uint k) const
+size_t Mesh::getIndex1D(size_t i, size_t j, size_t k) const
 {
 	return i*NJ*NK + j*NK + k;
 }
 
-Vector3_d Mesh::getNodePosition(uint i, uint j, uint k) const
+Vector3_d Mesh::getNodePosition(size_t i, size_t j, size_t k) const
 {
 	double x { i * dx }, y { j * dy }, z { k * dz };
 	return Vector3_d(x, y, z);
@@ -158,9 +158,9 @@ Vector3_d Mesh::getNodePosition(uint i, uint j, uint k) const
 
 IndexBoundingBox Mesh::getSurroundingNodesBox(Vector3_d point) const
 {
-	uint iNext = static_cast<uint>( ceil( point.x / dx ) );
-	uint jNext = static_cast<uint>( ceil( point.y / dy ) );
-	uint kNext = static_cast<uint>( ceil( point.z / dz ) );
+	size_t iNext = static_cast<size_t>( ceil( point.x / dx ) );
+	size_t jNext = static_cast<size_t>( ceil( point.y / dy ) );
+	size_t kNext = static_cast<size_t>( ceil( point.z / dz ) );
 	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
 	surroundingBox.iMin = iNext - 1;
 	surroundingBox.jMin = jNext - 1;
@@ -182,8 +182,8 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredChanges = 0;
-	uint numberOfMeshNodes = NI * NJ * NK;
-	for(uint i=0; i<numberOfMeshNodes; ++i)
+	size_t numberOfMeshNodes = NI * NJ * NK;
+	for(size_t i=0; i<numberOfMeshNodes; ++i)
 		sumOfSquaredChanges += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredChanges );
 	return normOfChange;

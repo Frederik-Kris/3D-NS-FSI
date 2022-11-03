@@ -46,7 +46,7 @@ void testOutputFileStream()
 
 void fillArrayRandomNumbers(Array3D_d& array, double minVal, double maxVal)
 {
-	for (uint i{0}; i<array.getSize(); ++i)
+	for (size_t i{0}; i<array.getSize(); ++i)
 	{
 		array(i) = (double)rand() / (double)RAND_MAX * (maxVal - minVal) + minVal ;
 	}
@@ -63,12 +63,12 @@ void testArrayTraversalOneOrThreeIndex()
 	fillArrayRandomNumbers(A3, 0, 10);
 
 	Clock timer;
-	for (uint i{0}; i<A1.getLength(); ++i)
-		for (uint j{0}; j<A1.getWidth(); ++j)
-			for (uint k{0}; k<A1.getHeight(); ++k)
+	for (size_t i{0}; i<A1.getLength(); ++i)
+		for (size_t j{0}; j<A1.getWidth(); ++j)
+			for (size_t k{0}; k<A1.getHeight(); ++k)
 				A3(i,j,k) = A1(i,j,k) + A2(i,j,k);
 	Time t1 = timer.restart();
-	for (uint i{0}; i<A1.getSize(); ++i)
+	for (size_t i{0}; i<A1.getSize(); ++i)
 		A3(i) = A1(i) + A2(i);
 	Time t2 = timer.getElapsedTime();
 
@@ -128,7 +128,7 @@ void fillArrayRandomNumbers(vector<double>& array, double minVal, double maxVal)
 
 void testPerformanceArrayLoop()
 {
-	uint N = 10000000;
+	size_t N = 10000000;
 	vector<double> rho(N);
 	vector<double> rho_u(N);
 	vector<double> rho_v(N);
@@ -153,7 +153,7 @@ void testPerformanceArrayLoop()
 	if (allInOneLoop)
 	{
 		Clock clock;
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 		{
 			u[i] = rho_u[i] / rho[i];
 			v[i] = rho_v[i] / rho[i];
@@ -169,19 +169,19 @@ void testPerformanceArrayLoop()
 	else
 	{
 		Clock clock;
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			u[i] = rho_u[i] / rho[i];
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			v[i] = rho_v[i] / rho[i];
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			w[i] = rho_w[i] / rho[i];
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			p[i] = 0.4 * ( E[i] - rho[i]/2 * ( u[i]*u[i] + v[i]*v[i] + w[i]*w[i] ));
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			T[i] = ( 1.4*p[i] - rho[i] ) / ( 1+rho[i] );
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			mu[i] = pow( 1 + T[i], 1.5 ) *1.3 / ( 200*( T[i]+1.3 ) );
-		for (uint i{0}; i<N; ++i)
+		for (size_t i{0}; i<N; ++i)
 			kappa[i] = mu[i] / ( 0.4*0.72 );
 
 		Time time = clock.getElapsedTime();
@@ -203,12 +203,12 @@ void testArrayWithSettings()
 	if (settings.errorOccurred)
 		return;
 	Array3D_d u(settings.NI, settings.NJ, settings.NK);
-	uint counter{0};
-	for(uint i{0}; i<settings.NI; ++i)
+	size_t counter{0};
+	for(size_t i{0}; i<settings.NI; ++i)
 	{
-		for(uint j{0}; j<settings.NJ; ++j)
+		for(size_t j{0}; j<settings.NJ; ++j)
 		{
-			for(uint k{0}; k<settings.NK; ++k)
+			for(size_t k{0}; k<settings.NK; ++k)
 			{
 				u(i,j,k) = counter;
 				++counter;
