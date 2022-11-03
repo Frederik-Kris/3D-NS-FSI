@@ -154,7 +154,25 @@ OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum pla
 
 void OutletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
+	for(uint index1D : nodeIndices)
+	{
+		uint boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
+		double uScalar = 2*mesh.primitiveVariables.u(boundaryAdjacentIndex) // Linear extrapolation
+						 - mesh.primitiveVariables.u(nextToAdjacentIndex);
+		double vScalar = 2*mesh.primitiveVariables.v(boundaryAdjacentIndex) // Linear extrapolation
+						 - mesh.primitiveVariables.v(nextToAdjacentIndex);
+		double wScalar = 2*mesh.primitiveVariables.w(boundaryAdjacentIndex) // Linear extrapolation
+						 - mesh.primitiveVariables.w(nextToAdjacentIndex);
+		double pScalar = 0;
+		double TScalar = 2*mesh.primitiveVariables.T(boundaryAdjacentIndex) // Linear extrapolation
+						 - mesh.primitiveVariables.T(nextToAdjacentIndex);
 
+		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
+		ConservedVariablesScalars conservedVarsLocal = deriveConservedVariables(primitiveVarsLocal, params);
+		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
+		mesh.setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal);
+	}
 }
 
 PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
