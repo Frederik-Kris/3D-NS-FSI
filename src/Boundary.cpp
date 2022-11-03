@@ -109,7 +109,7 @@ InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum plane
 
 void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
-	double inletVelocity = min(1., t/10.) * params.M_0; // TODO: move magic const 10 to params
+	double inletVelocity = min(1., t/10.) * velocity; // TODO: move magic const 10 to params
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
 
