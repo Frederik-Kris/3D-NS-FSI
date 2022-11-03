@@ -59,6 +59,7 @@ protected:
 	vector<size_t> nodeIndices;
 
 	void getAdjacentIndices(size_t index1D, const Mesh& mesh, size_t& boundaryAdjacentIndex, size_t& nextToAdjacentIndex);
+	size_t getPeriodicIndex(size_t index1D, const Mesh& mesh);
 };
 
 // Class to define inlet boundary condition:

@@ -42,12 +42,12 @@ public:
 
 	size_t getIndex1D(size_t i, size_t j, size_t k) const;
 
-	size_t getIndex1D(Vector3_u indices) const
+	size_t getIndex1D(const Vector3_u& indices) const
 	{ return getIndex1D(indices.i, indices.j, indices.k); }
 
 	Vector3_d getNodePosition(size_t i, size_t j, size_t k) const;
 
-	Vector3_d getNodePosition(Vector3_u indices) const
+	Vector3_d getNodePosition(const Vector3_u& indices) const
 	{ return getNodePosition(indices.i, indices.j, indices.k); }
 
 	IndexBoundingBox getSurroundingNodesBox(Vector3_d point) const;

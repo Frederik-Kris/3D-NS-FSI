@@ -102,6 +102,30 @@ void MeshEdgeBoundary::getAdjacentIndices(size_t index1D, const Mesh& mesh, size
 	}
 }
 
+size_t MeshEdgeBoundary::getPeriodicIndex(size_t index1D, const Mesh& mesh)
+{
+	Vector3_u indices = mesh.getIndices3D(index1D);
+	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
+		indices.i = mesh.NI-2;	// i -> iMax-1
+
+	else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
+		indices.i = 1;	// i -> iMin+1
+
+	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
+		indices.j = mesh.NJ-2;	// j -> jMax-1
+
+	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
+		indices.j = 1;	// j -> jMin+1
+
+	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
+		indices.k = mesh.NK-2;	// k -> kMax-1
+
+	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
+		indices.k = 1;	// k -> kMin+1
+
+	return mesh.getIndex1D(indices);
+}
+
 InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, double velocity)
 : MeshEdgeBoundary(normalAxis, planeIndex),
   velocity{velocity}
@@ -181,7 +205,22 @@ PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 
 void PeriodicBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
-
+	for(size_t index1D : nodeIndices)
+	{
+		size_t oppositeSideIndex = getPeriodicIndex(index1D, mesh);
+		mesh.conservedVariables.rho  (index1D) = mesh.conservedVariables.rho  (oppositeSideIndex);
+		mesh.conservedVariables.rho_u(index1D) = mesh.conservedVariables.rho_u(oppositeSideIndex);
+		mesh.conservedVariables.rho_v(index1D) = mesh.conservedVariables.rho_v(oppositeSideIndex);
+		mesh.conservedVariables.rho_w(index1D) = mesh.conservedVariables.rho_w(oppositeSideIndex);
+		mesh.conservedVariables.rho_E(index1D) = mesh.conservedVariables.rho_E(oppositeSideIndex);
+		mesh.primitiveVariables.u(index1D) = mesh.primitiveVariables.u(oppositeSideIndex);
+		mesh.primitiveVariables.v(index1D) = mesh.primitiveVariables.v(oppositeSideIndex);
+		mesh.primitiveVariables.w(index1D) = mesh.primitiveVariables.w(oppositeSideIndex);
+		mesh.primitiveVariables.p(index1D) = mesh.primitiveVariables.p(oppositeSideIndex);
+		mesh.primitiveVariables.T(index1D) = mesh.primitiveVariables.T(oppositeSideIndex);
+		mesh.transportProperties.mu   (index1D) = mesh.transportProperties.mu   (oppositeSideIndex);
+		mesh.transportProperties.kappa(index1D) = mesh.transportProperties.kappa(oppositeSideIndex);
+	}
 }
 
 SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)

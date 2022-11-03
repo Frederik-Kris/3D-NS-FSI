@@ -38,7 +38,7 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := 3D_NS_FSI
+BUILD_ARTIFACT_NAME := 3D-NS-FSI
 BUILD_ARTIFACT_EXTENSION :=
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
@@ -49,19 +49,19 @@ BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ART
 all: main-build
 
 # Main-build Target
-main-build: 3D_NS_FSI
+main-build: 3D-NS-FSI
 
 # Tool invocations
-3D_NS_FSI: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
+3D-NS-FSI: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L/usr/lib/x86_64-linux-gnu -o "3D_NS_FSI" $(OBJS) $(USER_OBJS) $(LIBS) -lsfml-graphics -lsfml-window -lsfml-system -lconfig++
+	g++ -L/usr/lib/x86_64-linux-gnu -o "3D-NS-FSI" $(OBJS) $(USER_OBJS) $(LIBS) -lsfml-graphics -lsfml-window -lsfml-system -lconfig++
 	@echo 'Finished building target: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) 3D_NS_FSI
+	-$(RM) 3D-NS-FSI
 	-@echo ' '
 
 .PHONY: all clean dependents main-build
