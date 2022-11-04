@@ -229,7 +229,38 @@ SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 
 void SymmetryBoundary::applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh)
 {
-
+	for(size_t index1D : nodeIndices)
+	{
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		getAdjacentIndices(index1D, mesh, boundaryAdjacentIndex, nextToAdjacentIndex);
+		double uScalar, vScalar, wScalar;
+		if(normalAxis == AxisOrientationEnum::x)
+		{
+			uScalar = 0;	// Normal component zero, and other components get zero gradient.
+			vScalar = ( 4*mesh.primitiveVariables.v(boundaryAdjacentIndex) - mesh.primitiveVariables.v(nextToAdjacentIndex) ) / 3;
+			wScalar = ( 4*mesh.primitiveVariables.w(boundaryAdjacentIndex) - mesh.primitiveVariables.w(nextToAdjacentIndex) ) / 3;
+		}
+		else if(normalAxis == AxisOrientationEnum::y)
+		{
+			uScalar = ( 4*mesh.primitiveVariables.u(boundaryAdjacentIndex) - mesh.primitiveVariables.u(nextToAdjacentIndex) ) / 3;
+			vScalar = 0;
+			wScalar = ( 4*mesh.primitiveVariables.w(boundaryAdjacentIndex) - mesh.primitiveVariables.w(nextToAdjacentIndex) ) / 3;
+		}
+		else if(normalAxis == AxisOrientationEnum::z)
+		{
+			uScalar = ( 4*mesh.primitiveVariables.u(boundaryAdjacentIndex) - mesh.primitiveVariables.u(nextToAdjacentIndex) ) / 3;
+			vScalar = ( 4*mesh.primitiveVariables.v(boundaryAdjacentIndex) - mesh.primitiveVariables.v(nextToAdjacentIndex) ) / 3;
+			wScalar = 0;
+		}
+		else
+			throw std::logic_error("Unexpected enum value");
+		double pScalar = ( 4*mesh.primitiveVariables.p(boundaryAdjacentIndex) - mesh.primitiveVariables.p(nextToAdjacentIndex) ) / 3;
+		double TScalar = ( 4*mesh.primitiveVariables.T(boundaryAdjacentIndex) - mesh.primitiveVariables.T(nextToAdjacentIndex) ) / 3;
+		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
+		ConservedVariablesScalars conservedVarsLocal = deriveConservedVariables(primitiveVarsLocal, params);
+		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
+		mesh.setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal);
+	}
 }
 
 
