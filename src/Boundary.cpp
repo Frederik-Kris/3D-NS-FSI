@@ -7,6 +7,20 @@
 
 #include "Boundary.h"
 
+Array8_u IndexBoundingBox::asIndexList(const Mesh& mesh)
+{
+	Array8_u indices = { mesh.getIndex1D(iMin, jMin, kMin),
+			mesh.getIndex1D(iMin, jMin, kMax),
+			mesh.getIndex1D(iMin, jMax, kMin),
+			mesh.getIndex1D(iMin, jMax, kMax),
+			mesh.getIndex1D(iMax, jMin, kMin),
+			mesh.getIndex1D(iMax, jMin, kMax),
+			mesh.getIndex1D(iMax, jMax, kMin),
+			mesh.getIndex1D(iMax, jMax, kMax)
+	};
+	return indices;
+}
+
 MeshEdgeBoundary::MeshEdgeBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
 : normalAxis{normalAxis},
   planeIndex{planeIndex}
@@ -269,6 +283,69 @@ ImmersedBoundary::ImmersedBoundary()
 
 }
 
+double ImmersedBoundary::simplifiedInterpolation(const Array8_d& interpolationValues)
+{
+
+}
+
+PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(const InterpolationValues& interpolationValues)
+{
+
+}
+
+void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh)
+{
+	for(GhostNode ghostNode : ghostNodes)
+	{
+		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
+		InterpolationPositions interpolationPositions;	// Positions of interpolation points
+		Array8_b interpolationNodeIsGhost;
+		interpolationNodeIsGhost.fill(false);	// <- Sets all 8 values to false
+		bool allSurroundingAreFluid{true};
+		uint counter{0};	// 0, 1, ..., 7.  To index the interpolation point arrays.
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
+		{
+			if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
+			|| mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
+			{
+				interpolationValues.u[counter] = mesh.primitiveVariables.u(surroundingNodeIndex1D);
+				interpolationValues.v[counter] = mesh.primitiveVariables.v(surroundingNodeIndex1D);
+				interpolationValues.w[counter] = mesh.primitiveVariables.w(surroundingNodeIndex1D);
+				interpolationValues.p[counter] = mesh.primitiveVariables.p(surroundingNodeIndex1D);
+				interpolationValues.T[counter] = mesh.primitiveVariables.T(surroundingNodeIndex1D);
+				Vector3_d surroundingNodePosition = mesh.getNodePosition( mesh.getIndices3D(surroundingNodeIndex1D) );
+				interpolationPositions.x[counter] = surroundingNodePosition.x;
+				interpolationPositions.y[counter] = surroundingNodePosition.y;
+				interpolationPositions.z[counter] = surroundingNodePosition.z;
+			}
+			else if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
+			{
+				interpolationNodeIsGhost[counter] = true;
+				allSurroundingAreFluid = false;
+				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
+				interpolationValues.u[counter] = 0;
+				interpolationValues.v[counter] = 0;
+				interpolationValues.w[counter] = 0;
+				interpolationValues.p[counter] = 0;
+				interpolationValues.T[counter] = 0;
+				interpolationPositions.x[counter] = surroundingGhostNode.bodyInterceptPoint.x;
+				interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
+				interpolationPositions.z[counter] = surroundingGhostNode.bodyInterceptPoint.z;
+			}
+			++counter;
+		}
+		if(allSurroundingAreFluid)
+		{  // Then we can use the simplified interpolation method:
+
+		}
+		else
+		{
+
+		}
+	}
+}
+
 CylinderBody::CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius) :
 centroidPosition(centroidPosition),
 axis{axis},
@@ -421,44 +498,6 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 	}
 }
 
-void CylinderBody::applyBoundaryCondition(Mesh& mesh)
-{
-	for(GhostNode ghostNode : ghostNodes)
-	{
-		InterpolationValues interpolationValues;
-		InterpolationPositions interpolationPositions;
-		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
-		uint counter{0};
-		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
-		{
-			if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
-			|| mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
-			{
-				interpolationValues.u[counter] = mesh.primitiveVariables.u(surroundingNodeIndex1D);
-				interpolationValues.v[counter] = mesh.primitiveVariables.v(surroundingNodeIndex1D);
-				interpolationValues.w[counter] = mesh.primitiveVariables.w(surroundingNodeIndex1D);
-				interpolationValues.p[counter] = mesh.primitiveVariables.p(surroundingNodeIndex1D);
-				interpolationValues.T[counter] = mesh.primitiveVariables.T(surroundingNodeIndex1D);
-				Vector3_d surroundingNodePosition = mesh.getNodePosition( mesh.getIndices3D(surroundingNodeIndex1D) );
-				interpolationPositions.x[counter] = surroundingNodePosition.x;
-				interpolationPositions.y[counter] = surroundingNodePosition.y;
-				interpolationPositions.z[counter] = surroundingNodePosition.z;
-			}
-			else if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
-			{
-				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
-				interpolationValues.u[counter] = 0;
-				interpolationValues.v[counter] = 0;
-				interpolationValues.w[counter] = 0;
-				interpolationValues.p[counter] = 0;
-				interpolationValues.T[counter] = 0;
-			}
-
-			++counter;
-		}
-	}
-}
-
 SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
 centerPosition(centerPosition),
 radius{radius}
@@ -469,10 +508,6 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 
 }
 
-void SphereBody::applyBoundaryCondition(Mesh& mesh)
-{
-
-}
 
 
 

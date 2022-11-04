@@ -31,6 +31,7 @@ enum class EdgeIndexEnum
 
 typedef std::array<size_t, 8> Array8_u;
 typedef std::array<double, 8> Array8_d;
+typedef std::array<bool,   8> Array8_b;
 
 struct IndexBoundingBox
 {
@@ -44,19 +45,7 @@ struct IndexBoundingBox
 	  kMin{0}, kMax{kMax}
 	{}
 
-	Array8_u asIndexList(const Mesh& mesh)
-	{
-		Array8_u indices = { mesh.getIndex1D(iMin, jMin, kMin),
-										  mesh.getIndex1D(iMin, jMin, kMax),
-										  mesh.getIndex1D(iMin, jMax, kMin),
-										  mesh.getIndex1D(iMin, jMax, kMax),
-										  mesh.getIndex1D(iMax, jMin, kMin),
-										  mesh.getIndex1D(iMax, jMin, kMax),
-										  mesh.getIndex1D(iMax, jMax, kMin),
-										  mesh.getIndex1D(iMax, jMax, kMax)
-										};
-		return indices;
-	}
+	Array8_u asIndexList(const Mesh& mesh);
 };
 
 struct InterpolationValues
@@ -140,8 +129,10 @@ public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
 	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
-	virtual void applyBoundaryCondition(Mesh& mesh) = 0;
+	void applyBoundaryCondition(Mesh& mesh);
 protected:
+	double simplifiedInterpolation(const Array8_d& interpolationValues);
+	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues);
 	vector<GhostNode> ghostNodes;
 	std::map<size_t, GhostNode*> ghostNodeMap;
 };
@@ -153,7 +144,6 @@ public:
 	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
 
-	void applyBoundaryCondition(Mesh& mesh) override;
 private:
 	Vector3_d centroidPosition;
 	AxisOrientationEnum axis;
@@ -172,7 +162,6 @@ class SphereBody : public ImmersedBoundary
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
-	void applyBoundaryCondition(Mesh& mesh) override;
 private:
 	Vector3_d centerPosition;
 	double radius;
