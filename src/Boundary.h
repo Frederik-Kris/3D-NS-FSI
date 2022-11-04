@@ -29,6 +29,9 @@ enum class EdgeIndexEnum
 	min, max
 };
 
+typedef std::array<size_t, 8> Array8_u;
+typedef std::array<double, 8> Array8_d;
+
 struct IndexBoundingBox
 {
 	size_t iMin, iMax;
@@ -39,7 +42,37 @@ struct IndexBoundingBox
 	: iMin{0}, iMax{iMax},
 	  jMin{0}, jMax{jMax},
 	  kMin{0}, kMax{kMax}
-	  {}
+	{}
+
+	Array8_u asIndexList(const Mesh& mesh)
+	{
+		Array8_u indices = { mesh.getIndex1D(iMin, jMin, kMin),
+										  mesh.getIndex1D(iMin, jMin, kMax),
+										  mesh.getIndex1D(iMin, jMax, kMin),
+										  mesh.getIndex1D(iMin, jMax, kMax),
+										  mesh.getIndex1D(iMax, jMin, kMin),
+										  mesh.getIndex1D(iMax, jMin, kMax),
+										  mesh.getIndex1D(iMax, jMax, kMin),
+										  mesh.getIndex1D(iMax, jMax, kMax)
+										};
+		return indices;
+	}
+};
+
+struct InterpolationValues
+{
+	Array8_d u;
+	Array8_d v;
+	Array8_d w;
+	Array8_d p;
+	Array8_d T;
+};
+
+struct InterpolationPositions
+{
+	Array8_d x;
+	Array8_d y;
+	Array8_d z;
 };
 
 
@@ -110,6 +143,7 @@ public:
 	virtual void applyBoundaryCondition(Mesh& mesh) = 0;
 protected:
 	vector<GhostNode> ghostNodes;
+	std::map<size_t, GhostNode*> ghostNodeMap;
 };
 
 // Class to define boundary conditions at an immersed cylinder:

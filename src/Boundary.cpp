@@ -363,6 +363,7 @@ void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<size_t>& solidN
 		if (solidNodeHasFluidNeighbor)
 		{
 			ghostNodes.push_back(GhostNode(indices));
+			ghostNodeMap.insert( std::pair<size_t,GhostNode*>(index1D, &ghostNodes.back()) );
 			mesh.nodeTypes(index1D) = NodeTypeEnum::Ghost;
 		}
 	}
@@ -370,8 +371,11 @@ void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<size_t>& solidN
 
 void CylinderBody::checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode)
 {
-	if (mesh.nodeTypes(surroundingNode) == NodeTypeEnum::Solid) {
+	if (mesh.nodeTypes(surroundingNode) == NodeTypeEnum::Solid)
+	{
 		newGhostNodes.emplace_back(surroundingNode);
+		ghostNodes.push_back(GhostNode(surroundingNode));
+		ghostNodeMap.insert( std::pair<size_t,GhostNode*>(mesh.getIndex1D(surroundingNode), &ghostNodes.back()) );
 		mesh.nodeTypes(surroundingNode) = NodeTypeEnum::Ghost;
 	}
 }
@@ -397,22 +401,8 @@ vector<GhostNode> CylinderBody::setImagePointPositions(vector<GhostNode>& ghostN
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
 		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMax));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMin));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMin, surroundingNodes.jMax, surroundingNodes.kMax));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMin));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMin, surroundingNodes.kMax));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMin));
-		checkIfSurroundingShouldBeGhost(mesh, newGhostNodes,
-				Vector3_u(surroundingNodes.iMax, surroundingNodes.jMax, surroundingNodes.kMax));
+		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
+			checkIfSurroundingShouldBeGhost(mesh, newGhostNodes, mesh.getIndices3D(surroundingNodeIndex1D));
 	}
 	return newGhostNodes;
 }
@@ -433,7 +423,40 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 
 void CylinderBody::applyBoundaryCondition(Mesh& mesh)
 {
+	for(GhostNode ghostNode : ghostNodes)
+	{
+		InterpolationValues interpolationValues;
+		InterpolationPositions interpolationPositions;
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+		uint counter{0};
+		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
+		{
+			if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
+			|| mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
+			{
+				interpolationValues.u[counter] = mesh.primitiveVariables.u(surroundingNodeIndex1D);
+				interpolationValues.v[counter] = mesh.primitiveVariables.v(surroundingNodeIndex1D);
+				interpolationValues.w[counter] = mesh.primitiveVariables.w(surroundingNodeIndex1D);
+				interpolationValues.p[counter] = mesh.primitiveVariables.p(surroundingNodeIndex1D);
+				interpolationValues.T[counter] = mesh.primitiveVariables.T(surroundingNodeIndex1D);
+				Vector3_d surroundingNodePosition = mesh.getNodePosition( mesh.getIndices3D(surroundingNodeIndex1D) );
+				interpolationPositions.x[counter] = surroundingNodePosition.x;
+				interpolationPositions.y[counter] = surroundingNodePosition.y;
+				interpolationPositions.z[counter] = surroundingNodePosition.z;
+			}
+			else if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
+			{
+				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
+				interpolationValues.u[counter] = 0;
+				interpolationValues.v[counter] = 0;
+				interpolationValues.w[counter] = 0;
+				interpolationValues.p[counter] = 0;
+				interpolationValues.T[counter] = 0;
+			}
 
+			++counter;
+		}
+	}
 }
 
 SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
