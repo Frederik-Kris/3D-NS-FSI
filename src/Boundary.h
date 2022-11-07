@@ -129,7 +129,7 @@ public:
 	ImmersedBoundary();
 	virtual ~ImmersedBoundary() = default;
 	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
-	void applyBoundaryCondition(Mesh& mesh);
+	void applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params);
 protected:
 	double simplifiedInterpolation(const Array8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);
 	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);

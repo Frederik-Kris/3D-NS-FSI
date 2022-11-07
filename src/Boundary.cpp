@@ -308,10 +308,15 @@ PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(const Int
 
 PrimitiveVariablesScalars ImmersedBoundary::getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars)
 {
-
+	double uGhost = -imagePointPrimVars.u;	// NB! This hardcodes zero Dirichlet condition for velocities
+	double vGhost = -imagePointPrimVars.v;
+	double wGhost = -imagePointPrimVars.w;
+	double pGhost =  imagePointPrimVars.p;	// and zero gradient Neumann conditions for pressure and temperature.
+	double TGhost =  imagePointPrimVars.T;
+	return PrimitiveVariablesScalars(uGhost, vGhost, wGhost, pGhost, TGhost);
 }
 
-void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh)
+void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params)
 {
 	for(GhostNode ghostNode : ghostNodes)
 	{
@@ -344,8 +349,8 @@ void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh)
 				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
 				interpolationValues.u[counter] = 0;
 				interpolationValues.v[counter] = 0;
-				interpolationValues.w[counter] = 0;
-				interpolationValues.p[counter] = 0;
+				interpolationValues.w[counter] = 0;	// NB! This hardcodes zero Dirichlet condition for velocities
+				interpolationValues.p[counter] = 0;	// and zero gradient Neumann conditions for pressure and temperature.
 				interpolationValues.T[counter] = 0;
 				interpolationPositions.x[counter] = surroundingGhostNode.bodyInterceptPoint.x;
 				interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
@@ -359,10 +364,13 @@ void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh)
 		{  // Then we can use the simplified interpolation method:
 			Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
 			PrimitiveVariablesScalars imagePointPrimVars = simplifiedInterpolationAll(interpolationValues, lowerIndexNode, ghostNode.imagePoint, mesh);
-
+			PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodePrimitiveVariables(imagePointPrimVars);
+			ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
+			TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
+			mesh.setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps);
 		}
 		else
-		{
+		{	// Then we must use trilinear interpolation with the Vandermode matrix:
 
 		}
 	}

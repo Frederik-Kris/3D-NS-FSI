@@ -72,6 +72,24 @@ public:
 		transportProperties.kappa(index1D) = transportPropertyScalars.kappa;
 	}
 
+	void setFlowVariablesAtNode(Vector3_u node, const ConservedVariablesScalars&  conservedVariableScalars,
+												const PrimitiveVariablesScalars&  primitiveVariableScalars,
+												const TransportPropertiesScalars& transportPropertyScalars)
+	{
+		conservedVariables.rho  (node) = conservedVariableScalars.rho;
+		conservedVariables.rho_u(node) = conservedVariableScalars.rho_u;
+		conservedVariables.rho_v(node) = conservedVariableScalars.rho_v;
+		conservedVariables.rho_w(node) = conservedVariableScalars.rho_w;
+		conservedVariables.rho_E(node) = conservedVariableScalars.rho_E;
+		primitiveVariables.u(node) = primitiveVariableScalars.u;
+		primitiveVariables.v(node) = primitiveVariableScalars.v;
+		primitiveVariables.w(node) = primitiveVariableScalars.w;
+		primitiveVariables.p(node) = primitiveVariableScalars.p;
+		primitiveVariables.T(node) = primitiveVariableScalars.T;
+		transportProperties.mu   (node) = transportPropertyScalars.mu;
+		transportProperties.kappa(node) = transportPropertyScalars.kappa;
+	}
+
 	size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	size_t nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
