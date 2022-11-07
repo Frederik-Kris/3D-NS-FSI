@@ -283,14 +283,14 @@ ImmersedBoundary::ImmersedBoundary()
 
 }
 
-double ImmersedBoundary::simplifiedInterpolation(const Array8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh)
+double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh)
 {
 	Vector3_d lowerIndexNodePosition = mesh.getNodePosition(lowerIndexNode);
 	Vector3_d relativePosition = imagePointPosition - lowerIndexNodePosition;
-	double variableAt01 = interpolationValues[0] + (interpolationValues[1]-interpolationValues[0]) * relativePosition.z / mesh.dz;
-	double variableAt23 = interpolationValues[2] + (interpolationValues[3]-interpolationValues[2]) * relativePosition.z / mesh.dz;
-	double variableAt45 = interpolationValues[4] + (interpolationValues[5]-interpolationValues[4]) * relativePosition.z / mesh.dz;
-	double variableAt67 = interpolationValues[6] + (interpolationValues[7]-interpolationValues[6]) * relativePosition.z / mesh.dz;
+	double variableAt01 = interpolationValues(0) + (interpolationValues(1)-interpolationValues(0)) * relativePosition.z / mesh.dz;
+	double variableAt23 = interpolationValues(2) + (interpolationValues(3)-interpolationValues(2)) * relativePosition.z / mesh.dz;
+	double variableAt45 = interpolationValues(4) + (interpolationValues(5)-interpolationValues(4)) * relativePosition.z / mesh.dz;
+	double variableAt67 = interpolationValues(6) + (interpolationValues(7)-interpolationValues(6)) * relativePosition.z / mesh.dz;
 	double variableAt0123 = variableAt01 + (variableAt23-variableAt01) * relativePosition.y / mesh.dy;
 	double variableAt4567 = variableAt45 + (variableAt67-variableAt45) * relativePosition.y / mesh.dy;
 	return variableAt0123 + (variableAt4567-variableAt0123) * relativePosition.x / mesh.dx;
@@ -316,15 +316,62 @@ PrimitiveVariablesScalars ImmersedBoundary::getGhostNodePrimitiveVariables(const
 	return PrimitiveVariablesScalars(uGhost, vGhost, wGhost, pGhost, TGhost);
 }
 
+void ImmersedBoundary::populateVandermondeDirichlet(const InterpolationPositions& points, Matrix8x8_d& vandermonde)
+{
+	vandermonde << Vector8_d::Constant(1), points.x, points.y, points.z, points.x*points.y, points.x*points.z, points.y*points.z, points.x*points.y*points.z;
+}
+
+void ImmersedBoundary::populateVandermondeNeumann(const InterpolationPositions& points,
+												  const Array8_b& ghostFlags,
+												  const vector<Vector3_d>& unitNormals,
+												  Matrix8x8_d& vandermonde)
+{
+	populateVandermondeDirichlet(points, vandermonde);
+	size_t counter{0};
+	for(size_t rowIndex{0}; rowIndex<8; ++rowIndex)
+		if(ghostFlags[rowIndex] == true)
+		{
+			vandermonde(rowIndex,0) = 0;
+			vandermonde(rowIndex,1) = unitNormals[counter].x;
+			vandermonde(rowIndex,2) = unitNormals[counter].y;
+			vandermonde(rowIndex,3) = unitNormals[counter].z;
+			vandermonde(rowIndex,4) = points.x(rowIndex)*unitNormals[counter].y + points.y(rowIndex)*unitNormals[counter].x;
+			vandermonde(rowIndex,5) = points.x(rowIndex)*unitNormals[counter].z + points.z(rowIndex)*unitNormals[counter].x;
+			vandermonde(rowIndex,6) = points.y(rowIndex)*unitNormals[counter].z + points.z(rowIndex)*unitNormals[counter].y;
+			vandermonde(rowIndex,7) = points.x(rowIndex)*points.y(rowIndex)*unitNormals[counter].z
+									+ points.x(rowIndex)*points.z(rowIndex)*unitNormals[counter].y
+									+ points.y(rowIndex)*points.z(rowIndex)*unitNormals[counter].x;
+			++counter;
+		}
+}
+
+double ImmersedBoundary::trilinearInterpolation(const Vector8_d& interpolationValues,
+												const Vector3_d& imagePoint,
+												const Matrix8x8_d& vandermondeDirichlet,
+												const Matrix8x8_d& vandermondeNeumann)
+{
+
+}
+
+PrimitiveVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const InterpolationValues& values,
+																	  const Vector3_d& imagePoint,
+																	  const Matrix8x8_d& vandermondeDirichlet,
+																	  const Matrix8x8_d& vandermondeNeumann)
+{
+	double uInterpolated = trilinearInterpolation(values.u, imagePoint, vandermondeDirichlet, vandermondeNeumann);
+	return PrimitiveVariablesScalars(uInterpolated, v, w, p, T);
+}
+
 void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params)
 {
 	for(GhostNode ghostNode : ghostNodes)
 	{
 		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
 		InterpolationPositions interpolationPositions;	// Positions of interpolation points
-		Array8_b interpolationNodeIsGhost;
-		interpolationNodeIsGhost.fill(false);	// <- Sets all 8 values to false
+		Array8_b ghostFlag;
+		ghostFlag.fill(false);	// <- Sets all 8 values to false
 		bool allSurroundingAreFluid{true};
+		vector<Vector3_d> unitNormals;
 		uint counter{0};	// 0, 1, ..., 7.  To index the interpolation point arrays.
 		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
 		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
@@ -344,9 +391,12 @@ void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& 
 			}
 			else if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
 			{
-				interpolationNodeIsGhost[counter] = true;
+				ghostFlag[counter] = true;
 				allSurroundingAreFluid = false;
 				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
+				Vector3_d& unitNormal = unitNormals.emplace_back();
+				unitNormal = surroundingGhostNode.imagePoint - surroundingGhostNode.bodyInterceptPoint;
+				unitNormal = unitNormal / unitNormal.length();
 				interpolationValues.u[counter] = 0;
 				interpolationValues.v[counter] = 0;
 				interpolationValues.w[counter] = 0;	// NB! This hardcodes zero Dirichlet condition for velocities
@@ -370,8 +420,15 @@ void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& 
 			mesh.setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps);
 		}
 		else
-		{	// Then we must use trilinear interpolation with the Vandermode matrix:
-
+		{	// Then we must use trilinear interpolation with the Vandermonde matrix:
+			Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
+			populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
+			populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
+			Vector8_d uTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
+			Vector8_d vTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
+			Vector8_d wTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.w.matrix() );
+			Vector8_d pTrilinearCoeffs = vandermondeNeumann.fullPivLu().solve( interpolationValues.p.matrix() );
+			Vector8_d TTrilinearCoeffs = vandermondeNeumann.fullPivLu().solve( interpolationValues.T.matrix() );
 		}
 	}
 }

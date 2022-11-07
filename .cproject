@@ -39,6 +39,7 @@
 									<listOptionValue builtIn="false" value="sfml-graphics"/>
 									<listOptionValue builtIn="false" value="sfml-window"/>
 									<listOptionValue builtIn="false" value="sfml-system"/>
+									<listOptionValue builtIn="false" value="eigen3"/>
 									<listOptionValue builtIn="false" value="config++"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.linker.input.1039859876" superClass="cdt.managedbuild.tool.gnu.cpp.linker.input">

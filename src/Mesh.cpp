@@ -174,7 +174,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 		boundary->applyBoundaryCondition(t, params, *this);
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(*this);
+		boundary->applyBoundaryCondition(*this, params);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.

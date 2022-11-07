@@ -11,10 +11,10 @@
 class Mesh;
 
 #include "Array3D.h"
+#include "FlowVariableGroupStructs.h"
 #include "includes_and_names.h"
 #include "ConfigSettings.h"
 #include "Boundary.h"
-#include "FlowVariableGroupStructs.h"
 
 typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
 typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;

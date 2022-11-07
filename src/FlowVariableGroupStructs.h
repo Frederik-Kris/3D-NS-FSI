@@ -8,6 +8,7 @@
 #ifndef SRC_FLOWVARIABLEGROUPSTRUCTS_H_
 #define SRC_FLOWVARIABLEGROUPSTRUCTS_H_
 
+#include "ConfigSettings.h"
 
 struct ConservedVariablesScalars
 {

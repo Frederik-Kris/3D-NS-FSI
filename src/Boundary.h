@@ -17,6 +17,7 @@ class ImmersedBoundary;
 #include "ConfigSettings.h"
 #include "Mesh.h"
 #include "Node.h"
+#include <eigen3/Eigen/LU>
 
 
 enum class AxisOrientationEnum
@@ -30,8 +31,9 @@ enum class EdgeIndexEnum
 };
 
 typedef std::array<size_t, 8> Array8_u;
-typedef std::array<double, 8> Array8_d;
 typedef std::array<bool,   8> Array8_b;
+typedef Eigen::Array<double, 8, 1> Vector8_d;
+typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
 struct IndexBoundingBox
 {
@@ -50,18 +52,18 @@ struct IndexBoundingBox
 
 struct InterpolationValues
 {
-	Array8_d u;
-	Array8_d v;
-	Array8_d w;
-	Array8_d p;
-	Array8_d T;
+	Vector8_d u;
+	Vector8_d v;
+	Vector8_d w;
+	Vector8_d p;
+	Vector8_d T;
 };
 
 struct InterpolationPositions
 {
-	Array8_d x;
-	Array8_d y;
-	Array8_d z;
+	Vector8_d x;
+	Vector8_d y;
+	Vector8_d z;
 };
 
 
@@ -72,15 +74,23 @@ class MeshEdgeBoundary
 public:
 	MeshEdgeBoundary(AxisOrientationEnum normalAxis,
 					 EdgeIndexEnum planeIndex);
+
 	virtual ~MeshEdgeBoundary() = default;
+
 	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh& mesh);
+
 	virtual void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) = 0;
+
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
 protected:
 	vector<size_t> nodeIndices;
 
-	void getAdjacentIndices(size_t index1D, const Mesh& mesh, size_t& boundaryAdjacentIndex, size_t& nextToAdjacentIndex);
+	void getAdjacentIndices(size_t index1D,
+							const Mesh& mesh,
+							size_t& boundaryAdjacentIndex,
+							size_t& nextToAdjacentIndex);
+
 	size_t getPeriodicIndex(size_t index1D, const Mesh& mesh);
 };
 
@@ -91,7 +101,9 @@ public:
 	InletBoundary(AxisOrientationEnum normalAxis,
 				  EdgeIndexEnum planeIndex,
 				  double velocity);
+
 	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
+
 private:
 	double velocity;
 };
@@ -101,6 +113,7 @@ class OutletBoundary : public MeshEdgeBoundary
 {
 public:
 	OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
+
 	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
@@ -109,6 +122,7 @@ class PeriodicBoundary : public MeshEdgeBoundary
 {
 public:
 	PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
+
 	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
@@ -117,6 +131,7 @@ class SymmetryBoundary : public MeshEdgeBoundary
 {
 public:
 	SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
+
 	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
 };
 
@@ -127,13 +142,44 @@ class ImmersedBoundary
 {
 public:
 	ImmersedBoundary();
+
 	virtual ~ImmersedBoundary() = default;
+
 	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
+
 	void applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params);
+
 protected:
-	double simplifiedInterpolation(const Array8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);
-	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);
+	double simplifiedInterpolation(const Vector8_d& interpolationValues,
+								   const Vector3_u& lowerIndexNode,
+								   const Vector3_d& imagePointPosition,
+								   const Mesh& mesh);
+
+	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues,
+														 const Vector3_u& lowerIndexNode,
+														 const Vector3_d& imagePointPosition,
+														 const Mesh& mesh);
+
 	PrimitiveVariablesScalars getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars);
+
+	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
+									  Matrix8x8_d& vandermonde);
+
+	void populateVandermondeNeumann(const InterpolationPositions& interpolationPoints,
+									const Array8_b& ghostFlags,
+									const vector<Vector3_d>& unitNormals,
+									Matrix8x8_d& vandermonde);
+
+	PrimitiveVariablesScalars trilinearInterpolation(const Vector8_d& interpolationValues,
+													 const Vector3_d& imagePoint,
+													 const Matrix8x8_d& vandermondeDirichlet,
+													 const Matrix8x8_d& vandermondeNeumann);
+
+	PrimitiveVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
+														const Vector3_d& imagePoint,
+														const Matrix8x8_d& vandermondeDirichlet,
+														const Matrix8x8_d& vandermondeNeumann);
+
 	vector<GhostNode> ghostNodes;
 	std::map<size_t, GhostNode*> ghostNodeMap;
 };
@@ -143,6 +189,7 @@ class CylinderBody : public ImmersedBoundary
 {
 public:
 	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
+
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
 
 private:
@@ -151,9 +198,18 @@ private:
 	double radius;
 
 	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
-	void getSolidNodesInCylinder(const ConfigSettings& params, vector<size_t>& solidNodeIndices, IndexBoundingBox indicesToCheck, Mesh& mesh);
+
+	void getSolidNodesInCylinder(const ConfigSettings& params,
+								 vector<size_t>& solidNodeIndices,
+								 IndexBoundingBox indicesToCheck,
+								 Mesh& mesh);
+
 	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh);
-	void checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode);
+
+	void checkIfSurroundingShouldBeGhost(Mesh &mesh,
+										 vector<GhostNode>& newGhostNodes,
+										 const Vector3_u &surroundingNode);
+
 	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
 };
 
@@ -162,7 +218,9 @@ class SphereBody : public ImmersedBoundary
 {
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
+
 	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
+
 private:
 	Vector3_d centerPosition;
 	double radius;
