@@ -283,12 +283,30 @@ ImmersedBoundary::ImmersedBoundary()
 
 }
 
-double ImmersedBoundary::simplifiedInterpolation(const Array8_d& interpolationValues)
+double ImmersedBoundary::simplifiedInterpolation(const Array8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh)
 {
-
+	Vector3_d lowerIndexNodePosition = mesh.getNodePosition(lowerIndexNode);
+	Vector3_d relativePosition = imagePointPosition - lowerIndexNodePosition;
+	double variableAt01 = interpolationValues[0] + (interpolationValues[1]-interpolationValues[0]) * relativePosition.z / mesh.dz;
+	double variableAt23 = interpolationValues[2] + (interpolationValues[3]-interpolationValues[2]) * relativePosition.z / mesh.dz;
+	double variableAt45 = interpolationValues[4] + (interpolationValues[5]-interpolationValues[4]) * relativePosition.z / mesh.dz;
+	double variableAt67 = interpolationValues[6] + (interpolationValues[7]-interpolationValues[6]) * relativePosition.z / mesh.dz;
+	double variableAt0123 = variableAt01 + (variableAt23-variableAt01) * relativePosition.y / mesh.dy;
+	double variableAt4567 = variableAt45 + (variableAt67-variableAt45) * relativePosition.y / mesh.dy;
+	return variableAt0123 + (variableAt4567-variableAt0123) * relativePosition.x / mesh.dx;
 }
 
-PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(const InterpolationValues& interpolationValues)
+PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(const InterpolationValues& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh)
+{
+	double uInterpolated = simplifiedInterpolation(interpolationValues.u, lowerIndexNode, imagePointPosition, mesh);
+	double vInterpolated = simplifiedInterpolation(interpolationValues.v, lowerIndexNode, imagePointPosition, mesh);
+	double wInterpolated = simplifiedInterpolation(interpolationValues.w, lowerIndexNode, imagePointPosition, mesh);
+	double pInterpolated = simplifiedInterpolation(interpolationValues.p, lowerIndexNode, imagePointPosition, mesh);
+	double TInterpolated = simplifiedInterpolation(interpolationValues.T, lowerIndexNode, imagePointPosition, mesh);
+	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
+}
+
+PrimitiveVariablesScalars ImmersedBoundary::getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars)
 {
 
 }
@@ -333,10 +351,14 @@ void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh)
 				interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
 				interpolationPositions.z[counter] = surroundingGhostNode.bodyInterceptPoint.z;
 			}
+			else
+				throw std::logic_error("Impossible situation. Found solid node around image point.");
 			++counter;
 		}
 		if(allSurroundingAreFluid)
 		{  // Then we can use the simplified interpolation method:
+			Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
+			PrimitiveVariablesScalars imagePointPrimVars = simplifiedInterpolationAll(interpolationValues, lowerIndexNode, ghostNode.imagePoint, mesh);
 
 		}
 		else

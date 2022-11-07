@@ -131,8 +131,9 @@ public:
 	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
 	void applyBoundaryCondition(Mesh& mesh);
 protected:
-	double simplifiedInterpolation(const Array8_d& interpolationValues);
-	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues);
+	double simplifiedInterpolation(const Array8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);
+	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh);
+	PrimitiveVariablesScalars getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars);
 	vector<GhostNode> ghostNodes;
 	std::map<size_t, GhostNode*> ghostNodeMap;
 };
