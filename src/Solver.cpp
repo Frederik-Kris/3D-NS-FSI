@@ -129,6 +129,10 @@ void Solver::marchTimeStep(double& t, ulong& timeLevel)
 
 	computeRK4slopes(mesh.conservedVariables, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
 	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
+	øøø ;
+	// PROBABLY NEED TO CHANGE PRIMITIVE AND BC TO SET INTERMEDIATE NOT MAIN ARRAYS
+	// OR MAYBE CHANGE TO "OLD" AND MAIN INSTEAD
+	// ALSO, SHOULD CHANGE ALLE LOOPS HERE TO ONLY ACTIVE NODES.
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t, params);
 

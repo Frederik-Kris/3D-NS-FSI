@@ -37,9 +37,9 @@ typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
 struct IndexBoundingBox
 {
-	size_t iMin, iMax;
-	size_t jMin, jMax;
-	size_t kMin, kMax;
+	size_t iMin, iMax;	// Indices in x-direction
+	size_t jMin, jMax;	// Indices in y-direction
+	size_t kMin, kMax;	// Indices in z-direction
 
 	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
 	: iMin{0}, iMax{iMax},
@@ -47,16 +47,18 @@ struct IndexBoundingBox
 	  kMin{0}, kMax{kMax}
 	{}
 
-	Array8_u asIndexList(const Mesh& mesh);
+	IndexBoundingBox() = default;
+
+	Array8_u asIndexList(const Mesh& mesh) const;
 };
 
 struct InterpolationValues
 {
-	Vector8_d u;
-	Vector8_d v;
-	Vector8_d w;
-	Vector8_d p;
-	Vector8_d T;
+	Vector8_d u;	// Velocity component in x-direction
+	Vector8_d v;	// Velocity component in y-direction
+	Vector8_d w;	// Velocity component in z-direction
+	Vector8_d p;	// Pressure
+	Vector8_d T;	// Temperature
 };
 
 struct InterpolationPositions
@@ -150,6 +152,21 @@ public:
 	void applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params);
 
 protected:
+
+	vector<GhostNode> ghostNodes;
+	std::map<size_t, GhostNode*> ghostNodeMap;
+
+	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh);
+
+	void checkIfSurroundingShouldBeGhost(Mesh &mesh,
+										 vector<GhostNode>& newGhostNodes,
+										 const Vector3_u &surroundingNode);
+
+	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
+
+private:
+	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
+
 	double simplifiedInterpolation(const Vector8_d& interpolationValues,
 								   const Vector3_u& lowerIndexNode,
 								   const Vector3_d& imagePointPosition,
@@ -170,18 +187,45 @@ protected:
 									const vector<Vector3_d>& unitNormals,
 									Matrix8x8_d& vandermonde);
 
-	PrimitiveVariablesScalars trilinearInterpolation(const Vector8_d& interpolationValues,
+	double trilinearInterpolation(const Vector8_d& interpolationValues,
 													 const Vector3_d& imagePoint,
-													 const Matrix8x8_d& vandermondeDirichlet,
-													 const Matrix8x8_d& vandermondeNeumann);
+													 const Matrix8x8_d& vandermonde);
 
 	PrimitiveVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
 														const Vector3_d& imagePoint,
 														const Matrix8x8_d& vandermondeDirichlet,
 														const Matrix8x8_d& vandermondeNeumann);
 
-	vector<GhostNode> ghostNodes;
-	std::map<size_t, GhostNode*> ghostNodeMap;
+	void setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
+										const Mesh &mesh,
+										InterpolationValues& interpolationValues,		// OUTPUT
+										InterpolationPositions& interpolationPositions);// OUTPUT
+
+	void setInterpolationValuesGhostNode(
+			uint counter,
+			size_t surroundingNodeIndex1D,
+			vector<Vector3_d>& unitNormals,					// <-
+			InterpolationValues& interpolationValues,		// <- Output
+			InterpolationPositions& interpolationPositions);// <-
+
+	void setInterpolationValues(
+			const IndexBoundingBox& surroundingNodes,
+			const Mesh& mesh,
+			InterpolationValues& interpolationValues,		// <-
+			InterpolationPositions& interpolationPositions,	// <-
+			Array8_b& ghostFlag,							// <- Output
+			bool& allSurroundingAreFluid,					// <-
+			vector<Vector3_d>& unitNormals);				// <-
+
+	PrimitiveVariablesScalars interpolatePrimitiveVariables(
+			const InterpolationValues& interpolationValues,
+			const InterpolationPositions& interpolationPositions,
+			bool allSurroundingAreFluid,
+			const Array8_b& ghostFlag,
+			const GhostNode& ghostNode,
+			const IndexBoundingBox& surroundingNodes,
+			const vector<Vector3_d>& unitNormals,
+			const Mesh& mesh);
 };
 
 // Class to define boundary conditions at an immersed cylinder:
@@ -197,20 +241,14 @@ private:
 	AxisOrientationEnum axis;
 	double radius;
 
+	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
+
 	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
 
 	void getSolidNodesInCylinder(const ConfigSettings& params,
 								 vector<size_t>& solidNodeIndices,
 								 IndexBoundingBox indicesToCheck,
 								 Mesh& mesh);
-
-	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh);
-
-	void checkIfSurroundingShouldBeGhost(Mesh &mesh,
-										 vector<GhostNode>& newGhostNodes,
-										 const Vector3_u &surroundingNode);
-
-	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
 };
 
 // Class to define boundary conditions at an immersed sphere:
@@ -224,6 +262,15 @@ public:
 private:
 	Vector3_d centerPosition;
 	double radius;
+
+	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
+
+	IndexBoundingBox getSphereBoundingBox(Mesh& mesh) const;
+
+	void getSolidNodesInSphere(const ConfigSettings& params,
+								 vector<size_t>& solidNodeIndices,
+								 IndexBoundingBox indicesToCheck,
+								 Mesh& mesh);
 };
 
 #endif /* SRC_BOUNDARY_H_ */

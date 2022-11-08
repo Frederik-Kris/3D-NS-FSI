@@ -7,16 +7,16 @@
 
 #include "Boundary.h"
 
-Array8_u IndexBoundingBox::asIndexList(const Mesh& mesh)
+Array8_u IndexBoundingBox::asIndexList(const Mesh& mesh) const
 {
 	Array8_u indices = { mesh.getIndex1D(iMin, jMin, kMin),
-			mesh.getIndex1D(iMin, jMin, kMax),
-			mesh.getIndex1D(iMin, jMax, kMin),
-			mesh.getIndex1D(iMin, jMax, kMax),
-			mesh.getIndex1D(iMax, jMin, kMin),
-			mesh.getIndex1D(iMax, jMin, kMax),
-			mesh.getIndex1D(iMax, jMax, kMin),
-			mesh.getIndex1D(iMax, jMax, kMax)
+						 mesh.getIndex1D(iMin, jMin, kMax),
+						 mesh.getIndex1D(iMin, jMax, kMin),
+						 mesh.getIndex1D(iMin, jMax, kMax),
+						 mesh.getIndex1D(iMax, jMin, kMin),
+						 mesh.getIndex1D(iMax, jMin, kMax),
+						 mesh.getIndex1D(iMax, jMax, kMin),
+						 mesh.getIndex1D(iMax, jMax, kMax)
 	};
 	return indices;
 }
@@ -283,6 +283,170 @@ ImmersedBoundary::ImmersedBoundary()
 
 }
 
+void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params)
+{
+	for(GhostNode ghostNode : ghostNodes)
+	{
+		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
+		InterpolationPositions interpolationPositions;	// Positions of interpolation points
+		Array8_b ghostFlag;		// A bool flag for each surrounding node. True if ghost.
+		ghostFlag.fill(false);	// <- Sets all 8 values to false
+		bool allSurroundingAreFluid{true};
+		vector<Vector3_d> unitNormals;	// For each of the surrounding nodes that is ghost, we put its unit normal probe here.
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+		
+		setInterpolationValues(
+				surroundingNodes, mesh,								// <- Input
+				interpolationValues, interpolationPositions,		// <- Output
+				ghostFlag, allSurroundingAreFluid, unitNormals);	// <- Output
+		
+		PrimitiveVariablesScalars imagePointPrimVars = interpolatePrimitiveVariables(
+				interpolationValues, interpolationPositions, allSurroundingAreFluid,
+				ghostFlag, ghostNode, surroundingNodes, unitNormals, mesh);
+
+		PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodePrimitiveVariables(imagePointPrimVars);
+		ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
+		TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
+		mesh.setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps);
+	}
+}
+
+void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh)
+{
+	IndexBoundingBox meshSize(mesh.NI-1, mesh.NJ-1, mesh.NK-1);
+	for (size_t index1D : solidNodeIndices)
+	{
+		Vector3_u indices = mesh.getIndices3D(index1D);
+		bool solidNodeHasFluidNeighbor { false };
+		if (indices.i > meshSize.iMin)
+			if (mesh.nodeTypes(indices.i - 1, indices.j, indices.k) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.i < meshSize.iMax)
+			if (mesh.nodeTypes(indices.i + 1, indices.j, indices.k) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.j > meshSize.jMin)
+			if (mesh.nodeTypes(indices.i, indices.j - 1, indices.k) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.j < meshSize.jMax)
+			if (mesh.nodeTypes(indices.i, indices.j + 1, indices.k) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.k > meshSize.kMin)
+			if (mesh.nodeTypes(indices.i, indices.j, indices.k - 1) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (indices.k < meshSize.kMax)
+			if (mesh.nodeTypes(indices.i, indices.j, indices.k + 1) == NodeTypeEnum::FluidRegular)
+				solidNodeHasFluidNeighbor = true;
+
+		if (solidNodeHasFluidNeighbor)
+		{
+			ghostNodes.push_back(GhostNode(indices));
+			ghostNodeMap.insert( std::pair<size_t,GhostNode*>(index1D, &ghostNodes.back()) );
+			mesh.nodeTypes(index1D) = NodeTypeEnum::Ghost;
+		}
+	}
+}
+
+void ImmersedBoundary::checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode)
+{
+	if (mesh.nodeTypes(surroundingNode) == NodeTypeEnum::Solid)
+	{
+		newGhostNodes.emplace_back(surroundingNode);
+		ghostNodes.push_back(GhostNode(surroundingNode));
+		ghostNodeMap.insert( std::pair<size_t,GhostNode*>(mesh.getIndex1D(surroundingNode), &ghostNodes.back()) );
+		mesh.nodeTypes(surroundingNode) = NodeTypeEnum::Ghost;
+	}
+}
+
+vector<GhostNode> ImmersedBoundary::setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh)
+{
+	vector<GhostNode> newGhostNodes;
+	for (GhostNode& ghostNode : ghostNodesToProcess)
+	{
+		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
+		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
+		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
+		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
+		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
+		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
+			checkIfSurroundingShouldBeGhost(mesh, newGhostNodes, mesh.getIndices3D(surroundingNodeIndex1D));
+	}
+	return newGhostNodes;
+}
+
+void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
+													  const Mesh &mesh,
+													  InterpolationValues& interpolationValues,			// OUTPUT
+													  InterpolationPositions& interpolationPositions)	// OUTPUT
+{
+	interpolationValues.u[counter] = mesh.primitiveVariables.u(surroundingNodeIndex1D);
+	interpolationValues.v[counter] = mesh.primitiveVariables.v(surroundingNodeIndex1D);
+	interpolationValues.w[counter] = mesh.primitiveVariables.w(surroundingNodeIndex1D);
+	interpolationValues.p[counter] = mesh.primitiveVariables.p(surroundingNodeIndex1D);
+	interpolationValues.T[counter] = mesh.primitiveVariables.T(surroundingNodeIndex1D);
+	Vector3_d surroundingNodePosition = mesh.getNodePosition(mesh.getIndices3D(surroundingNodeIndex1D));
+	interpolationPositions.x[counter] = surroundingNodePosition.x;
+	interpolationPositions.y[counter] = surroundingNodePosition.y;
+	interpolationPositions.z[counter] = surroundingNodePosition.z;
+}
+
+void ImmersedBoundary::setInterpolationValuesGhostNode(
+		uint counter,
+		size_t surroundingNodeIndex1D,
+		vector<Vector3_d>& unitNormals,					// <-
+		InterpolationValues& interpolationValues,		// <- Output
+		InterpolationPositions& interpolationPositions)	// <-
+{
+	GhostNode &surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
+	Vector3_d &unitNormal = unitNormals.emplace_back();
+	unitNormal = surroundingGhostNode.imagePoint - surroundingGhostNode.bodyInterceptPoint;
+	unitNormal = unitNormal / unitNormal.length();
+	interpolationValues.u[counter] = 0;
+	interpolationValues.v[counter] = 0;
+	interpolationValues.w[counter] = 0; // NB! This hardcodes zero Dirichlet condition for velocities
+	interpolationValues.p[counter] = 0; // and zero gradient Neumann conditions for pressure and temperature.
+	interpolationValues.T[counter] = 0;
+	interpolationPositions.x[counter] = surroundingGhostNode.bodyInterceptPoint.x;
+	interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
+	interpolationPositions.z[counter] = surroundingGhostNode.bodyInterceptPoint.z;
+}
+
+void ImmersedBoundary::setInterpolationValues(
+		const IndexBoundingBox& surroundingNodes,
+		const Mesh& mesh,
+		InterpolationValues& interpolationValues,		// <-
+		InterpolationPositions& interpolationPositions,	// <-
+		Array8_b& ghostFlag,							// <- Output
+		bool& allSurroundingAreFluid,					// <-
+		vector<Vector3_d>& unitNormals)					// <-
+{
+	uint counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
+	for (size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh))
+	{
+		if (mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
+		||	mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
+		{
+			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, mesh,	// <- Input
+									interpolationValues, interpolationPositions);	// <- Output
+		}
+		else if (mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
+		{
+			ghostFlag[counter] = true;
+			allSurroundingAreFluid = false;
+			setInterpolationValuesGhostNode(counter, surroundingNodeIndex1D,	// <- Input
+					unitNormals, interpolationValues, interpolationPositions);	// <- Output
+		}
+		else
+			throw std::logic_error("Impossible situation. Found solid node around image point.");
+
+		++counter;
+	}
+}
+
 double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationValues, const Vector3_u& lowerIndexNode, const Vector3_d& imagePointPosition, const Mesh& mesh)
 {
 	Vector3_d lowerIndexNodePosition = mesh.getNodePosition(lowerIndexNode);
@@ -347,10 +511,17 @@ void ImmersedBoundary::populateVandermondeNeumann(const InterpolationPositions& 
 
 double ImmersedBoundary::trilinearInterpolation(const Vector8_d& interpolationValues,
 												const Vector3_d& imagePoint,
-												const Matrix8x8_d& vandermondeDirichlet,
-												const Matrix8x8_d& vandermondeNeumann)
+												const Matrix8x8_d& vandermonde)
 {
-
+	Vector8_d trilinearCoefficients = vandermonde.fullPivLu().solve( interpolationValues.matrix() );
+	return trilinearCoefficients(0)
+		 + trilinearCoefficients(1)*imagePoint.x
+		 + trilinearCoefficients(2)*imagePoint.y
+		 + trilinearCoefficients(3)*imagePoint.z
+		 + trilinearCoefficients(4)*imagePoint.x*imagePoint.y
+		 + trilinearCoefficients(5)*imagePoint.x*imagePoint.z
+		 + trilinearCoefficients(6)*imagePoint.y*imagePoint.z
+		 + trilinearCoefficients(7)*imagePoint.x*imagePoint.y*imagePoint.z;
 }
 
 PrimitiveVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const InterpolationValues& values,
@@ -358,79 +529,44 @@ PrimitiveVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const Inte
 																	  const Matrix8x8_d& vandermondeDirichlet,
 																	  const Matrix8x8_d& vandermondeNeumann)
 {
-	double uInterpolated = trilinearInterpolation(values.u, imagePoint, vandermondeDirichlet, vandermondeNeumann);
-	return PrimitiveVariablesScalars(uInterpolated, v, w, p, T);
+	double uInterpolated = trilinearInterpolation(values.u, imagePoint, vandermondeDirichlet);
+	double vInterpolated = trilinearInterpolation(values.v, imagePoint, vandermondeDirichlet);
+	double wInterpolated = trilinearInterpolation(values.w, imagePoint, vandermondeDirichlet);
+	double pInterpolated = trilinearInterpolation(values.p, imagePoint, vandermondeDirichlet);
+	double TInterpolated = trilinearInterpolation(values.T, imagePoint, vandermondeDirichlet);
+	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
 }
 
-void ImmersedBoundary::applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params)
+PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
+		const InterpolationValues& interpolationValues,
+		const InterpolationPositions& interpolationPositions,
+		bool allSurroundingAreFluid,
+		const Array8_b& ghostFlag,
+		const GhostNode& ghostNode,
+		const IndexBoundingBox& surroundingNodes,
+		const vector<Vector3_d>& unitNormals,
+		const Mesh& mesh)
 {
-	for(GhostNode ghostNode : ghostNodes)
-	{
-		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
-		InterpolationPositions interpolationPositions;	// Positions of interpolation points
-		Array8_b ghostFlag;
-		ghostFlag.fill(false);	// <- Sets all 8 values to false
-		bool allSurroundingAreFluid{true};
-		vector<Vector3_d> unitNormals;
-		uint counter{0};	// 0, 1, ..., 7.  To index the interpolation point arrays.
-		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
-		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
-		{
-			if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
-			|| mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
-			{
-				interpolationValues.u[counter] = mesh.primitiveVariables.u(surroundingNodeIndex1D);
-				interpolationValues.v[counter] = mesh.primitiveVariables.v(surroundingNodeIndex1D);
-				interpolationValues.w[counter] = mesh.primitiveVariables.w(surroundingNodeIndex1D);
-				interpolationValues.p[counter] = mesh.primitiveVariables.p(surroundingNodeIndex1D);
-				interpolationValues.T[counter] = mesh.primitiveVariables.T(surroundingNodeIndex1D);
-				Vector3_d surroundingNodePosition = mesh.getNodePosition( mesh.getIndices3D(surroundingNodeIndex1D) );
-				interpolationPositions.x[counter] = surroundingNodePosition.x;
-				interpolationPositions.y[counter] = surroundingNodePosition.y;
-				interpolationPositions.z[counter] = surroundingNodePosition.z;
-			}
-			else if(mesh.nodeTypes(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
-			{
-				ghostFlag[counter] = true;
-				allSurroundingAreFluid = false;
-				GhostNode& surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
-				Vector3_d& unitNormal = unitNormals.emplace_back();
-				unitNormal = surroundingGhostNode.imagePoint - surroundingGhostNode.bodyInterceptPoint;
-				unitNormal = unitNormal / unitNormal.length();
-				interpolationValues.u[counter] = 0;
-				interpolationValues.v[counter] = 0;
-				interpolationValues.w[counter] = 0;	// NB! This hardcodes zero Dirichlet condition for velocities
-				interpolationValues.p[counter] = 0;	// and zero gradient Neumann conditions for pressure and temperature.
-				interpolationValues.T[counter] = 0;
-				interpolationPositions.x[counter] = surroundingGhostNode.bodyInterceptPoint.x;
-				interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
-				interpolationPositions.z[counter] = surroundingGhostNode.bodyInterceptPoint.z;
-			}
-			else
-				throw std::logic_error("Impossible situation. Found solid node around image point.");
-			++counter;
-		}
-		if(allSurroundingAreFluid)
-		{  // Then we can use the simplified interpolation method:
-			Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
-			PrimitiveVariablesScalars imagePointPrimVars = simplifiedInterpolationAll(interpolationValues, lowerIndexNode, ghostNode.imagePoint, mesh);
-			PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodePrimitiveVariables(imagePointPrimVars);
-			ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
-			TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
-			mesh.setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps);
-		}
-		else
-		{	// Then we must use trilinear interpolation with the Vandermonde matrix:
-			Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
-			populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
-			populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
-			Vector8_d uTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
-			Vector8_d vTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
-			Vector8_d wTrilinearCoeffs = vandermondeDirichlet.fullPivLu().solve( interpolationValues.w.matrix() );
-			Vector8_d pTrilinearCoeffs = vandermondeNeumann.fullPivLu().solve( interpolationValues.p.matrix() );
-			Vector8_d TTrilinearCoeffs = vandermondeNeumann.fullPivLu().solve( interpolationValues.T.matrix() );
-		}
+	PrimitiveVariablesScalars imagePointPrimVars;
+	if (allSurroundingAreFluid)
+	{ // Then we can use the simplified interpolation method:
+		Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
+		imagePointPrimVars = simplifiedInterpolationAll(interpolationValues,
+														lowerIndexNode,
+														ghostNode.imagePoint,
+														mesh);
 	}
+	else
+	{ // Then we must use trilinear interpolation with the Vandermonde matrix:
+		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
+		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
+		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
+		imagePointPrimVars = trilinearInterpolationAll(interpolationValues,
+													   ghostNode.imagePoint,
+													   vandermondeDirichlet,
+													   vandermondeNeumann);
+	}
+	return imagePointPrimVars;
 }
 
 CylinderBody::CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius) :
@@ -438,6 +574,37 @@ centroidPosition(centroidPosition),
 axis{axis},
 radius{radius}
 {}
+
+void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
+{
+	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(mesh);
+	vector<size_t> solidNodeIndices;
+	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
+	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
+
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes, mesh);
+	while(newGhostNodes.size() > 0)
+	{
+		newGhostNodes = setImagePointPositions(newGhostNodes, mesh);
+	}
+}
+
+Vector3_d CylinderBody::getNormalProbe(const Vector3_d& ghostNodePosition)
+{
+	Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
+	if (axis == AxisOrientationEnum::x)
+		centroidToGhost.x = 0;
+	else if (axis == AxisOrientationEnum::y)
+		centroidToGhost.y = 0;
+	else if (axis == AxisOrientationEnum::z)
+		centroidToGhost.z = 0;
+	else
+		throw std::logic_error("Unexpected enum value");
+
+	double lengthFactor = (radius - centroidToGhost.length()) / centroidToGhost.length();
+	Vector3_d normalProbe = centroidToGhost * lengthFactor;
+	return normalProbe;
+}
 
 IndexBoundingBox CylinderBody::getCylinderBoundingBox(Mesh& mesh) const
 {
@@ -493,89 +660,16 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params, vector<
 			}
 }
 
-void CylinderBody::findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh)
+SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
+centerPosition(centerPosition),
+radius{radius}
+{}
+
+void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 {
-	IndexBoundingBox meshSize(mesh.NI-1, mesh.NJ-1, mesh.NK-1);
-	for (size_t index1D : solidNodeIndices)
-	{
-		Vector3_u indices = mesh.getIndices3D(index1D);
-		bool solidNodeHasFluidNeighbor { false };
-		if (indices.i > meshSize.iMin)
-			if (mesh.nodeTypes(indices.i - 1, indices.j, indices.k) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (indices.i < meshSize.iMax)
-			if (mesh.nodeTypes(indices.i + 1, indices.j, indices.k) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (indices.j > meshSize.jMin)
-			if (mesh.nodeTypes(indices.i, indices.j - 1, indices.k) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (indices.j < meshSize.jMax)
-			if (mesh.nodeTypes(indices.i, indices.j + 1, indices.k) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (indices.k > meshSize.kMin)
-			if (mesh.nodeTypes(indices.i, indices.j, indices.k - 1) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (indices.k < meshSize.kMax)
-			if (mesh.nodeTypes(indices.i, indices.j, indices.k + 1) == NodeTypeEnum::FluidRegular)
-				solidNodeHasFluidNeighbor = true;
-
-		if (solidNodeHasFluidNeighbor)
-		{
-			ghostNodes.push_back(GhostNode(indices));
-			ghostNodeMap.insert( std::pair<size_t,GhostNode*>(index1D, &ghostNodes.back()) );
-			mesh.nodeTypes(index1D) = NodeTypeEnum::Ghost;
-		}
-	}
-}
-
-void CylinderBody::checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostNode>& newGhostNodes, const Vector3_u &surroundingNode)
-{
-	if (mesh.nodeTypes(surroundingNode) == NodeTypeEnum::Solid)
-	{
-		newGhostNodes.emplace_back(surroundingNode);
-		ghostNodes.push_back(GhostNode(surroundingNode));
-		ghostNodeMap.insert( std::pair<size_t,GhostNode*>(mesh.getIndex1D(surroundingNode), &ghostNodes.back()) );
-		mesh.nodeTypes(surroundingNode) = NodeTypeEnum::Ghost;
-	}
-}
-
-vector<GhostNode> CylinderBody::setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh)
-{
-	vector<GhostNode> newGhostNodes;
-	for (GhostNode& ghostNode : ghostNodesToProcess)
-	{
-		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
-		Vector3_d centroidToGhost = ghostNodePosition - centroidPosition;
-		if (axis == AxisOrientationEnum::x)
-			centroidToGhost.x = 0;
-		else if (axis == AxisOrientationEnum::y)
-			centroidToGhost.y = 0;
-		else if (axis == AxisOrientationEnum::z)
-			centroidToGhost.z = 0;
-		else
-			throw std::logic_error("Unexpected enum value");
-
-		double lengthFactor = (radius - centroidToGhost.length()) / centroidToGhost.length();
-		Vector3_d normalProbe = centroidToGhost * lengthFactor; // from ghost to body intercept point
-		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
-		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes = mesh.getSurroundingNodesBox(ghostNode.imagePoint);
-		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh) )
-			checkIfSurroundingShouldBeGhost(mesh, newGhostNodes, mesh.getIndices3D(surroundingNodeIndex1D));
-	}
-	return newGhostNodes;
-}
-
-void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
-{
-	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(mesh);
+	IndexBoundingBox indicesToCheck = getSphereBoundingBox(mesh);
 	vector<size_t> solidNodeIndices;
-	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
+	getSolidNodesInSphere(params, solidNodeIndices, indicesToCheck, mesh);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
 
 	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes, mesh);
@@ -585,16 +679,52 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 	}
 }
 
-SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
-centerPosition(centerPosition),
-radius{radius}
-{}
-
-void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
+Vector3_d SphereBody::getNormalProbe(const Vector3_d& ghostNodePosition)
 {
-
+	Vector3_d centroidToGhost = ghostNodePosition - centerPosition;
+	double lengthFactor = (radius - centroidToGhost.length()) / centroidToGhost.length();
+	Vector3_d normalProbe = centroidToGhost * lengthFactor;
+	return normalProbe;
 }
 
+IndexBoundingBox SphereBody::getSphereBoundingBox(Mesh& mesh) const
+{
+	size_t indexRadiusX { static_cast<size_t>(ceil(radius / mesh.dx)) + 1 };
+	size_t indexRadiusY { static_cast<size_t>(ceil(radius / mesh.dy)) + 1 };
+	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / mesh.dz)) + 1 };
+	size_t centerClosestIndexX { static_cast<size_t>(round(centerPosition.x / mesh.dx)) };
+	size_t centerClosestIndexY { static_cast<size_t>(round(centerPosition.y / mesh.dy)) };
+	size_t centerClosestIndexZ { static_cast<size_t>(round(centerPosition.z / mesh.dz)) };
+	IndexBoundingBox indicesToCheck;
+	indicesToCheck.iMin = centerClosestIndexX - indexRadiusX;
+	indicesToCheck.iMax = centerClosestIndexX + indexRadiusX;
+	indicesToCheck.jMin = centerClosestIndexY - indexRadiusY;
+	indicesToCheck.jMax = centerClosestIndexY + indexRadiusY;
+	indicesToCheck.kMin = centerClosestIndexZ - indexRadiusZ;
+	indicesToCheck.kMax = centerClosestIndexZ + indexRadiusZ;
+	return indicesToCheck;
+}
+
+void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
+							 vector<size_t>& solidNodeIndices,
+							 IndexBoundingBox indicesToCheck,
+							 Mesh& mesh)
+{
+	for (size_t i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
+		for (size_t j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
+			for (size_t k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
+			{
+				Vector3_d nodePosition = mesh.getNodePosition(i, j, k);
+				double distanceFromCenter = sqrt( pow(nodePosition.x - centerPosition.x, 2)
+												+ pow(nodePosition.y - centerPosition.y, 2)
+												+ pow(nodePosition.z - centerPosition.z, 2));
+				if (distanceFromCenter < radius - params.machinePrecisionBuffer)
+				{
+					mesh.nodeTypes(i, j, k) = NodeTypeEnum::Solid;
+					solidNodeIndices.push_back(mesh.getIndex1D(i, j, k));
+				}
+			}
+}
 
 
 

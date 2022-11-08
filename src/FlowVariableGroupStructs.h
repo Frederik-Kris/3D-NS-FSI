@@ -36,6 +36,7 @@ public:
 	PrimitiveVariablesScalars(double u, double v, double w, double p, double T) :
 		u{u}, v{v}, w{w}, p{p}, T{T}
 	{}
+	PrimitiveVariablesScalars() = default;
 };
 
 struct TransportPropertiesScalars
