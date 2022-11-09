@@ -10,27 +10,19 @@
 Mesh::Mesh(const ConfigSettings& params) :
 NI{params.NI}, NJ{params.NJ}, NK{params.NK},
 nNodesTotal{NI*NJ*NK},
+dx{ params.L_x / (params.NI-1) },
+dy{ params.L_y / (params.NJ-1) },
+dz{ params.L_z / (params.NK-1) },
 conservedVariables(NI, NJ, NK),
 conservedVariablesOld(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
 RK4slopes(NI, NJ, NK),
-nodeTypes(NI, NJ, NK)
+nodeType(NI, NJ, NK)
 {
-	setGridSpacings(params.L_x, params.L_y, params.L_z);
 }
 
 
-// Calculate the space between nodes in the grid, based on domain size and no. of nodes.
-void Mesh::setGridSpacings(double domainLengthX,
-						   double domainLengthY,
-						   double domainLengthZ )
-{
-	dx = domainLengthX / (NI - 1);
-	dy = domainLengthY / (NJ - 1);
-	dz = domainLengthZ / (NK - 1);
-	cout << "Grid spacings set: dx = " << dx << " , dy = " << dy << " , dz = " << dz << endl;
-}
 
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
@@ -57,7 +49,7 @@ void Mesh::assertBoundaryConditionCompliance()
 void Mesh::categorizeNodes(const ConfigSettings& params)
 {
 	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
-	nodeTypes.setAll(NodeTypeEnum::FluidRegular);
+	nodeType.setAll(NodeTypeEnum::FluidRegular);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
@@ -67,7 +59,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 		boundary->identifyRelatedNodes(params, *this);
 
 	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
-		if(nodeTypes(index1D) == NodeTypeEnum::FluidRegular)
+		if(nodeType(index1D) == NodeTypeEnum::FluidRegular)
 			activeNodeIndices.push_back(index1D);
 }
 
@@ -75,6 +67,8 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 // result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
 // Only filters if the modulo of time level plus one, by the filter interval is zero.
 // This causes the first filtering to happen as late as possible.
+// Currently, copies the edge-boundary nodes and filters all interior nodes, including ghost and
+// solid. Consider copying also ghosts, and filter only active fluid nodes.
 void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
 									uint filterInterval, ulong timeLevel)
 {
@@ -182,8 +176,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredChanges = 0;
-	size_t numberOfMeshNodes = NI * NJ * NK;
-	for(size_t i=0; i<numberOfMeshNodes; ++i)
+	for(size_t i : activeNodeIndices)
 		sumOfSquaredChanges += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredChanges );
 	return normOfChange;

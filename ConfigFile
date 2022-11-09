@@ -50,7 +50,7 @@ filterInterval = 0
 statusReportInterval = 3.
 
 // Booleans to specify what flow variables to store:
-save_rho   = true
+save_rho   = false
 save_rho_u = false
 save_rho_v = false
 save_rho_w = false
@@ -108,7 +108,7 @@ sutherlands_C1 = 1.458E-6
 sutherlands_C2 = 110.4
 
 // Reference Mach number:
-M_0 = 0.4
+M_0 = 0.5
 
 // Reference temperature IN KELVIN, NOT DIMENSIONLESS:
 T_0 = 300.

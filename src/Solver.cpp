@@ -175,17 +175,13 @@ void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVaria
 void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
 		                                    Array3D_d& RK4_slope)
 {
-	for(size_t i{1}; i<params.NI-1; ++i)
+	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		for(size_t j{1}; j<params.NJ-1; ++j)
-		{
-			for(size_t k{1}; k<params.NK-1; ++k)
-			{
-				RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx)
-							       - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy)
-							       - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*mesh.dz);
-			}
-		}
+		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx)
+							    		   - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy)
+										   - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*mesh.dz);
 	}
 }
 
@@ -208,27 +204,23 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(size_t i{1}; i<params.NI-1; ++i)
+	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		for(size_t j{1}; j<params.NJ-1; ++j)
-		{
-			for(size_t k{1}; k<params.NK-1; ++k)
-			{
-				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) )
-						         + neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) )
-								 + neg_1_div_2dz   * ( rho_u(i,j,k+1) * w(i,j,k+1) - rho_u(i,j,k-1) * w(i,j,k-1) )
-								 + pos_2_div_3dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (u(i+1,j,k) - u(i  ,j,k))
-										             - (mu(i-1,j,k) + mu(i,j,k)) * (u(i  ,j,k) - u(i-1,j,k)) )
-								 + pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (u(i,j+1,k) - u(i,j  ,k))
-										             - (mu(i,j-1,k) + mu(i,j,k)) * (u(i,j  ,k) - u(i,j-1,k)) )
-								 + pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (u(i,j,k+1) - u(i,j,k  ))
-										             - (mu(i,j,k-1) + mu(i,j,k)) * (u(i,j,k  ) - u(i,j,k-1)) )
-								 + neg_1_div_6dxdy * ( mu(i+1,j,k) * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu(i-1,j,k) * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
-								 + pos_1_div_4dxdy * ( mu(i,j+1,k) * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu(i,j-1,k) * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
-								 + neg_1_div_6dxdz * ( mu(i+1,j,k) * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu(i-1,j,k) * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
-								 + pos_1_div_4dxdz * ( mu(i,j,k+1) * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu(i,j,k-1) * (w(i+1,j,k-1) - w(i-1,j,k-1)) ) ;
-			}
-		}
+		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) )
+						 + neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) )
+						 + neg_1_div_2dz   * ( rho_u(i,j,k+1) * w(i,j,k+1) - rho_u(i,j,k-1) * w(i,j,k-1) )
+						 + pos_2_div_3dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (u(i+1,j,k) - u(i  ,j,k))
+											 - (mu(i-1,j,k) + mu(i,j,k)) * (u(i  ,j,k) - u(i-1,j,k)) )
+						 + pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (u(i,j+1,k) - u(i,j  ,k))
+											 - (mu(i,j-1,k) + mu(i,j,k)) * (u(i,j  ,k) - u(i,j-1,k)) )
+						 + pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (u(i,j,k+1) - u(i,j,k  ))
+											 - (mu(i,j,k-1) + mu(i,j,k)) * (u(i,j,k  ) - u(i,j,k-1)) )
+						 + neg_1_div_6dxdy * ( mu(i+1,j,k) * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu(i-1,j,k) * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
+						 + pos_1_div_4dxdy * ( mu(i,j+1,k) * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu(i,j-1,k) * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
+						 + neg_1_div_6dxdz * ( mu(i+1,j,k) * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu(i-1,j,k) * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
+						 + pos_1_div_4dxdz * ( mu(i,j,k+1) * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu(i,j,k-1) * (w(i+1,j,k-1) - w(i-1,j,k-1)) ) ;
 	}
 }
 
@@ -251,27 +243,23 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(size_t i{1}; i<params.NI-1; ++i)
+	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		for(size_t j{1}; j<params.NJ-1; ++j)
-		{
-			for(size_t k{1}; k<params.NK-1; ++k)
-			{
-				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) )
-						         + neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) )
-								 + neg_1_div_2dz   * ( rho_v(i,j,k+1) * w(i,j,k+1) - rho_v(i,j,k-1) * w(i,j,k-1) )
-								 + pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (v(i+1,j,k) - v(i  ,j,k))
-										             - (mu(i-1,j,k) + mu(i,j,k)) * (v(i  ,j,k) - v(i-1,j,k)) )
-								 + pos_2_div_3dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (v(i,j+1,k) - v(i,j  ,k))
-										             - (mu(i,j-1,k) + mu(i,j,k)) * (v(i,j  ,k) - v(i,j-1,k)) )
-								 + pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (v(i,j,k+1) - v(i,j,k  ))
-										             - (mu(i,j,k-1) + mu(i,j,k)) * (v(i,j,k  ) - v(i,j,k-1)) )
-								 + neg_1_div_6dxdy * ( mu(i,j+1,k) * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu(i,j-1,k) * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
-								 + pos_1_div_4dydx * ( mu(i+1,j,k) * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu(i-1,j,k) * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
-								 + neg_1_div_6dzdy * ( mu(i,j+1,k) * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu(i,j-1,k) * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
-								 + pos_1_div_4dydz * ( mu(i,j,k+1) * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu(i,j,k-1) * (w(i,j+1,k-1) - w(i,j-1,k-1)) ) ;
-			}
-		}
+		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) )
+						 + neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) )
+						 + neg_1_div_2dz   * ( rho_v(i,j,k+1) * w(i,j,k+1) - rho_v(i,j,k-1) * w(i,j,k-1) )
+						 + pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (v(i+1,j,k) - v(i  ,j,k))
+											 - (mu(i-1,j,k) + mu(i,j,k)) * (v(i  ,j,k) - v(i-1,j,k)) )
+						 + pos_2_div_3dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (v(i,j+1,k) - v(i,j  ,k))
+											 - (mu(i,j-1,k) + mu(i,j,k)) * (v(i,j  ,k) - v(i,j-1,k)) )
+						 + pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (v(i,j,k+1) - v(i,j,k  ))
+											 - (mu(i,j,k-1) + mu(i,j,k)) * (v(i,j,k  ) - v(i,j,k-1)) )
+						 + neg_1_div_6dxdy * ( mu(i,j+1,k) * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu(i,j-1,k) * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
+						 + pos_1_div_4dydx * ( mu(i+1,j,k) * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu(i-1,j,k) * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
+						 + neg_1_div_6dzdy * ( mu(i,j+1,k) * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu(i,j-1,k) * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
+						 + pos_1_div_4dydz * ( mu(i,j,k+1) * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu(i,j,k-1) * (w(i,j+1,k-1) - w(i,j-1,k-1)) ) ;
 	}
 }
 
@@ -294,27 +282,23 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
-	for(size_t i{1}; i<params.NI-1; ++i)
+	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		for(size_t j{1}; j<params.NJ-1; ++j)
-		{
-			for(size_t k{1}; k<params.NK-1; ++k)
-			{
-				RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) )
-						         + neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) )
-								 + neg_1_div_2dz   * ( rho_w(i,j,k+1) * w(i,j,k+1) + p(i,j,k+1) - rho_w(i,j,k-1) * w(i,j,k-1) - p(i,j,k-1) )
-								 + pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (w(i+1,j,k) - w(i  ,j,k))
-										             - (mu(i-1,j,k) + mu(i,j,k)) * (w(i  ,j,k) - w(i-1,j,k)) )
-								 + pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (w(i,j+1,k) - w(i,j  ,k))
-										             - (mu(i,j-1,k) + mu(i,j,k)) * (w(i,j  ,k) - w(i,j-1,k)) )
-								 + pos_2_div_3dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (w(i,j,k+1) - w(i,j,k  ))
-										             - (mu(i,j,k-1) + mu(i,j,k)) * (w(i,j,k  ) - w(i,j,k-1)) )
-								 + pos_1_div_4dzdx * ( mu(i+1,j,k) * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu(i-1,j,k) * (u(i-1,j,k+1) - u(i-1,j,k-1)) )
-								 + neg_1_div_6dxdz * ( mu(i,j,k+1) * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu(i,j,k-1) * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
-								 + pos_1_div_4dzdy * ( mu(i,j+1,k) * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu(i,j-1,k) * (v(i,j-1,k+1) - v(i,j-1,k-1)) )
-								 + neg_1_div_6dydz * ( mu(i,j,k+1) * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu(i,j,k-1) * (v(i,j+1,k-1) - v(i,j-1,k-1)) ) ;
-			}
-		}
+		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) )
+						 + neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) )
+						 + neg_1_div_2dz   * ( rho_w(i,j,k+1) * w(i,j,k+1) + p(i,j,k+1) - rho_w(i,j,k-1) * w(i,j,k-1) - p(i,j,k-1) )
+						 + pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (w(i+1,j,k) - w(i  ,j,k))
+											 - (mu(i-1,j,k) + mu(i,j,k)) * (w(i  ,j,k) - w(i-1,j,k)) )
+						 + pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (w(i,j+1,k) - w(i,j  ,k))
+											 - (mu(i,j-1,k) + mu(i,j,k)) * (w(i,j  ,k) - w(i,j-1,k)) )
+						 + pos_2_div_3dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (w(i,j,k+1) - w(i,j,k  ))
+											 - (mu(i,j,k-1) + mu(i,j,k)) * (w(i,j,k  ) - w(i,j,k-1)) )
+						 + pos_1_div_4dzdx * ( mu(i+1,j,k) * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu(i-1,j,k) * (u(i-1,j,k+1) - u(i-1,j,k-1)) )
+						 + neg_1_div_6dxdz * ( mu(i,j,k+1) * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu(i,j,k-1) * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
+						 + pos_1_div_4dzdy * ( mu(i,j+1,k) * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu(i,j-1,k) * (v(i,j-1,k+1) - v(i,j-1,k-1)) )
+						 + neg_1_div_6dydz * ( mu(i,j,k+1) * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu(i,j,k-1) * (v(i,j+1,k-1) - v(i,j-1,k-1)) ) ;
 	}
 }
 
@@ -343,53 +327,49 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa}; // For readability in math expression below.
 
-	for(size_t i{1}; i<params.NI-1; ++i)
+	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		for(size_t j{1}; j<params.NJ-1; ++j)
-		{
-			for(size_t k{1}; k<params.NK-1; ++k)
-			{
-				double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
-				double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};
-				double  v_P{ v(i,j,k)},  v_W{ v(i-1,j,k)},  v_E{ v(i+1,j,k)},  v_S{ v(i,j-1,k)},  v_N{ v(i,j+1,k)},  v_D{ v(i,j,k-1)},  v_U{ v(i,j,k+1)};
-				double  w_P{ w(i,j,k)},  w_W{ w(i-1,j,k)},  w_E{ w(i+1,j,k)},  w_S{ w(i,j-1,k)},  w_N{ w(i,j+1,k)},  w_D{ w(i,j,k-1)},  w_U{ w(i,j,k+1)};
-				double kappa_P{kappa(i,j,k)}, T_P{T(i,j,k)};
+		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
+		double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};
+		double  v_P{ v(i,j,k)},  v_W{ v(i-1,j,k)},  v_E{ v(i+1,j,k)},  v_S{ v(i,j-1,k)},  v_N{ v(i,j+1,k)},  v_D{ v(i,j,k-1)},  v_U{ v(i,j,k+1)};
+		double  w_P{ w(i,j,k)},  w_W{ w(i-1,j,k)},  w_E{ w(i+1,j,k)},  w_S{ w(i,j-1,k)},  w_N{ w(i,j+1,k)},  w_D{ w(i,j,k-1)},  w_U{ w(i,j,k+1)};
+		double kappa_P{kappa(i,j,k)}, T_P{T(i,j,k)};
 
-				double inviscidFluxes = neg_1_div_2dx * ( (rho_H_0 + E(i+1,j,k) + p(i+1,j,k)) * u_E - (rho_H_0 + E(i-1,j,k) + p(i-1,j,k)) * u_W )
-						              + neg_1_div_2dy * ( (rho_H_0 + E(i,j+1,k) + p(i,j+1,k)) * v_N - (rho_H_0 + E(i,j-1,k) + p(i,j-1,k)) * v_S )
-									  + neg_1_div_2dz * ( (rho_H_0 + E(i,j,k+1) + p(i,j,k+1)) * w_U - (rho_H_0 + E(i,j,k-1) + p(i,j,k-1)) * w_D );
+		double inviscidFluxes = neg_1_div_2dx * ( (rho_H_0 + E(i+1,j,k) + p(i+1,j,k)) * u_E - (rho_H_0 + E(i-1,j,k) + p(i-1,j,k)) * u_W )
+							  + neg_1_div_2dy * ( (rho_H_0 + E(i,j+1,k) + p(i,j+1,k)) * v_N - (rho_H_0 + E(i,j-1,k) + p(i,j-1,k)) * v_S )
+							  + neg_1_div_2dz * ( (rho_H_0 + E(i,j,k+1) + p(i,j,k+1)) * w_U - (rho_H_0 + E(i,j,k-1) + p(i,j,k-1)) * w_D );
 
-				double viscousFluxX = pos_2_div_3dxdx * ( (mu_E*u_E + mu_P*u_P) * (u_E - u_P) - (mu_W*u_W + mu_P*u_P) * (u_P - u_W) )
-						            + pos_1_div_2dxdx * ( (mu_E*v_E + mu_P*v_P) * (v_E - v_P) - (mu_W*v_W + mu_P*v_P) * (v_P - v_W) )
-									+ pos_1_div_2dxdx * ( (mu_E*w_E + mu_P*w_P) * (w_E - w_P) - (mu_W*w_W + mu_P*w_P) * (w_P - w_W) )
-									+ neg_1_div_6dydx * ( mu_E * u_E * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu_W * u_W * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
-									+ neg_1_div_6dzdx * ( mu_E * u_E * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu_W * u_W * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
-									+ pos_1_div_4dydx * ( mu_E * v_E * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu_W * v_W * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
-									+ pos_1_div_4dzdx * ( mu_E * w_E * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu_W * w_W * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
+		double viscousFluxX = pos_2_div_3dxdx * ( (mu_E*u_E + mu_P*u_P) * (u_E - u_P) - (mu_W*u_W + mu_P*u_P) * (u_P - u_W) )
+							+ pos_1_div_2dxdx * ( (mu_E*v_E + mu_P*v_P) * (v_E - v_P) - (mu_W*v_W + mu_P*v_P) * (v_P - v_W) )
+							+ pos_1_div_2dxdx * ( (mu_E*w_E + mu_P*w_P) * (w_E - w_P) - (mu_W*w_W + mu_P*w_P) * (w_P - w_W) )
+							+ neg_1_div_6dydx * ( mu_E * u_E * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu_W * u_W * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
+							+ neg_1_div_6dzdx * ( mu_E * u_E * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu_W * u_W * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
+							+ pos_1_div_4dydx * ( mu_E * v_E * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu_W * v_W * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
+							+ pos_1_div_4dzdx * ( mu_E * w_E * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu_W * w_W * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
 
-				double viscousFluxY = pos_1_div_2dydy * ( (mu_N*u_N + mu_P*u_P) * (u_N - u_P) - (mu_S*u_S + mu_P*u_P) * (u_P - u_S) )
-						            + pos_2_div_3dydy * ( (mu_N*v_N + mu_P*v_P) * (v_N - v_P) - (mu_S*v_S + mu_P*v_P) * (v_P - v_S) )
-									+ pos_1_div_2dydy * ( (mu_N*w_N + mu_P*w_P) * (w_N - w_P) - (mu_S*w_S + mu_P*w_P) * (w_P - w_S) )
-									+ neg_1_div_6dydx * ( mu_N * v_N * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu_S * v_S * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
-									+ neg_1_div_6dzdy * ( mu_N * v_N * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu_S * v_S * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
-									+ pos_1_div_4dydx * ( mu_N * u_N * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu_S * u_S * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
-									+ pos_1_div_4dzdy * ( mu_N * w_N * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu_S * w_S * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
+		double viscousFluxY = pos_1_div_2dydy * ( (mu_N*u_N + mu_P*u_P) * (u_N - u_P) - (mu_S*u_S + mu_P*u_P) * (u_P - u_S) )
+							+ pos_2_div_3dydy * ( (mu_N*v_N + mu_P*v_P) * (v_N - v_P) - (mu_S*v_S + mu_P*v_P) * (v_P - v_S) )
+							+ pos_1_div_2dydy * ( (mu_N*w_N + mu_P*w_P) * (w_N - w_P) - (mu_S*w_S + mu_P*w_P) * (w_P - w_S) )
+							+ neg_1_div_6dydx * ( mu_N * v_N * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu_S * v_S * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
+							+ neg_1_div_6dzdy * ( mu_N * v_N * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu_S * v_S * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
+							+ pos_1_div_4dydx * ( mu_N * u_N * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu_S * u_S * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
+							+ pos_1_div_4dzdy * ( mu_N * w_N * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu_S * w_S * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
 
-				double viscousFluxZ = pos_1_div_2dzdz * ( (mu_U*u_U + mu_P*u_P) * (u_U - u_P) - (mu_D*u_D + mu_P*u_P) * (u_P - u_D) )
-						            + pos_1_div_2dzdz * ( (mu_U*v_U + mu_P*v_P) * (v_U - v_P) - (mu_D*v_D + mu_P*v_P) * (v_P - v_D) )
-									+ pos_2_div_3dzdz * ( (mu_U*w_U + mu_P*w_P) * (w_U - w_P) - (mu_D*w_D + mu_P*w_P) * (w_P - w_D) )
-									+ neg_1_div_6dzdx * ( mu_U * w_U * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu_D * w_D * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
-									+ neg_1_div_6dzdy * ( mu_U * w_U * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu_D * w_D * (v(i,j+1,k-1) - v(i,j-1,k-1)) )
-									+ pos_1_div_4dzdx * ( mu_U * u_U * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu_D * u_D * (w(i+1,j,k-1) - w(i-1,j,k-1)) )
-									+ pos_1_div_4dzdy * ( mu_U * v_U * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu_D * v_D * (w(i,j+1,k-1) - w(i,j-1,k-1)) );
+		double viscousFluxZ = pos_1_div_2dzdz * ( (mu_U*u_U + mu_P*u_P) * (u_U - u_P) - (mu_D*u_D + mu_P*u_P) * (u_P - u_D) )
+							+ pos_1_div_2dzdz * ( (mu_U*v_U + mu_P*v_P) * (v_U - v_P) - (mu_D*v_D + mu_P*v_P) * (v_P - v_D) )
+							+ pos_2_div_3dzdz * ( (mu_U*w_U + mu_P*w_P) * (w_U - w_P) - (mu_D*w_D + mu_P*w_P) * (w_P - w_D) )
+							+ neg_1_div_6dzdx * ( mu_U * w_U * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu_D * w_D * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
+							+ neg_1_div_6dzdy * ( mu_U * w_U * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu_D * w_D * (v(i,j+1,k-1) - v(i,j-1,k-1)) )
+							+ pos_1_div_4dzdx * ( mu_U * u_U * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu_D * u_D * (w(i+1,j,k-1) - w(i-1,j,k-1)) )
+							+ pos_1_div_4dzdy * ( mu_U * v_U * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu_D * v_D * (w(i,j+1,k-1) - w(i,j-1,k-1)) );
 
-				double heatFluxes = pos_1_div_2dxdx * ( (kappa(i+1,j,k) + kappa_P) * (T(i+1,j,k) - T_P) - (kappa(i-1,j,k) + kappa_P) * (T_P - T(i-1,j,k)) )
-						          + pos_1_div_2dydy * ( (kappa(i,j+1,k) + kappa_P) * (T(i,j+1,k) - T_P) - (kappa(i,j-1,k) + kappa_P) * (T_P - T(i,j-1,k)) )
-								  + pos_1_div_2dzdz * ( (kappa(i,j,k+1) + kappa_P) * (T(i,j,k+1) - T_P) - (kappa(i,j,k-1) + kappa_P) * (T_P - T(i,j,k-1)) );
+		double heatFluxes = pos_1_div_2dxdx * ( (kappa(i+1,j,k) + kappa_P) * (T(i+1,j,k) - T_P) - (kappa(i-1,j,k) + kappa_P) * (T_P - T(i-1,j,k)) )
+						  + pos_1_div_2dydy * ( (kappa(i,j+1,k) + kappa_P) * (T(i,j+1,k) - T_P) - (kappa(i,j-1,k) + kappa_P) * (T_P - T(i,j-1,k)) )
+						  + pos_1_div_2dzdz * ( (kappa(i,j,k+1) + kappa_P) * (T(i,j,k+1) - T_P) - (kappa(i,j,k-1) + kappa_P) * (T_P - T(i,j,k-1)) );
 
-				RK4_slope(i,j,k) = inviscidFluxes + viscousFluxX + viscousFluxY + viscousFluxZ + heatFluxes;
-			}
-		}
+		RK4_slope(i,j,k) = inviscidFluxes + viscousFluxX + viscousFluxY + viscousFluxZ + heatFluxes;
 	}
 }
 
@@ -408,10 +388,8 @@ void Solver::computeAllIntermediateSolutions(const ConservedVariablesArrayGroup&
 void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, const Array3D_d& RK4_slope,
 		                                       Array3D_d& intermSolution, double timeIncrement)
 {
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				intermSolution(i,j,k) = conservedVar(i,j,k) + timeIncrement * RK4_slope(i,j,k);
+	for(size_t index1D : mesh.activeNodeIndices)
+		intermSolution(index1D) = conservedVar(index1D) + timeIncrement * RK4_slope(index1D);
 }
 
 // Updates the primitive variables and transport properties, using the specified conserved variables.
@@ -436,34 +414,20 @@ void Solver::updatePrimitiveVariables()
 			  &mu{mesh.transportProperties.mu},
 			  &kappa{mesh.transportProperties.kappa};
 
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				u(i,j,k) = rho_u(i,j,k) / ( rho(i,j,k) + 1 );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				v(i,j,k) = rho_v(i,j,k) / ( rho(i,j,k) + 1 );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				w(i,j,k) = rho_w(i,j,k) / ( rho(i,j,k) + 1 );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				p(i,j,k) = gammaMinusOne * ( rho_E(i,j,k) - (rho(i,j,k)+1)/2 * (u(i,j,k)*u(i,j,k) + v(i,j,k)*v(i,j,k) + w(i,j,k)*w(i,j,k)) );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				T(i,j,k) = ( params.Gamma * p(i,j,k) - rho(i,j,k) ) / ( 1+rho(i,j,k) );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				mu(i,j,k) = pow( 1+T(i,j,k), 1.5 ) * ScPlusOne / ( params.Re*( T(i,j,k) + ScPlusOne ) );
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-				kappa(i,j,k) = mu(i,j,k) * prandtlFactor;
+	for(size_t i : mesh.activeNodeIndices)
+		u(i) = rho_u(i) / ( rho(i) + 1 );
+	for(size_t i : mesh.activeNodeIndices)
+		v(i) = rho_v(i) / ( rho(i) + 1 );
+	for(size_t i : mesh.activeNodeIndices)
+		w(i) = rho_w(i) / ( rho(i) + 1 );
+	for(size_t i : mesh.activeNodeIndices)
+		p(i) = gammaMinusOne * ( rho_E(i) - (rho(i)+1)/2 * (u(i)*u(i) + v(i)*v(i) + w(i)*w(i)) );
+	for(size_t i : mesh.activeNodeIndices)
+		T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
+	for(size_t i : mesh.activeNodeIndices)
+		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re*( T(i) + ScPlusOne ) );
+	for(size_t i : mesh.activeNodeIndices)
+		kappa(i) = mu(i) * prandtlFactor;
 }
 
 void Solver::computeRK4finalStepAllVariables()
@@ -482,13 +446,11 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 									const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new)
 {
 	double dtFactor{dt / 6};
-	for (size_t i{1}; i<params.NI-1; ++i)
-		for (size_t j{1}; j<params.NJ-1; ++j)
-			for (size_t k{1}; k<params.NK-1; ++k)
-			{
-				double residualValue = dtFactor*( k1(i,j,k) + 2*k2(i,j,k) + 2*k3(i,j,k) + k4(i,j,k) );
-				conservedVar_new(i,j,k) = conservedVar_old(i,j,k) + residualValue;
-			}
+	for(size_t i : mesh.activeNodeIndices)
+	{
+		double residualValue = dtFactor*( k1(i) + 2*k2(i) + 2*k3(i) + k4(i) );
+		conservedVar_new(i) = conservedVar_old(i) + residualValue;
+	}
 }
 
 void Solver::storeNormsOfChange()
