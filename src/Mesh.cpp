@@ -11,9 +11,9 @@ Mesh::Mesh(const ConfigSettings& params) :
 NI{params.NI}, NJ{params.NJ}, NK{params.NK},
 nNodesTotal{NI*NJ*NK},
 conservedVariables(NI, NJ, NK),
+conservedVariablesOld(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
-intermediateConservedVariables(NI, NJ, NK),
 RK4slopes(NI, NJ, NK),
 nodeTypes(NI, NJ, NK)
 {
@@ -118,11 +118,11 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 // Compute the norm of change in the conserved variables, and store in the history vectors.
 ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
 {
-	double norm_rho  { getNormOfChange(conservedVariables.rho  , intermediateConservedVariables.rho  ) };
-	double norm_rho_u{ getNormOfChange(conservedVariables.rho_u, intermediateConservedVariables.rho_u) };
-	double norm_rho_v{ getNormOfChange(conservedVariables.rho_v, intermediateConservedVariables.rho_v) };
-	double norm_rho_w{ getNormOfChange(conservedVariables.rho_w, intermediateConservedVariables.rho_w) };
-	double norm_E    { getNormOfChange(conservedVariables.rho_E, intermediateConservedVariables.rho_E) };
+	double norm_rho  { getNormOfChange(conservedVariablesOld.rho  , conservedVariables.rho  ) };
+	double norm_rho_u{ getNormOfChange(conservedVariablesOld.rho_u, conservedVariables.rho_u) };
+	double norm_rho_v{ getNormOfChange(conservedVariablesOld.rho_v, conservedVariables.rho_v) };
+	double norm_rho_w{ getNormOfChange(conservedVariablesOld.rho_w, conservedVariables.rho_w) };
+	double norm_E    { getNormOfChange(conservedVariablesOld.rho_E, conservedVariables.rho_E) };
 	return ConservedVariablesScalars(norm_rho, norm_rho_u, norm_rho_v, norm_rho_w, norm_E);
 }
 
@@ -130,11 +130,11 @@ ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
 // This operation is super fast and needs no extra copy. Only the ownership of the data is changed.
 void Mesh::swapConservedVariables()
 {
-	conservedVariables.rho  .dataSwap(intermediateConservedVariables.rho  );
-	conservedVariables.rho_u.dataSwap(intermediateConservedVariables.rho_u);
-	conservedVariables.rho_v.dataSwap(intermediateConservedVariables.rho_v);
-	conservedVariables.rho_w.dataSwap(intermediateConservedVariables.rho_w);
-	conservedVariables.rho_E.dataSwap(intermediateConservedVariables.rho_E);
+	conservedVariables.rho  .dataSwap(conservedVariablesOld.rho  );
+	conservedVariables.rho_u.dataSwap(conservedVariablesOld.rho_u);
+	conservedVariables.rho_v.dataSwap(conservedVariablesOld.rho_v);
+	conservedVariables.rho_w.dataSwap(conservedVariablesOld.rho_w);
+	conservedVariables.rho_E.dataSwap(conservedVariablesOld.rho_E);
 }
 
 Vector3_u Mesh::getIndices3D(size_t index1D) const

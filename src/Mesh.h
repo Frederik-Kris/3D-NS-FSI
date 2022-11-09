@@ -93,13 +93,13 @@ public:
 	size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	size_t nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
-	ConservedVariablesArrayGroup conservedVariables;				// Mass density, momentum & total energy
-	PrimitiveVariablesArrayGroup primitiveVariables;				// Velocity, pressure & Temperature
-	TransportPropertiesArrayGroup transportProperties;				// Viscosity and thermal conductivity
-	ConservedVariablesArrayGroup intermediateConservedVariables;	// Intermediate states of conserved variables.
-	RK4slopesArrayGroup RK4slopes;									// 4 slopes for each conserved variable
-	vector<size_t> activeNodeIndices;									// Indices to active fluid nodes
-	Array3D_nodeType nodeTypes;										// Type/category of each node (ghost, fluid, etc.)
+	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
+	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
+	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
+	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
+	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
+	vector<size_t> activeNodeIndices;	// Indices to active fluid nodes
+	Array3D_nodeType nodeTypes;			// Type/category of each node (ghost, fluid, etc.)
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies
