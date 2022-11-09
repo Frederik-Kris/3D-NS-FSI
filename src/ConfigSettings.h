@@ -31,7 +31,7 @@ public:
 	void loadSettings(string filename);
 	size_t NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
-	ulong stopTimeLevel;              // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
+	ulong stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
 	double convStabilityLimit;       // Constant specifying the inviscid stability criterion
 	double viscStabilityLimit;       // Constant specifying the viscous stability criterion

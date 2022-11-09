@@ -76,15 +76,15 @@ void ConfigSettings::tryReadSettingValues(Config& cfg)
 // Looks up settings in the Config variable 'cfg' and assign them to members in the ConfigSettings
 void ConfigSettings::readSettingValues(Config& cfg)
 {
-	NI = cfg.lookup("NI");
-	NJ = cfg.lookup("NJ");
-	NK = cfg.lookup("NK");
+	NI = (uint) cfg.lookup("NI");
+	NJ = (uint) cfg.lookup("NJ");
+	NK = (uint) cfg.lookup("NK");
 
 	string stopCriterionString = cfg.lookup("stopCriterion").c_str();
 	if (stopCriterionString == "timesteps")
 	{
 		stopCriterion = StopCriterionEnum::timesteps;
-		stopTimeLevel = cfg.lookup("stopTimeLevel");
+		stopTimeLevel = (uint) cfg.lookup("stopTimeLevel");
 	}
 	else if (stopCriterionString == "end_time")
 	{
@@ -133,7 +133,7 @@ void ConfigSettings::readSettingValues(Config& cfg)
 			saveNormalAxis = saveNormalAxisEnum::z;
 		else
 			errorOccurred = true;
-		saveConstantIndex = cfg.lookup("saveConstantIndex");
+		saveConstantIndex = (uint) cfg.lookup("saveConstantIndex");
 	}
 
 	Gamma 			= cfg.lookup("Gamma");

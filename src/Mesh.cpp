@@ -27,17 +27,17 @@ nodeType(NI, NJ, NK)
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
-	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
+	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
 
-	Vector3_d cylinderCentroidPosition(params.L_x / 5, params.L_y / 2, 0);
+	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
 																AxisOrientationEnum::z,
-																params.L_y/10));
+																params.L_y/4.5));
 }
 
 // Sanity check for the combination of boundary conditions.
@@ -54,6 +54,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
 		boundary->identifyOwnedNodes(unclaimedNodes, *this);
+	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );
 
 	for(auto&& boundary : immersedBoundaries)
 		boundary->identifyRelatedNodes(params, *this);
@@ -133,7 +134,7 @@ void Mesh::swapConservedVariables()
 
 Vector3_u Mesh::getIndices3D(size_t index1D) const
 {
-	size_t i = index1D / NJ*NK;
+	size_t i = index1D / (NJ*NK);
 	size_t j = index1D % (NJ*NK) / NK;
 	size_t k = index1D % (NJ*NK) % NK;
 	return Vector3_u(i,j,k);

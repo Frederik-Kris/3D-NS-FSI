@@ -13,9 +13,9 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-NI = 21
-NJ = 21
-NK = 21
+NI = 10
+NJ = 10
+NK = 10
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
@@ -64,13 +64,13 @@ save_mu    = false
 save_kappa = false
 
 // Save initial condition?
-save_IC = true
+save_IC = false
 
 // Save final solution? (Last time level, at time t_end)
-save_final = false
+save_final = true
 
 // Save at constant intervals? (Not including IC, interval length specified below)
-save_intervals = true
+save_intervals = false
 
 // Dimensionless time between each save:
 save_period = 25.
@@ -114,6 +114,6 @@ M_0 = 0.5
 T_0 = 300.
 
 // Physical dimensionless size of the domain:
-L_x = 1.
-L_y = 1.
-L_z = 1.
+L_x = 4.
+L_y = 2.
+L_z = 0.5
