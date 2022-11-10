@@ -69,20 +69,13 @@ public:
 	void dataSwap(Array3D_d& other)
 	{ std::swap(data, other.data); }
 
-	// Addition operator overload. Sums elementwise. Intermediate array is created.
-	Array3D_d operator+(const Array3D_d& other) const
+	// Check if all of the elements are finite, e.g., not NaN or Inf
+	bool allFinite() const
 	{
-		Array3D_d sumResult(length, width, height);
-		for(size_t i{0}; i<data.size(); ++i)
-			sumResult.data[i] = this->data[i] + other.data[i];
-		return sumResult;
-	}
-
-	// Assign each node as elementwise sum from 2 other arrays. NO intermediate array created.
-	void assignSum(const Array3D_d& A1, const Array3D_d& A2)
-	{
-		for(size_t i{0}; i<data.size(); ++i)
-			this->data[i] = A1.data[i] + A2.data[i];
+		bool allFinite{true};
+		for(double d : data)
+			allFinite = allFinite && std::isfinite(d);
+		return allFinite;
 	}
 
 	size_t getLength() const
