@@ -90,6 +90,36 @@ public:
 		transportProperties.kappa(node) = transportPropertyScalars.kappa;
 	}
 
+	void checkFinity(const ConservedVariablesArrayGroup& arrays)
+	{
+		string message("Non-finite value found in ");
+		if( !arrays.rho.allFinite() )
+			cout << message << "rho.\n";
+		if( !arrays.rho_u.allFinite() )
+			cout << message << "rho_u.\n";
+		if( !arrays.rho_v.allFinite() )
+			cout << message << "rho_v.\n";
+		if( !arrays.rho_w.allFinite() )
+			cout << message << "rho_w.\n";
+		if( !arrays.rho_E.allFinite() )
+			cout << message << "rho_E.\n";
+	}
+
+	void checkFinity(const PrimitiveVariablesArrayGroup& arrays)
+	{
+		string message("Non-finite value found in ");
+		if( !arrays.u.allFinite() )
+			cout << message << "u.\n";
+		if( !arrays.v.allFinite() )
+			cout << message << "v.\n";
+		if( !arrays.w.allFinite() )
+			cout << message << "w.\n";
+		if( !arrays.p.allFinite() )
+			cout << message << "p.\n";
+		if( !arrays.T.allFinite() )
+			cout << message << "T.\n";
+	}
+
 	const size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	const size_t nNodesTotal;	// Total number of nodes in the mesh
 	const double dx, dy, dz;	// Grid spacing in x-, y- and z-direction

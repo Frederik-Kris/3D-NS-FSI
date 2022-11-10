@@ -356,17 +356,16 @@ void ImmersedBoundary::checkIfSurroundingShouldBeGhost(Mesh &mesh, vector<GhostN
 	if (mesh.nodeType(surroundingNode) == NodeTypeEnum::Solid)
 	{
 		newGhostNodes.emplace_back(surroundingNode);
-		ghostNodes.emplace_back(surroundingNode);
-		ghostNodeMap[ mesh.getIndex1D(surroundingNode) ] = &ghostNodes.back();
 		mesh.nodeType(surroundingNode) = NodeTypeEnum::Ghost;
 	}
 }
 
-vector<GhostNode> ImmersedBoundary::setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh)
+vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess, Mesh &mesh)
 {
 	vector<GhostNode> newGhostNodes;
-	for (GhostNode& ghostNode : ghostNodesToProcess)
+	for (GhostNodeVectorIterator ghostIterator{firstGhostToProcess}; ghostIterator!=ghostNodes.end(); ++ghostIterator)
 	{
+		GhostNode& ghostNode = *ghostIterator;
 		Vector3_d ghostNodePosition = mesh.getNodePosition(ghostNode.indices);
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
@@ -376,6 +375,17 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(vector<GhostNode>& gh
 			checkIfSurroundingShouldBeGhost(mesh, newGhostNodes, mesh.getIndices3D(surroundingNodeIndex1D));
 	}
 	return newGhostNodes;
+}
+
+GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Mesh& mesh)
+{
+	for(const GhostNode& newGhostNode : newGhostNodes)
+	{
+		ghostNodes.push_back(newGhostNode);
+		size_t index1D = mesh.getIndex1D( newGhostNode.indices );
+		ghostNodeMap[index1D] = &ghostNodes.back();
+	}
+	return ghostNodes.end() - newGhostNodes.size();
 }
 
 void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
@@ -581,11 +591,11 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh
 	vector<size_t> solidNodeIndices;
 	getSolidNodesInCylinder(params, solidNodeIndices, indicesToCheck, mesh);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
-
-	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes, mesh);
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), mesh);
 	while(newGhostNodes.size() > 0)
 	{
-		newGhostNodes = setImagePointPositions(newGhostNodes, mesh);
+		GhostNodeVectorIterator nextToProcess = appendGhostNodes(newGhostNodes, mesh);
+		newGhostNodes = setImagePointPositions(nextToProcess, mesh);
 	}
 }
 
@@ -672,10 +682,11 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh)
 	getSolidNodesInSphere(params, solidNodeIndices, indicesToCheck, mesh);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, mesh);
 
-	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes, mesh);
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), mesh);
 	while(newGhostNodes.size() > 0)
 	{
-		newGhostNodes = setImagePointPositions(newGhostNodes, mesh);
+		appendGhostNodes(newGhostNodes, mesh);
+		newGhostNodes = setImagePointPositions(newGhostNodes.begin(), mesh);
 	}
 }
 

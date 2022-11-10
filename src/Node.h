@@ -19,5 +19,7 @@ struct GhostNode
 	GhostNode(Vector3_u indices) : indices(indices) {}
 };
 
+typedef std::vector<GhostNode>::iterator GhostNodeVectorIterator;
+
 
 #endif /* SRC_NODE_H_ */

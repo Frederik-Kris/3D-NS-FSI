@@ -124,6 +124,9 @@ double Solver::getViscousTimeStepLimit()
 // Updates time step size per the stability criterion after advancing the solution.
 void Solver::marchTimeStep(double& t, ulong& timeLevel)
 {
+	mesh.checkFinity(mesh.conservedVariables);
+	mesh.checkFinity(mesh.conservedVariablesOld);
+	mesh.checkFinity(mesh.primitiveVariables);
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params.filterInterval, timeLevel);
 	mesh.swapConservedVariables();	// Swap conserved variables to temporary storage by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
@@ -132,10 +135,14 @@ void Solver::marchTimeStep(double& t, ulong& timeLevel)
 	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
 
 	computeRK4slopes(mesh.conservedVariablesOld, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
+	mesh.checkFinity(k1);
 	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
-	// ALSO, SHOULD CHANGE ALLE LOOPS HERE TO ONLY ACTIVE NODES.
+	mesh.checkFinity(mesh.conservedVariables);
 	updatePrimitiveVariables();
+	mesh.checkFinity(mesh.primitiveVariables);
 	mesh.applyAllBoundaryConditions(t, params);
+	mesh.checkFinity(mesh.conservedVariables);
+	mesh.checkFinity(mesh.primitiveVariables);
 
 	computeRK4slopes(mesh.conservedVariables, k2);  // k2: The slopes at time t + dt/2
 	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.

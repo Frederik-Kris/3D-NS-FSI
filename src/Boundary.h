@@ -162,7 +162,9 @@ protected:
 										 vector<GhostNode>& newGhostNodes,
 										 const Vector3_u &surroundingNode);
 
-	vector<GhostNode> setImagePointPositions(vector<GhostNode>& ghostNodesToProcess, Mesh &mesh);
+	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess, Mesh &mesh);
+
+	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Mesh& mesh);
 
 private:
 	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
