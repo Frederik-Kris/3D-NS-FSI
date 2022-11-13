@@ -8,14 +8,13 @@
 #ifndef SRC_BOUNDARY_H_
 #define SRC_BOUNDARY_H_
 
-struct IndexBoundingBox;
 class MeshEdgeBoundary;
 class ImmersedBoundary;
 
 #include "includes_and_names.h"
 #include "Array3D.h"
 #include "ConfigSettings.h"
-#include "Mesh.h"
+#include "FlowVariableGroupStructs.h"
 #include "Node.h"
 #include <eigen3/Eigen/LU>
 
@@ -30,27 +29,8 @@ enum class EdgeIndexEnum
 	min, max
 };
 
-typedef std::array<size_t, 8> Array8_u;
-typedef std::array<bool,   8> Array8_b;
 typedef Eigen::Array<double, 8, 1> Vector8_d;
 typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
-
-struct IndexBoundingBox
-{
-	size_t iMin, iMax;	// Indices in x-direction
-	size_t jMin, jMax;	// Indices in y-direction
-	size_t kMin, kMax;	// Indices in z-direction
-
-	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
-	: iMin{0}, iMax{iMax},
-	  jMin{0}, jMax{jMax},
-	  kMin{0}, kMax{kMax}
-	{}
-
-	IndexBoundingBox() = default;
-
-	Array8_u asIndexList(const Mesh& mesh) const;
-};
 
 struct InterpolationValues
 {
@@ -79,21 +59,25 @@ public:
 
 	virtual ~MeshEdgeBoundary() = default;
 
-	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes, Mesh& mesh);
+	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes,
+							const Vector3_u& nMeshNodes,
+							Array3D_nodeType& nodeTypeArray );
 
-	virtual void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) = 0;
+	virtual void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+										const ConfigSettings& params,				// <- Input
+										AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+										= 0; // <- PURE virtual
 
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
 protected:
 	vector<size_t> nodeIndices;
 
-	void getAdjacentIndices(size_t index1D,
-							const Mesh& mesh,
-							size_t& boundaryAdjacentIndex,
-							size_t& nextToAdjacentIndex);
+	void getAdjacentIndices(size_t index1D, const Vector3_u& nMeshNodes,	// <- Input
+			  	  	  	  	size_t& boundaryAdjacentIndex, 					// <- Output
+							size_t& nextToAdjacentIndex);					// <- Output
 
-	size_t getPeriodicIndex(size_t index1D, const Mesh& mesh);
+	size_t getPeriodicIndex(size_t index1D, const Vector3_u& nMeshNodes);
 };
 
 // Class to define inlet boundary condition:
@@ -104,7 +88,10 @@ public:
 				  EdgeIndexEnum planeIndex,
 				  double velocity);
 
-	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
+	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
 
 private:
 	double velocity;
@@ -116,7 +103,10 @@ class OutletBoundary : public MeshEdgeBoundary
 public:
 	OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
 
-	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
+	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
 };
 
 // Class to define a periodic boundary condition:
@@ -125,7 +115,10 @@ class PeriodicBoundary : public MeshEdgeBoundary
 public:
 	PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
 
-	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
+	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
 };
 
 // Class to define a symmetry boundary condition:
@@ -134,7 +127,10 @@ class SymmetryBoundary : public MeshEdgeBoundary
 public:
 	SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
 
-	void applyBoundaryCondition(double t, const ConfigSettings& params, Mesh& mesh) override;
+	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+			const ConfigSettings& params,				// <- Input
+			AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+			override;
 };
 
 // Base class for immersed boundaries.
@@ -147,37 +143,52 @@ public:
 
 	virtual ~ImmersedBoundary() = default;
 
-	virtual void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) = 0;
+	virtual void identifyRelatedNodes(const ConfigSettings& params,
+   	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
+									  const Vector3_u& nMeshNodes,
+									  Array3D_nodeType& nodeTypeArray	// <- Output
+			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
 
-	void applyBoundaryCondition(Mesh& mesh, const ConfigSettings& params);
+	void applyBoundaryCondition(const Vector3_u& nMeshNodes,
+			  	  	  	  	  	const Vector3_d& gridSpacing,
+								const ConfigSettings& params,
+								const Array3D_nodeType& nodeTypeArray,
+								AllFlowVariablesArrayGroup& flowVariables // <- Output
+			  	  	  	  	    );
 
 protected:
 
 	vector<GhostNode> ghostNodes;
 	std::map<size_t, GhostNode*> ghostNodeMap;
 
-	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices, Mesh& mesh);
+	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices,
+										  const Vector3_u& nMeshNodes,
+										  Array3D_nodeType& nodeTypeArray);
 
-	void checkIfSurroundingShouldBeGhost(Mesh &mesh,
-										 vector<GhostNode>& newGhostNodes,
-										 const Vector3_u &surroundingNode);
+	void checkIfSurroundingShouldBeGhost(const Vector3_u &surroundingNode,
+			   	   	   	   	   	   	     vector<GhostNode>& newGhostNodes,
+										 Array3D_nodeType& nodeTypeArray);
 
-	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess, Mesh &mesh);
+	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess,
+			   	   	   	   	   	   	   	   	 const Vector3_d& gridSpacing,
+											 const Vector3_u& nMeshNodes,
+											 Array3D_nodeType& nodeTypeArray);
 
-	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Mesh& mesh);
+	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Vector3_u& nMeshNodes);
 
 private:
 	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
 
 	double simplifiedInterpolation(const Vector8_d& interpolationValues,
-								   const Vector3_u& lowerIndexNode,
+			 	 	 	 	 	   const Vector3_u& lowerIndexNode,
 								   const Vector3_d& imagePointPosition,
-								   const Mesh& mesh);
+								   const Vector3_d& gridSpacing);
 
-	PrimitiveVariablesScalars simplifiedInterpolationAll(const InterpolationValues& interpolationValues,
-														 const Vector3_u& lowerIndexNode,
-														 const Vector3_d& imagePointPosition,
-														 const Mesh& mesh);
+	PrimitiveVariablesScalars simplifiedInterpolationAll(
+			const InterpolationValues& interpolationValues,
+			const Vector3_u& lowerIndexNode,
+			const Vector3_d& imagePointPosition,
+			const Vector3_d& gridSpacing );
 
 	PrimitiveVariablesScalars getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars);
 
@@ -199,9 +210,10 @@ private:
 														const Matrix8x8_d& vandermondeNeumann);
 
 	void setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
-										const Mesh &mesh,
-										InterpolationValues& interpolationValues,		// OUTPUT
-										InterpolationPositions& interpolationPositions);// OUTPUT
+			   	   	   	   	   	   	     const Vector3_u& nMeshNodes, const Vector3_d& gridSpacing,
+										 const AllFlowVariablesArrayGroup &flowVariables,
+										 InterpolationValues& interpolationValues,			// <- OUTPUT
+										 InterpolationPositions& interpolationPositions);	// <- OUTPUT
 
 	void setInterpolationValuesGhostNode(
 			uint counter,
@@ -212,7 +224,10 @@ private:
 
 	void setInterpolationValues(
 			const IndexBoundingBox& surroundingNodes,
-			const Mesh& mesh,
+			const Vector3_u& nMeshNodes,
+			const Vector3_d& gridSpacing,
+			const Array3D_nodeType& nodeTypeArray,
+			const AllFlowVariablesArrayGroup& flowVariables,
 			InterpolationValues& interpolationValues,		// <-
 			InterpolationPositions& interpolationPositions,	// <-
 			Array8_b& ghostFlag,							// <- Output
@@ -227,7 +242,7 @@ private:
 			const GhostNode& ghostNode,
 			const IndexBoundingBox& surroundingNodes,
 			const vector<Vector3_d>& unitNormals,
-			const Mesh& mesh);
+			const Vector3_d& gridSpacing);
 };
 
 // Class to define boundary conditions at an immersed cylinder:
@@ -236,7 +251,11 @@ class CylinderBody : public ImmersedBoundary
 public:
 	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
 
-	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
+	void identifyRelatedNodes(const ConfigSettings& params,
+	   	   	   	   	    	  const Vector3_d& gridSpacing,
+							  const Vector3_u& nMeshNodes,
+							  Array3D_nodeType& nodeTypeArray	// <- Output
+							  ) override;
 
 private:
 	Vector3_d centroidPosition;
@@ -245,12 +264,16 @@ private:
 
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
 
-	IndexBoundingBox getCylinderBoundingBox(Mesh& mesh) const;
+	IndexBoundingBox getCylinderBoundingBox(const Vector3_d& gridSpacing,
+			  	  	  	  	  	  	  	  	const Vector3_u& nMeshNodes) const;
 
 	void getSolidNodesInCylinder(const ConfigSettings& params,
-								 vector<size_t>& solidNodeIndices,
-								 IndexBoundingBox indicesToCheck,
-								 Mesh& mesh);
+			   	   	   	   	   	 const IndexBoundingBox& indicesToCheck,
+								 const Vector3_d& gridSpacing,
+								 const Vector3_u& nMeshNodes,
+								 vector<size_t>& solidNodeIndices, // <- Output
+								 Array3D_nodeType& nodeTypeArray   // <- Output
+			   	   	   	   	   	 );
 };
 
 // Class to define boundary conditions at an immersed sphere:
@@ -259,7 +282,11 @@ class SphereBody : public ImmersedBoundary
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
 
-	void identifyRelatedNodes(const ConfigSettings& params, Mesh& mesh) override;
+	void identifyRelatedNodes(const ConfigSettings& params,
+   	   	    	  	  	  	  const Vector3_d& gridSpacing,
+							  const Vector3_u& nMeshNodes,
+							  Array3D_nodeType& nodeTypeArray	// <- Output
+			  	  	  	  	  ) override;
 
 private:
 	Vector3_d centerPosition;
@@ -267,12 +294,15 @@ private:
 
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
 
-	IndexBoundingBox getSphereBoundingBox(Mesh& mesh) const;
+	IndexBoundingBox getSphereBoundingBox(const Vector3_d& gridSpacing) const;
 
 	void getSolidNodesInSphere(const ConfigSettings& params,
-								 vector<size_t>& solidNodeIndices,
-								 IndexBoundingBox indicesToCheck,
-								 Mesh& mesh);
+	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
+							   const Vector3_d& gridSpacing,
+							   const Vector3_u& nMeshNodes,
+							   vector<size_t>& solidNodeIndices, // <- Output
+							   Array3D_nodeType& nodeTypeArray   // <- Output
+	   	   	   	   	   	   	   );
 };
 
 #endif /* SRC_BOUNDARY_H_ */

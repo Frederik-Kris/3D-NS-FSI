@@ -132,37 +132,6 @@ void Mesh::swapConservedVariables()
 	conservedVariables.rho_E.dataSwap(conservedVariablesOld.rho_E);
 }
 
-Vector3_u Mesh::getIndices3D(size_t index1D) const
-{
-	size_t i = index1D / (NJ*NK);
-	size_t j = index1D % (NJ*NK) / NK;
-	size_t k = index1D % (NJ*NK) % NK;
-	return Vector3_u(i,j,k);
-}
-
-size_t Mesh::getIndex1D(size_t i, size_t j, size_t k) const
-{
-	return i*NJ*NK + j*NK + k;
-}
-
-Vector3_d Mesh::getNodePosition(size_t i, size_t j, size_t k) const
-{
-	double x { i * dx }, y { j * dy }, z { k * dz };
-	return Vector3_d(x, y, z);
-}
-
-IndexBoundingBox Mesh::getSurroundingNodesBox(Vector3_d point) const
-{
-	size_t iNext = static_cast<size_t>( ceil( point.x / dx ) );
-	size_t jNext = static_cast<size_t>( ceil( point.y / dy ) );
-	size_t kNext = static_cast<size_t>( ceil( point.z / dz ) );
-	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
-	surroundingBox.iMin = iNext - 1;
-	surroundingBox.jMin = jNext - 1;
-	surroundingBox.kMin = kNext - 1;
-	return surroundingBox;
-}
-
 void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	for(auto&& boundary : edgeBoundaries)

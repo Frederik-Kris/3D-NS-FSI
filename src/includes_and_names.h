@@ -23,7 +23,7 @@
 #include <algorithm>
 #include <SFML/Graphics.hpp>
 #include <libconfig.h++>
-#include "SmallVectors.h"
+
 
 using std::cout;
 using std::ofstream;
@@ -54,6 +54,9 @@ using sf::Time;
 using libconfig::Config;
 using libconfig::Setting;
 
+
+typedef std::array<size_t, 8> Array8_u;
+typedef std::array<bool,   8> Array8_b;
 
 
 #endif /* SRC_INCLUDES_AND_NAMES_H_ */

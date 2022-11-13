@@ -9,6 +9,7 @@
 #define SRC_NODE_H_
 
 #include "includes_and_names.h"
+#include "SmallVectors.h"
 
 struct GhostNode
 {

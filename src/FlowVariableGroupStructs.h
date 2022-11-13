@@ -9,6 +9,8 @@
 #define SRC_FLOWVARIABLEGROUPSTRUCTS_H_
 
 #include "ConfigSettings.h"
+#include "Array3D.h"
+#include "SmallVectors.h"
 
 struct ConservedVariablesScalars
 {
@@ -107,6 +109,21 @@ struct RK4slopesArrayGroup
 	{}
 };
 
+struct AllFlowVariablesArrayGroup
+{
+	ConservedVariablesArrayGroup&  conservedVariables;
+	PrimitiveVariablesArrayGroup&  primitiveVariables;
+	TransportPropertiesArrayGroup& transportProperties;
+
+	AllFlowVariablesArrayGroup(	ConservedVariablesArrayGroup&  consVars,
+								PrimitiveVariablesArrayGroup&  primVars,
+								TransportPropertiesArrayGroup& transProps)
+	: conservedVariables { consVars },
+	  primitiveVariables { primVars },
+	  transportProperties{ transProps }
+	{}
+};
+
 // Computes scalar values for conserved variables, based on the primitive variables.
 // Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
 // E.g., decide on the primitives and use this function to get the values for the conserved variables.
@@ -144,6 +161,46 @@ inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVaria
 	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
 	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
 	return TransportPropertiesScalars(mu, kappa);
+}
+
+inline void setFlowVariablesAtNode(size_t index1D,
+							const ConservedVariablesScalars&  conservedVariableScalars,
+							const PrimitiveVariablesScalars&  primitiveVariableScalars,
+							const TransportPropertiesScalars& transportPropertyScalars,
+							AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+{
+	flowVariables.conservedVariables.rho  (index1D) = conservedVariableScalars.rho;
+	flowVariables.conservedVariables.rho_u(index1D) = conservedVariableScalars.rho_u;
+	flowVariables.conservedVariables.rho_v(index1D) = conservedVariableScalars.rho_v;
+	flowVariables.conservedVariables.rho_w(index1D) = conservedVariableScalars.rho_w;
+	flowVariables.conservedVariables.rho_E(index1D) = conservedVariableScalars.rho_E;
+	flowVariables.primitiveVariables.u(index1D) = primitiveVariableScalars.u;
+	flowVariables.primitiveVariables.v(index1D) = primitiveVariableScalars.v;
+	flowVariables.primitiveVariables.w(index1D) = primitiveVariableScalars.w;
+	flowVariables.primitiveVariables.p(index1D) = primitiveVariableScalars.p;
+	flowVariables.primitiveVariables.T(index1D) = primitiveVariableScalars.T;
+	flowVariables.transportProperties.mu   (index1D) = transportPropertyScalars.mu;
+	flowVariables.transportProperties.kappa(index1D) = transportPropertyScalars.kappa;
+}
+
+inline void setFlowVariablesAtNode(Vector3_u node,
+							const ConservedVariablesScalars&  conservedVariableScalars,
+							const PrimitiveVariablesScalars&  primitiveVariableScalars,
+							const TransportPropertiesScalars& transportPropertyScalars,
+							AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+{
+	flowVariables.conservedVariables.rho  (node) = conservedVariableScalars.rho;
+	flowVariables.conservedVariables.rho_u(node) = conservedVariableScalars.rho_u;
+	flowVariables.conservedVariables.rho_v(node) = conservedVariableScalars.rho_v;
+	flowVariables.conservedVariables.rho_w(node) = conservedVariableScalars.rho_w;
+	flowVariables.conservedVariables.rho_E(node) = conservedVariableScalars.rho_E;
+	flowVariables.primitiveVariables.u(node) = primitiveVariableScalars.u;
+	flowVariables.primitiveVariables.v(node) = primitiveVariableScalars.v;
+	flowVariables.primitiveVariables.w(node) = primitiveVariableScalars.w;
+	flowVariables.primitiveVariables.p(node) = primitiveVariableScalars.p;
+	flowVariables.primitiveVariables.T(node) = primitiveVariableScalars.T;
+	flowVariables.transportProperties.mu   (node) = transportPropertyScalars.mu;
+	flowVariables.transportProperties.kappa(node) = transportPropertyScalars.kappa;
 }
 
 

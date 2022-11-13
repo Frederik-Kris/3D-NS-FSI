@@ -8,6 +8,7 @@
 #ifndef SRC_SMALLVECTORS_H_
 #define SRC_SMALLVECTORS_H_
 
+
 #include "includes_and_names.h"
 
 struct Vector3_d
@@ -29,6 +30,72 @@ struct Vector3_u
 	size_t i, j, k;
 	Vector3_u(size_t i, size_t j, size_t k) : i{i}, j{j}, k{k} {}
 };
+
+inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes) const
+{
+	size_t i = index1D / (nNodes.j * nNodes.k);
+	size_t j = index1D % (nNodes.j * nNodes.k) / nNodes.k;
+	size_t k = index1D % (nNodes.j * nNodes.k) % nNodes.k;
+	return Vector3_u(i,j,k);
+}
+
+inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes) const
+{
+	return i * nNodes.j * nNodes.k + j * nNodes.k + k;
+}
+
+inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes) const
+{ return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
+
+inline Vector3_d getNodePosition(size_t i, size_t j, size_t k, const Vector3_d& gridSpacings) const
+{
+	double x { i * gridSpacings.x }, y { j * gridSpacings.y }, z { k * gridSpacings.z };
+	return Vector3_d(x, y, z);
+}
+
+inline Vector3_d getNodePosition(const Vector3_u& indices, const Vector3_d& gridSpacings) const
+{ return getNodePosition(indices.i, indices.j, indices.k, gridSpacings); }
+
+struct IndexBoundingBox
+{
+	size_t iMin, iMax;	// Indices in x-direction
+	size_t jMin, jMax;	// Indices in y-direction
+	size_t kMin, kMax;	// Indices in z-direction
+
+	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
+	: iMin{0}, iMax{iMax},
+	  jMin{0}, jMax{jMax},
+	  kMin{0}, kMax{kMax}
+	{}
+
+	IndexBoundingBox() = default;
+
+	Array8_u asIndexList(const Vector3_u& nNodes) const
+	{
+		Array8_u indices = { getIndex1D(iMin, jMin, kMin, nNodes),
+							 getIndex1D(iMin, jMin, kMax, nNodes),
+							 getIndex1D(iMin, jMax, kMin, nNodes),
+							 getIndex1D(iMin, jMax, kMax, nNodes),
+							 getIndex1D(iMax, jMin, kMin, nNodes),
+							 getIndex1D(iMax, jMin, kMax, nNodes),
+							 getIndex1D(iMax, jMax, kMin, nNodes),
+							 getIndex1D(iMax, jMax, kMax, nNodes)
+		};
+		return indices;
+	}
+};
+
+inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point, const Vector3_d& gridSpacings) const
+{
+	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) );
+	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) );
+	size_t kNext = static_cast<size_t>( ceil( point.z / gridSpacings.z ) );
+	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
+	surroundingBox.iMin = iNext - 1;
+	surroundingBox.jMin = jNext - 1;
+	surroundingBox.kMin = kNext - 1;
+	return surroundingBox;
+}
 
 
 #endif /* SRC_SMALLVECTORS_H_ */
