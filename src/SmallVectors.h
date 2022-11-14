@@ -31,7 +31,7 @@ struct Vector3_u
 	Vector3_u(size_t i, size_t j, size_t k) : i{i}, j{j}, k{k} {}
 };
 
-inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes) const
+inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes)
 {
 	size_t i = index1D / (nNodes.j * nNodes.k);
 	size_t j = index1D % (nNodes.j * nNodes.k) / nNodes.k;
@@ -39,21 +39,21 @@ inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes) const
 	return Vector3_u(i,j,k);
 }
 
-inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes) const
+inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes)
 {
 	return i * nNodes.j * nNodes.k + j * nNodes.k + k;
 }
 
-inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes) const
+inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes)
 { return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
 
-inline Vector3_d getNodePosition(size_t i, size_t j, size_t k, const Vector3_d& gridSpacings) const
+inline Vector3_d getNodePosition(size_t i, size_t j, size_t k, const Vector3_d& gridSpacings)
 {
 	double x { i * gridSpacings.x }, y { j * gridSpacings.y }, z { k * gridSpacings.z };
 	return Vector3_d(x, y, z);
 }
 
-inline Vector3_d getNodePosition(const Vector3_u& indices, const Vector3_d& gridSpacings) const
+inline Vector3_d getNodePosition(const Vector3_u& indices, const Vector3_d& gridSpacings)
 { return getNodePosition(indices.i, indices.j, indices.k, gridSpacings); }
 
 struct IndexBoundingBox
@@ -85,7 +85,7 @@ struct IndexBoundingBox
 	}
 };
 
-inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point, const Vector3_d& gridSpacings) const
+inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point, const Vector3_d& gridSpacings)
 {
 	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) );
 	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) );
