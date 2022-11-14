@@ -125,8 +125,6 @@ double Solver::getViscousTimeStepLimit()
 void Solver::marchTimeStep(double& t, ulong& timeLevel)
 {
 	mesh.checkFinity(mesh.conservedVariables);
-	mesh.checkFinity(mesh.conservedVariablesOld);
-	mesh.checkFinity(mesh.primitiveVariables);
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params.filterInterval, timeLevel);
 	mesh.swapConservedVariables();	// Swap conserved variables to temporary storage by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
@@ -135,29 +133,24 @@ void Solver::marchTimeStep(double& t, ulong& timeLevel)
 	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
 
 	computeRK4slopes(mesh.conservedVariablesOld, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
-	mesh.checkFinity(k1);
 	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
-	mesh.checkFinity(mesh.conservedVariables);
 	updatePrimitiveVariables();
-	mesh.checkFinity(mesh.primitiveVariables);
-	mesh.applyAllBoundaryConditions(t, params);
-	mesh.checkFinity(mesh.conservedVariables);
-	mesh.checkFinity(mesh.primitiveVariables);
+	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
 	computeRK4slopes(mesh.conservedVariables, k2);  // k2: The slopes at time t + dt/2
 	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions(t, params);
+	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
 	computeRK4slopes(mesh.conservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
 	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions(t, params);
+	mesh.applyAllBoundaryConditions(t+dt, params);
 
 	computeRK4slopes(mesh.conservedVariables, k4);	// k4: The slopes at time t + dt
 	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
-	mesh.applyAllBoundaryConditions(t, params);
+	mesh.applyAllBoundaryConditions(t+dt, params);
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
 	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.
@@ -182,9 +175,10 @@ void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVaria
 void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d& rho_v, const Array3D_d& rho_w,
 		                                    Array3D_d& RK4_slope)
 {
+	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		RK4_slope(i,j,k) = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx)
 							    		   - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy)
@@ -211,9 +205,11 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
+	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+
 	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) )
 						 + neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) )
@@ -250,9 +246,11 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
+	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+
 	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) )
 						 + neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) )
@@ -289,9 +287,11 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&mu{mesh.transportProperties.mu}; // For readability in math expression below.
 
+	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+
 	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		RK4_slope(i,j,k) = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) )
 						 + neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) )
@@ -334,9 +334,11 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 	const Array3D_d& p{mesh.primitiveVariables.p}, &u{mesh.primitiveVariables.u}, &v{mesh.primitiveVariables.v}, &w{mesh.primitiveVariables.w},
 		&T{mesh.primitiveVariables.T}, &mu{mesh.transportProperties.mu}, &kappa{mesh.transportProperties.kappa}; // For readability in math expression below.
 
+	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+
 	for(size_t index1D : mesh.activeNodeIndices)
 	{
-		Vector3_u indices3D = mesh.getIndices3D(index1D);
+		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
 		double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};

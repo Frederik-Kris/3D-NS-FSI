@@ -13,9 +13,9 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-NI = 10
-NJ = 10
-NK = 10
+NI = 4
+NJ = 4
+NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
@@ -29,7 +29,7 @@ stopTimeLevel = 2
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 51.
+t_end = 500.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -81,11 +81,11 @@ saveForParaview = false
 saveForMatlab   = true
 
 // Plot-plane orientation. Select a spatial direction (axis) that the plot-plane should be normal to. Choose "x", "y" or "z".
-saveNormalAxis = "y"
+saveNormalAxis = "z"
 
 // Plot-plane offset. What value should the index (for the direction selected above) be? Should be non-negative and smaller 
 // than the grid size in that direction. E.g., if "y" was selected, this number should be within [0, NJ-1].
-saveConstantIndex = 11
+saveConstantIndex = 1
 
 //---------------------------------------------------------------------------------
 // Physical Constants
@@ -114,6 +114,6 @@ M_0 = 0.5
 T_0 = 300.
 
 // Physical dimensionless size of the domain:
-L_x = 4.
-L_y = 2.
-L_z = 0.5
+L_x = 1.
+L_y = 1.
+L_z = 1.

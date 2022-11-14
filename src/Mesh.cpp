@@ -35,9 +35,9 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
 
 	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
-	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-																AxisOrientationEnum::z,
-																params.L_y/4.5));
+	//immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+	//															AxisOrientationEnum::z,
+	//															params.L_y/4.5));
 }
 
 // Sanity check for the combination of boundary conditions.
@@ -49,15 +49,17 @@ void Mesh::assertBoundaryConditionCompliance()
 void Mesh::categorizeNodes(const ConfigSettings& params)
 {
 	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
+	const Vector3_u nMeshNodes(NI, NJ, NK);
+	const Vector3_d gridSpacing(dx, dy, dz);
 	nodeType.setAll(NodeTypeEnum::FluidRegular);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
-		boundary->identifyOwnedNodes(unclaimedNodes, *this);
+		boundary->identifyOwnedNodes(unclaimedNodes, nMeshNodes, nodeType);
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->identifyRelatedNodes(params, *this);
+		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, nodeType);
 
 	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
 		if(nodeType(index1D) == NodeTypeEnum::FluidRegular)
@@ -134,11 +136,15 @@ void Mesh::swapConservedVariables()
 
 void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
+	const Vector3_u nMeshNodes(NI, NJ, NK);
+	const Vector3_d gridSpacing(dx, dy, dz);
+	AllFlowVariablesArrayGroup flowVariableReferences(conservedVariables, primitiveVariables, transportProperties);
+
 	for(auto&& boundary : edgeBoundaries)
-		boundary->applyBoundaryCondition(t, params, *this);
+		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(*this, params);
+		boundary->applyBoundaryCondition(nMeshNodes, gridSpacing, params, nodeType, flowVariableReferences);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.
