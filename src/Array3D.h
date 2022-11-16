@@ -40,7 +40,7 @@ public:
 	inline double& operator()(Vector3_u indices)
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
-	// Get reference to a node using 3D indices in Vector3_u
+	// Get value of a node using 3D indices in Vector3_u
 	inline double operator()(Vector3_u indices) const
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
