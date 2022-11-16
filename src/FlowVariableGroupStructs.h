@@ -144,9 +144,9 @@ inline ConservedVariablesScalars deriveConservedVariables(const PrimitiveVariabl
 inline PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariablesScalars& conservedVariables, const ConfigSettings& params)
 {
 	const double rho{conservedVariables.rho}, rho_u{conservedVariables.rho_u}, rho_v{conservedVariables.rho_v}, rho_w{conservedVariables.rho_w}, rho_E{conservedVariables.rho_E};
-	double u = rho_u / rho;
-	double v = rho_v / rho;
-	double w = rho_w / rho;
+	double u = rho_u / (1+rho);
+	double v = rho_v / (1+rho);
+	double w = rho_w / (1+rho);
 	double p = ( params.Gamma - 1 )*( rho_E - (1 + rho)/2 * ( u*u + v*v + w*w ));
 	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
 	return PrimitiveVariablesScalars(u, v, w, p, T);
