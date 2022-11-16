@@ -15,7 +15,7 @@ savedSolutions{0}
 
 void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 {
-	if ( params.save_IC )
+	if ( params.saveIC )
 		storeCurrentSolution_csv(mesh, t);
 }
 
@@ -24,9 +24,21 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 // Thus, in general it saves too early, but the deviation is dt at most.
 void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt)
 {
-	double timeSinceSave = fmod(t, params.save_period);
-	if ( timeSinceSave + dt >= params.save_period && params.save_intervals )
-		storeCurrentSolution_csv(mesh, t);
+	// Save to disk:
+	if(params.saveIntervals)
+	{
+		bool withinRelevantTimeRegime = t >= params.saveIntervalsStartTime
+								   && ( t <= params.saveIntervalsEndTime || params.saveIntervalsEndTime <= 0);
+		bool enoughTimeSinceSave = true;
+		if(params.savePeriod > 0)
+		{
+			double timeSinceSave = fmod(t, params.savePeriod);
+			enoughTimeSinceSave = timeSinceSave + dt >= params.savePeriod;
+		}
+		if ( withinRelevantTimeRegime && enoughTimeSinceSave )
+			storeCurrentSolution_csv(mesh, t);
+	}
+	// Write to screen:
 	double timeSinceStatusReport = statusReportTimer.getElapsedTime().asSeconds();
 	if ( timeSinceStatusReport >= params.statusReportInterval )
 	{
@@ -38,7 +50,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusRep
 void OutputManager::processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
 								const vector<ConservedVariablesScalars> convergenceHistory)
 {
-	if ( params.save_final )
+	if ( params.saveFinal )
 		storeCurrentSolution_csv(mesh, t);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();

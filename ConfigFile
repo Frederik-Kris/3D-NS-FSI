@@ -13,8 +13,8 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-NI = 4
-NJ = 4
+NI = 40
+NJ = 40
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -29,7 +29,7 @@ stopTimeLevel = 2
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 500.
+t_end = 15.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -47,7 +47,7 @@ filterInterval = 0
 //---------------------------------------------------------------------------------
 
 // Wall clock time (in seconds) between status/progression reports written to screen.
-statusReportInterval = 3.
+statusReportInterval = 1.
 
 // Booleans to specify what flow variables to store:
 save_rho   = false
@@ -64,21 +64,28 @@ save_mu    = false
 save_kappa = false
 
 // Save initial condition?
-save_IC = false
+saveIC = false
 
 // Save final solution? (Last time level, at time t_end)
-save_final = true
+saveFinal = false
 
 // Save at constant intervals? (Not including IC, interval length specified below)
-save_intervals = false
+saveIntervals = true
 
-// Dimensionless time between each save:
-save_period = 25.
+// Dimensionless time between each save (if saveIntervals=true):
+// If zero, saves every time level.
+savePeriod = 0.
+
+// Dimensionless times to start and stop periodic saving (if saveIntervals=true):
+// If ...StartTime <= 0, then it saves periodically from simulation start.
+// If ...EndTime <= 0, then it saves periodically until simulation end.
+saveIntervalsStartTime = 0.55
+saveIntervalsEndTime = 0.75
 
 // How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
 // Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
-saveForParaview = false
-saveForMatlab   = true
+saveForParaview = true
+saveForMatlab   = false
 
 // Plot-plane orientation. Select a spatial direction (axis) that the plot-plane should be normal to. Choose "x", "y" or "z".
 saveNormalAxis = "z"
@@ -116,4 +123,4 @@ T_0 = 300.
 // Physical dimensionless size of the domain:
 L_x = 1.
 L_y = 1.
-L_z = 1.
+L_z = 0.3

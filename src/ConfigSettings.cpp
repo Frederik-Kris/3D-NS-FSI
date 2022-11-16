@@ -115,10 +115,12 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	save_T         = cfg.lookup("save_T");
 	save_mu        = cfg.lookup("save_mu");
 	save_kappa     = cfg.lookup("save_kappa");
-	save_IC        = cfg.lookup("save_IC");
-	save_final     = cfg.lookup("save_final");
-	save_intervals = cfg.lookup("save_intervals");
-	save_period    = cfg.lookup("save_period");
+	saveIC        = cfg.lookup("saveIC");
+	saveFinal     = cfg.lookup("saveFinal");
+	saveIntervals = cfg.lookup("saveIntervals");
+	savePeriod    = cfg.lookup("savePeriod");
+	saveIntervalsStartTime = cfg.lookup("saveIntervalsStartTime");
+	saveIntervalsEndTime   = cfg.lookup("saveIntervalsEndTime");
 	saveForParaview= cfg.lookup("saveForParaview");
 	saveForMatlab  = cfg.lookup("saveForMatlab");
 

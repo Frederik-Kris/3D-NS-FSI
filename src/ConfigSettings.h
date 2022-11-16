@@ -45,9 +45,11 @@ public:
 	     save_p, save_T;
 	bool save_mu, save_kappa;               // Specifies what transport properties to save to disk
 
-	bool save_IC, save_final;   // Specifies whether to save IC and final solution
-	bool save_intervals;        // Specifies whether to save solutions at given interval
-	double save_period;         // How much time between each save, if save_intervals=true
+	bool saveIC, saveFinal; // Specifies whether to save IC and final solution
+	bool saveIntervals; 			// Specifies whether to save solutions at given interval
+	double savePeriod;				// How much time between each save, if save_intervals=true
+	double saveIntervalsStartTime;	// When to start periodic saving, if save_intervals=true
+	double saveIntervalsEndTime;	// When to stop periodic saving, if save_intervals=true
 	bool saveForParaview; 				// Whether to save entire 3D solution in a single file for ParaView
 	bool saveForMatlab;					// Whether to save solution in a plane, in multiple files, for Matlab
 	saveNormalAxisEnum saveNormalAxis;	// Normal axis. Defines plot-plane angle if saveForMatlab is true
