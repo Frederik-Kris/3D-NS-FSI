@@ -15,8 +15,8 @@ savedSolutions{0}
 
 void OutputManager::initialize()
 {
-	std::filesystem::path outputPath("./output");
 	bool outputFolderExists = false;
+	std::filesystem::path outputPath("./output");
 	if(std::filesystem::exists(outputPath))
 		if(std::filesystem::is_directory(outputPath))
 			outputFolderExists = true;
@@ -96,12 +96,26 @@ void OutputManager::storeCurrentSolution_csv(const Mesh& mesh, double t)
 	outputTimes.push_back(t);
 }
 
+void OutputManager::writeValuesFromIndices_csv_paraview(const Mesh& mesh, ofstream& outputFile, const vector<size_t>& nodesToWrite, const vector<Array3D_d const*>& flowVariables)
+{
+	Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	Vector3_d gridSpacing(mesh.dx, mesh.dy, mesh.dz);
+	for (size_t index1D : nodesToWrite)
+	{
+		outputFile << endl;
+		Vector3_d position = getNodePosition( getIndices3D(index1D, nMeshNodes), gridSpacing );
+		outputFile << position.x << ", " << position.y << ", " << position.z;
+		for (const Array3D_d* flowVar : flowVariables)
+			outputFile << ", " << flowVar->at(index1D);
+	}
+}
+
 // Writes a .csv file with the specified flow variables at the current time level.
 // The file is formatted to fit how ParaView wants to import it, with coordinates in the leftmost column.
 // Only the flow variables selected in the ConfigFile are saved.
 void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 {
-	vector<const Array3D_d*> flowVariables = getPlotVariables(mesh);
+	vector<Array3D_d const*> flowVariables = getPlotVariables(mesh);
 	if ( flowVariables.empty() )
 		return;
 
@@ -115,17 +129,10 @@ void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 		return;
 	}
 	outputFile << get_csvHeaderString();
+	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidActive, flowVariables);
+	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidEdge, 	flowVariables);
+	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.ghost, 		flowVariables);
 
-	for (size_t i{0}; i<params.NI; ++i)
-		for (size_t j{0}; j<params.NJ; ++j)
-			for (size_t k{0}; k<params.NK; ++k)
-			{
-				outputFile << endl;
-				double x{ i*mesh.dx }, y{ j*mesh.dy }, z{ k*mesh.dz};
-				outputFile << x << ", " << y << ", " << z;
-				for (const Array3D_d* flowVar : flowVariables)
-					outputFile << ", " << (*flowVar)(i,j,k);
-			}
 	outputFile.close();
 }
 

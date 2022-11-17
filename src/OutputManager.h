@@ -18,21 +18,40 @@ class OutputManager
 {
 public:
 	OutputManager(const ConfigSettings& params);
+
 	void initialize();
+
 	void processInitialOutput(const Mesh& mesh, double t);
-	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt);
+
+	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer,
+									double t, ulong timeLevel, double dt);
+
 	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
 							const ConservedVariablesVectorGroup& convergenceHistory);
 private:
 	void storeCurrentSolution_csv(const Mesh& mesh, double t);
+
+	void writeValuesFromIndices_csv_paraview(const Mesh& mesh,
+											 ofstream& outputFile,
+											 const vector<size_t>& nodesToWrite,
+											 const vector<Array3D_d const*>& flowVariables);
+
 	void storeCurrentSolution_csv_paraview(const Mesh& mesh);
+
 	void storeCurrentSolution_csv_matlab(const Mesh& mesh);
+
 	vector<const Array3D_d*> getPlotVariables(const Mesh& mesh);
+
 	string get_csvHeaderString();
+
 	vector<string> getVariableFileNames();
+
 	void writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable);
+
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
+
 	void writeOutputTimes();
+
 	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
