@@ -34,9 +34,9 @@ public:
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
 									uint filterInterval, ulong timeLevel);
 
-	ConservedVariablesScalars computeNorms_conservedVariables();
-
 	void swapConservedVariables();
+
+	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
@@ -83,8 +83,6 @@ public:
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies
-
-	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue);
 };
 
 #endif /* SRC_MESH_H_ */

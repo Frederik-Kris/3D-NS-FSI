@@ -27,10 +27,10 @@ nodeType(NI, NJ, NK)
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
 	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
 
@@ -110,17 +110,6 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 					}
 			filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
 		}
-}
-
-// Compute the norm of change in the conserved variables, and store in the history vectors.
-ConservedVariablesScalars Mesh::computeNorms_conservedVariables()
-{
-	double norm_rho  { getNormOfChange(conservedVariablesOld.rho  , conservedVariables.rho  ) };
-	double norm_rho_u{ getNormOfChange(conservedVariablesOld.rho_u, conservedVariables.rho_u) };
-	double norm_rho_v{ getNormOfChange(conservedVariablesOld.rho_v, conservedVariables.rho_v) };
-	double norm_rho_w{ getNormOfChange(conservedVariablesOld.rho_w, conservedVariables.rho_w) };
-	double norm_E    { getNormOfChange(conservedVariablesOld.rho_E, conservedVariables.rho_E) };
-	return ConservedVariablesScalars(norm_rho, norm_rho_u, norm_rho_v, norm_rho_w, norm_E);
 }
 
 // Swap the contents of all the arrays of conserved variables and the intermediate arrays, by move-semantics.

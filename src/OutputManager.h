@@ -20,7 +20,7 @@ public:
 	void processInitialOutput(const Mesh& mesh, double t);
 	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt);
 	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
-			const vector<ConservedVariablesScalars> convergenceHistory);
+							const ConservedVariablesVectorGroup& convergenceHistory);
 private:
 	void storeCurrentSolution_csv(const Mesh& mesh, double t);
 	void storeCurrentSolution_csv_paraview(const Mesh& mesh);
@@ -31,7 +31,7 @@ private:
 	void writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable);
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 	void writeOutputTimes();
-	void writeConvergenceHistoryFiles(const vector<ConservedVariablesScalars>& convergenceHistory);
+	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	uint savedSolutions;			// No. of times saved to disk

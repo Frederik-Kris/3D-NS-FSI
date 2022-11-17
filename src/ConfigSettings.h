@@ -22,6 +22,11 @@ enum class saveNormalAxisEnum
 	x, y, z
 };
 
+enum class ConvHistoryEnum
+{
+	none, density, all
+};
+
 // This is a class to store ALL the settings imported from 'ConfigFile'.
 // This is more convenient than constantly calling 'lookup' from a 'libconfig::Config' variable.
 class ConfigSettings
@@ -54,6 +59,7 @@ public:
 	bool saveForMatlab;					// Whether to save solution in a plane, in multiple files, for Matlab
 	saveNormalAxisEnum saveNormalAxis;	// Normal axis. Defines plot-plane angle if saveForMatlab is true
 	size_t   saveConstantIndex;			// Plot-plane offset if saveForMatlab is true. Must be in [0, gridsize-1].
+	ConvHistoryEnum saveConvergenceHistory; 	// Save 2-norm of change for each time step?
 
 	double Gamma;				// Ratio of specific heats
 	double Pr;					// Prandtl number, assumed constant

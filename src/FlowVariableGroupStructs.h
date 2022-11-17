@@ -124,6 +124,15 @@ struct AllFlowVariablesArrayGroup
 	{}
 };
 
+struct ConservedVariablesVectorGroup
+{
+	vector<double> rho;
+	vector<double> rho_u;
+	vector<double> rho_v;
+	vector<double> rho_w;
+	vector<double> rho_E;
+};
+
 // Computes scalar values for conserved variables, based on the primitive variables.
 // Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
 // E.g., decide on the primitives and use this function to get the values for the conserved variables.

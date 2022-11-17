@@ -134,8 +134,24 @@ void ConfigSettings::readSettingValues(Config& cfg)
 		else if(saveNormalAxisString=="z")
 			saveNormalAxis = saveNormalAxisEnum::z;
 		else
+		{
 			errorOccurred = true;
+			std::cerr << "saveNormalAxis must be x, y, or z.\n";
+		}
 		saveConstantIndex = (uint) cfg.lookup("saveConstantIndex");
+	}
+
+	string saveConvergenceHistoryString = cfg.lookup("saveConvergenceHistory").c_str();
+	if(saveConvergenceHistoryString == "none")
+		saveConvergenceHistory = ConvHistoryEnum::none;
+	else if (saveConvergenceHistoryString == "density")
+		saveConvergenceHistory = ConvHistoryEnum::density;
+	else if (saveConvergenceHistoryString == "all")
+		saveConvergenceHistory = ConvHistoryEnum::all;
+	else
+	{
+		errorOccurred = true;
+		std::cerr << "saveConvergenceHistory must be 'none', 'density' or 'all'. \n";
 	}
 
 	Gamma 			= cfg.lookup("Gamma");

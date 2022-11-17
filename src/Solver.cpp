@@ -464,7 +464,24 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 
 void Solver::storeNormsOfChange()
 {
-	normHistory.push_back(mesh.computeNorms_conservedVariables());
+	if(params.saveConvergenceHistory != ConvHistoryEnum::none)
+		normHistory.rho.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho,
+														mesh.conservedVariables.rho) );
+
+	if(params.saveConvergenceHistory == ConvHistoryEnum::all)
+	{
+		normHistory.rho_u.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_u,
+														  mesh.conservedVariables   .rho_u) );
+
+		normHistory.rho_v.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_v,
+														  mesh.conservedVariables   .rho_v) );
+
+		normHistory.rho_w.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_w,
+														  mesh.conservedVariables   .rho_w) );
+
+		normHistory.rho_E.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_E,
+														  mesh.conservedVariables   .rho_E) );
+	}
 }
 
 

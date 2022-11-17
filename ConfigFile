@@ -15,7 +15,7 @@
 // Number of grid points in x, y and z direction, respectively:
 NI = 40
 NJ = 40
-NK = 3
+NK = 40
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
@@ -50,21 +50,21 @@ filterInterval = 0
 statusReportInterval = 1.
 
 // Booleans to specify what flow variables to store:
-save_rho   = false
-save_rho_u = false
-save_rho_v = false
-save_rho_w = false
-save_E     = false
+save_rho   = true
+save_rho_u = true
+save_rho_v = true
+save_rho_w = true
+save_E     = true
 save_u     = true
 save_v     = true
 save_w     = true
 save_p     = true
 save_T     = true
-save_mu    = false
-save_kappa = false
+save_mu    = true
+save_kappa = true
 
 // Save initial condition?
-saveIC = false
+saveIC = true
 
 // Save final solution? (Last time level, at time t_end)
 saveFinal = false
@@ -79,8 +79,8 @@ savePeriod = 0.
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
 // If ...EndTime <= 0, then it saves periodically until simulation end.
-saveIntervalsStartTime = 0.55
-saveIntervalsEndTime = 0.75
+saveIntervalsStartTime = 0.
+saveIntervalsEndTime = 0.4
 
 // How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
 // Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
@@ -93,6 +93,10 @@ saveNormalAxis = "z"
 // Plot-plane offset. What value should the index (for the direction selected above) be? Should be non-negative and smaller 
 // than the grid size in that direction. E.g., if "y" was selected, this number should be within [0, NJ-1].
 saveConstantIndex = 1
+
+// Save convergence history in the form of 2-norm of the change between consecutive time levels?
+// Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.
+saveConvergenceHistory = "none"
 
 //---------------------------------------------------------------------------------
 // Physical Constants
@@ -123,4 +127,4 @@ T_0 = 300.
 // Physical dimensionless size of the domain:
 L_x = 1.
 L_y = 1.
-L_z = 0.3
+L_z = 1.
