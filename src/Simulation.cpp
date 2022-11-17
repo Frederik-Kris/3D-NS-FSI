@@ -19,6 +19,7 @@ t{0}, timeLevel{0}
 void Simulation::run()
 {
 	solver.initialize();
+	output.initialize();
 	output.processInitialOutput(solver.mesh, t);
 	Clock statusReportTimer;
 	while ( !checkStoppingCriterion() )

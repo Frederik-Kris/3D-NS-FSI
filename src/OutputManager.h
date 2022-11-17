@@ -8,6 +8,7 @@
 #ifndef SRC_OUTPUTMANAGER_H_
 #define SRC_OUTPUTMANAGER_H_
 
+#include <filesystem>
 #include "Array3D.h"
 #include "includes_and_names.h"
 #include "ConfigSettings.h"
@@ -17,6 +18,7 @@ class OutputManager
 {
 public:
 	OutputManager(const ConfigSettings& params);
+	void initialize();
 	void processInitialOutput(const Mesh& mesh, double t);
 	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt);
 	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,

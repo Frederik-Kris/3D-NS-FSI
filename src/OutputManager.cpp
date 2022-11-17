@@ -13,6 +13,34 @@ savedSolutions{0}
 {
 }
 
+void OutputManager::initialize()
+{
+	std::filesystem::path outputPath("./output");
+	bool outputFolderExists = false;
+	if(std::filesystem::exists(outputPath))
+		if(std::filesystem::is_directory(outputPath))
+			outputFolderExists = true;
+
+	if(!outputFolderExists)
+	{
+		bool folderWasCreated = std::filesystem::create_directory(outputPath);
+		if(!folderWasCreated)
+		{
+			std::cerr << "Output folder could not be created.\n";
+			return;
+		}
+	}
+	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
+		if( entry.path().generic_string().find("standard.pvsm") == string::npos ) // if path does not contain ".."
+			try
+				{ std::filesystem::remove(entry.path()); }
+			catch (std::exception& ex)
+			{
+				std::cerr << "Could not remove " << entry.path() << endl;
+				std::cerr << ex.what() << endl;
+			}
+}
+
 void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 {
 	if ( params.saveIC )
