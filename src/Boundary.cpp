@@ -190,18 +190,24 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNode
 	{
 		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double uScalar = 2*flowVariables.primitiveVariables.u(boundaryAdjacentIndex) // Linear extrapolation
-						 - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-		double vScalar = 2*flowVariables.primitiveVariables.v(boundaryAdjacentIndex) // Linear extrapolation
-						 - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-		double wScalar = 2*flowVariables.primitiveVariables.w(boundaryAdjacentIndex) // Linear extrapolation
-						 - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+		double rho_Scalar = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+							- flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+		double rho_u_Scalar = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+							  - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
+		double rho_v_Scalar = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+							  - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
+		double rho_w_Scalar = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+							  - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
 		double pScalar = 0;
-		double TScalar = 2*flowVariables.primitiveVariables.T(boundaryAdjacentIndex) // Linear extrapolation
-						 - flowVariables.primitiveVariables.T(nextToAdjacentIndex);
+		double uScalar = rho_u_Scalar / (1+rho_Scalar);
+		double vScalar = rho_v_Scalar / (1+rho_Scalar);
+		double wScalar = rho_w_Scalar / (1+rho_Scalar);
+		double TScalar = ( params.Gamma * pScalar - rho_Scalar ) / ( 1 + rho_Scalar );
+		double rho_E_Scalar = pScalar / ( params.Gamma - 1 )
+				+ (1 + rho_Scalar)/2 * ( uScalar*uScalar + vScalar*vScalar + wScalar*wScalar );
 
 		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
-		ConservedVariablesScalars conservedVarsLocal = deriveConservedVariables(primitiveVarsLocal, params);
+		ConservedVariablesScalars conservedVarsLocal(rho_Scalar, rho_u_Scalar, rho_v_Scalar, rho_w_Scalar, rho_E_Scalar);
 		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
 		setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal, flowVariables);
 	}
