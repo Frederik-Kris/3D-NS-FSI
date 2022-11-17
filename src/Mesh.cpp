@@ -34,10 +34,10 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
 	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
 
-	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
-	//immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-	//															AxisOrientationEnum::z,
-	//															params.L_y/4.5));
+	Vector3_d cylinderCentroidPosition(params.L_x / 2, params.L_y / 2, 0);
+	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+																AxisOrientationEnum::z,
+																params.L_y/4.5));
 }
 
 // Sanity check for the combination of boundary conditions.
@@ -51,7 +51,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
 	const Vector3_u nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
-	nodeType.setAll(NodeTypeEnum::FluidRegular);
+	nodeType.setAll(NodeTypeEnum::FluidActive);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
@@ -62,8 +62,12 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, nodeType);
 
 	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
-		if(nodeType(index1D) == NodeTypeEnum::FluidRegular)
-			activeNodeIndices.push_back(index1D);
+		if(nodeType(index1D) == NodeTypeEnum::FluidActive)
+			indexByType.fluidActive.push_back(index1D);
+		else if(nodeType(index1D) == NodeTypeEnum::FluidEdge)
+			indexByType.fluidEdge.push_back(index1D);
+		else if(nodeType(index1D) == NodeTypeEnum::Ghost)
+			indexByType.ghost.push_back(index1D);
 }
 
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
@@ -141,7 +145,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredChanges = 0;
-	for(size_t i : activeNodeIndices)
+	for(size_t i : indexByType.fluidActive)
 		sumOfSquaredChanges += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredChanges );
 	return normOfChange;

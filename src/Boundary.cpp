@@ -334,27 +334,27 @@ void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<size_t>& so
 		Vector3_u solidNode = getIndices3D(index1D, nMeshNodes);
 		bool solidNodeHasFluidNeighbor { false };
 		if (solidNode.i > meshSize.iMin)
-			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.i < meshSize.iMax)
-			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.j > meshSize.jMin)
-			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.j < meshSize.jMax)
-			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.k > meshSize.kMin)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.k < meshSize.kMax)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidRegular)
+			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidActive)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNodeHasFluidNeighbor)
@@ -463,7 +463,7 @@ void ImmersedBoundary::setInterpolationValues(
 	uint counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
 	for (size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes))
 	{
-		if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidRegular
+		if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidActive
 		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
 		{
 			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, nMeshNodes,	// <- Input

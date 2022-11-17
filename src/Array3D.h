@@ -12,7 +12,7 @@
 
 #include "includes_and_names.h"
 #include "SmallVectors.h"
-
+#include "Node.h"
 
 
 // Simple 3D array type for double precision numbers.
@@ -100,11 +100,6 @@ public:
 private:
 	size_t length, width, height;
 	vector<double> data;
-};
-
-enum class NodeTypeEnum
-{
-	FluidRegular, FluidEdge, Solid, Ghost
 };
 
 // Simple 3D array type for NodeTypeEnum

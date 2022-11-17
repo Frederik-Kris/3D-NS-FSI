@@ -78,8 +78,8 @@ public:
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
 	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
-	vector<size_t> activeNodeIndices;	// Indices to active fluid nodes
-	Array3D_nodeType nodeType;			// Type/category of each node (ghost, fluid, etc.)
+	IndexVectorGroup indexByType;	// 1D Indices to nodes of different types
+	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies

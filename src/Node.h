@@ -22,5 +22,17 @@ struct GhostNode
 
 typedef std::vector<GhostNode>::iterator GhostNodeVectorIterator;
 
+enum class NodeTypeEnum
+{
+	FluidActive, FluidEdge, Solid, Ghost
+};
+
+struct IndexVectorGroup
+{
+	vector<size_t> fluidActive;
+	vector<size_t> fluidEdge;
+	vector<size_t> ghost;
+};
+
 
 #endif /* SRC_NODE_H_ */
