@@ -13,8 +13,9 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-NI = 40
-NJ = 40
+// The minimum is 4
+NI = 53
+NJ = 53
 NK = 4
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -33,11 +34,11 @@ t_end = 1.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
-convStabilityLimit = 1.1
+convStabilityLimit = 1.4
 
 // Constant specifying the viscous stability criterion
 // Should give stability when >-1.5 , but some margin may be necessary.
-viscStabilityLimit = -0.95
+viscStabilityLimit = -1.1
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterInterval = 0
@@ -74,13 +75,13 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.
+savePeriod = 0.02
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
 // If ...EndTime <= 0, then it saves periodically until simulation end.
 saveIntervalsStartTime = 0.
-saveIntervalsEndTime = 0.2
+saveIntervalsEndTime = 0.
 
 // How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
 // Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
@@ -96,7 +97,7 @@ saveConstantIndex = 1
 
 // Save convergence history in the form of 2-norm of the change between consecutive time levels?
 // Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.
-saveConvergenceHistory = "density"
+saveConvergenceHistory = "none"
 
 //---------------------------------------------------------------------------------
 // Physical Constants
@@ -127,4 +128,4 @@ T_0 = 300.
 // Physical dimensionless size of the domain:
 L_x = 1.
 L_y = 1.
-L_z = 0.1
+L_z = 0.02

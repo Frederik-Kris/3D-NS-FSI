@@ -49,7 +49,9 @@ inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes)
 
 inline Vector3_d getNodePosition(size_t i, size_t j, size_t k, const Vector3_d& gridSpacings)
 {
-	double x { (i-1) * gridSpacings.x }, y { (j-1) * gridSpacings.y }, z { (k-1) * gridSpacings.z };
+	double x { ( static_cast<int>(i) - 1 ) * gridSpacings.x };
+	double y { ( static_cast<int>(j) - 1 ) * gridSpacings.y };
+	double z { ( static_cast<int>(k) - 1 ) * gridSpacings.z };
 	return Vector3_d(x, y, z);
 }
 
