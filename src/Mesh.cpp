@@ -10,9 +10,9 @@
 Mesh::Mesh(const ConfigSettings& params) :
 NI{params.NI}, NJ{params.NJ}, NK{params.NK},
 nNodesTotal{NI*NJ*NK},
-dx{ params.L_x / (params.NI-1) },
-dy{ params.L_y / (params.NJ-1) },
-dz{ params.L_z / (params.NK-1) },
+dx{ params.L_x / (params.NI-3) },
+dy{ params.L_y / (params.NJ-3) },
+dz{ params.L_z / (params.NK-3) },
 conservedVariables(NI, NJ, NK),
 conservedVariablesOld(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
@@ -27,17 +27,17 @@ nodeType(NI, NJ, NK)
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
 	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
+	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 
-	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
-	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-																AxisOrientationEnum::z,
-																params.L_y/8.1));
+//	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
+//	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+//																AxisOrientationEnum::z,
+//																params.L_y/8.1));
 }
 
 // Sanity check for the combination of boundary conditions.

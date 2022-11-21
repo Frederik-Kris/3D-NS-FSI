@@ -13,7 +13,7 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-NI = 80
+NI = 40
 NJ = 40
 NK = 4
 
@@ -33,11 +33,11 @@ t_end = 1.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
-convStabilityLimit = 1.2
+convStabilityLimit = 1.1
 
 // Constant specifying the viscous stability criterion
 // Should give stability when >-1.5 , but some margin may be necessary.
-viscStabilityLimit = -1.
+viscStabilityLimit = -0.95
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterInterval = 0
@@ -74,13 +74,13 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.02
+savePeriod = 0.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
 // If ...EndTime <= 0, then it saves periodically until simulation end.
 saveIntervalsStartTime = 0.
-saveIntervalsEndTime = 0.
+saveIntervalsEndTime = 0.2
 
 // How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
 // Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
@@ -125,6 +125,6 @@ M_0 = 0.5
 T_0 = 300.
 
 // Physical dimensionless size of the domain:
-L_x = 2.
+L_x = 1.
 L_y = 1.
 L_z = 0.1
