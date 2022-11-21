@@ -145,32 +145,32 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 
 	for(size_t index1D : nodeIndices)
 	{
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
 		double uScalar, vScalar, wScalar;
 		if(normalAxis == AxisOrientationEnum::x)
 		{
-			uScalar = inletVelocity;
-			vScalar = 0;
-			wScalar = 0;
+			uScalar = 2*inletVelocity - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			vScalar = 				  - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			wScalar = 				  - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else if(normalAxis == AxisOrientationEnum::y)
 		{
-			uScalar = 0;
-			vScalar = inletVelocity;
-			wScalar = 0;
+			uScalar = 				  - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			vScalar = 2*inletVelocity - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			wScalar = 				  - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else if(normalAxis == AxisOrientationEnum::z)
 		{
-			uScalar = 0;
-			vScalar = 0;
-			wScalar = inletVelocity;
+			uScalar = 				  - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			vScalar = 				  - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			wScalar = 2*inletVelocity - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else
 			throw std::logic_error("Unexpected enum value");
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
 		double pScalar = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
 						 - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double TScalar = 0;
+		double TScalar = - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
 		ConservedVariablesScalars   conservedVarsLocal = deriveConservedVariables (primitiveVarsLocal, params);
 		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
