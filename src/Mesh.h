@@ -72,7 +72,7 @@ public:
 
 	const size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	const size_t nNodesTotal;	// Total number of nodes in the mesh
-	const double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
+	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
@@ -80,6 +80,7 @@ public:
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
 	IndexVectorGroup indexByType;	// 1D Indices to nodes of different types
 	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
+	Vector3_d positionOffset;		// Offset of origin point, due to mesh edge boundary conditions.
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies

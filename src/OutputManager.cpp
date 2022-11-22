@@ -103,7 +103,7 @@ void OutputManager::writeValuesFromIndices_csv_paraview(const Mesh& mesh, ofstre
 	for (size_t index1D : nodesToWrite)
 	{
 		outputFile << endl;
-		Vector3_d position = getNodePosition( getIndices3D(index1D, nMeshNodes), gridSpacing );
+		Vector3_d position = getNodePosition( getIndices3D(index1D, nMeshNodes), gridSpacing, mesh.positionOffset );
 		outputFile << position.x << ", " << position.y << ", " << position.z;
 		for (const Array3D_d* flowVar : flowVariables)
 			outputFile << ", " << flowVar->at(index1D);

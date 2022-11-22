@@ -10,9 +10,7 @@
 Mesh::Mesh(const ConfigSettings& params) :
 NI{params.NI}, NJ{params.NJ}, NK{params.NK},
 nNodesTotal{NI*NJ*NK},
-dx{ params.L_x / (params.NI-3) },
-dy{ params.L_y / (params.NJ-3) },
-dz{ params.L_z / (params.NK-3) },
+dx{ -1 }, dy{ -1 }, dz{ -1 }, // <- Depend on boundary condition types
 conservedVariables(NI, NJ, NK),
 conservedVariablesOld(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
@@ -33,6 +31,13 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
 	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
+
+	dx = params.L_x / (NI-1);
+	dy = params.L_y / (NJ-3);
+	dz = params.L_z / (NK-2);
+	positionOffset.x = 0;
+	positionOffset.y = 1;
+	positionOffset.z = 0;
 
 //	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
 //	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
@@ -59,7 +64,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, nodeType);
+		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, positionOffset, nodeType);
 
 	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
 		if(nodeType(index1D) == NodeTypeEnum::FluidActive)
@@ -137,7 +142,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(nMeshNodes, gridSpacing, params, nodeType, flowVariableReferences);
+		boundary->applyBoundaryCondition(nMeshNodes, gridSpacing, positionOffset, params, nodeType, flowVariableReferences);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.

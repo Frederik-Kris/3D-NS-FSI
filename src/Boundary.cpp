@@ -110,22 +110,22 @@ size_t MeshEdgeBoundary::getPeriodicIndex(size_t index1D, const Vector3_u& nMesh
 {
 	Vector3_u indices = getIndices3D(index1D, nMeshNodes);
 	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
-		indices.i = nMeshNodes.i - 3;	// i -> iMax-2
+		indices.i = nMeshNodes.i - 2;	// i -> iMax-1
 
 	else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
-		indices.i = 2;	// i -> iMin+2
+		indices.i = 1;	// i -> iMin+1
 
 	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
-		indices.j = nMeshNodes.j - 3;	// j -> jMax-2
+		indices.j = nMeshNodes.j - 2;	// j -> jMax-1
 
 	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
-		indices.j = 2;	// j -> jMin+2
+		indices.j = 1;	// j -> jMin+1
 
 	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
-		indices.k = nMeshNodes.k - 3;	// k -> kMax-2
+		indices.k = nMeshNodes.k - 2;	// k -> kMax-1
 
 	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
-		indices.k = 2;	// k -> kMin+2
+		indices.k = 1;	// k -> kMin+1
 
 	return getIndex1D(indices, nMeshNodes);
 }
@@ -145,26 +145,24 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 
 	for(size_t index1D : nodeIndices)
 	{
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double uScalar{0}, vScalar{0}, wScalar{0};
+		double u{0}, v{0}, w{0};
 		if(normalAxis == AxisOrientationEnum::x)
-			uScalar = inletVelocity;
+			u = inletVelocity;
 		else if(normalAxis == AxisOrientationEnum::y)
-			vScalar = inletVelocity;
+			v = inletVelocity;
 		else if(normalAxis == AxisOrientationEnum::z)
-			wScalar = inletVelocity;
+			w = inletVelocity;
 		else
 			throw std::logic_error("Unexpected enum value");
-		double pScalar = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex)
-						 - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double TScalar = 0;
-		PrimitiveVariablesScalars primitiveVarsScalars(uScalar, vScalar, wScalar, pScalar, TScalar);
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+		double p = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
+				   - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
+		double T = 0;
+		PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
 		ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
 		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
 		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
-		double pEdge = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
-						 - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
 	}
 }
 
@@ -180,26 +178,26 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNode
 	{
 		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double rho_Scalar = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-							- flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-		double rho_u_Scalar = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
-							  - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
-		double rho_v_Scalar = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
-							  - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
-		double rho_w_Scalar = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
-							  - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
-		double pScalar = - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double uScalar = rho_u_Scalar / (1+rho_Scalar);
-		double vScalar = rho_v_Scalar / (1+rho_Scalar);
-		double wScalar = rho_w_Scalar / (1+rho_Scalar);
-		double TScalar = ( params.Gamma * pScalar - rho_Scalar ) / ( 1 + rho_Scalar );
-		double rho_E_Scalar = pScalar / ( params.Gamma - 1 )
-				+ (1 + rho_Scalar)/2 * ( uScalar*uScalar + vScalar*vScalar + wScalar*wScalar );
+		double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+					 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+		double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+					   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
+		double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+					   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
+		double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+					   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
+		double p = 0;
 
-		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
-		ConservedVariablesScalars conservedVarsLocal(rho_Scalar, rho_u_Scalar, rho_v_Scalar, rho_w_Scalar, rho_E_Scalar);
-		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
-		setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal, flowVariables);
+		double u = rho_u / (1+rho);
+		double v = rho_v / (1+rho);
+		double w = rho_w / (1+rho);
+		double T = ( params.Gamma * p - rho ) / ( 1 + rho );
+		double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
+
+		PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
+		ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
+		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
 	}
 }
 
@@ -241,34 +239,34 @@ void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNo
 	{
 		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double uScalar, vScalar, wScalar;
+		double u, v, w;
 		if(normalAxis == AxisOrientationEnum::x)
 		{	// Normal component zero, and other components get zero gradient.
-			uScalar = -flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+			u = -flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else if(normalAxis == AxisOrientationEnum::y)
 		{
-			uScalar =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar = -flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+			u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			v = -flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else if(normalAxis == AxisOrientationEnum::z)
 		{
-			uScalar =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar = -flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+			u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+			v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+			w = -flowVariables.primitiveVariables.w(nextToAdjacentIndex);
 		}
 		else
 			throw std::logic_error("Unexpected enum value");
 
-		double pScalar = flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double TScalar = flowVariables.primitiveVariables.T(nextToAdjacentIndex);
-		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
-		ConservedVariablesScalars conservedVarsLocal = deriveConservedVariables(primitiveVarsLocal, params);
-		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
-		setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal, flowVariables);
+		double p = flowVariables.primitiveVariables.p(nextToAdjacentIndex);
+		double T = flowVariables.primitiveVariables.T(nextToAdjacentIndex);
+		PrimitiveVariablesScalars  primitiveVarsScalars(u, v, w, p, T);
+		ConservedVariablesScalars conservedVarsScalars   = deriveConservedVariables (primitiveVarsScalars, params);
+		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
 	}
 }
 
@@ -280,6 +278,7 @@ ImmersedBoundary::ImmersedBoundary()
 
 void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 											  const Vector3_d& gridSpacing,
+											  const Vector3_d& meshOriginOffset,
 											  const ConfigSettings& params,
 											  const Array3D_nodeType& nodeTypeArray,
 											  AllFlowVariablesArrayGroup& flowVariables // <- Output
@@ -297,13 +296,13 @@ void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 		
 		setInterpolationValues(
 				surroundingNodes, nMeshNodes, gridSpacing,			// <- Input
-				nodeTypeArray, flowVariables,						// <- Input
+				meshOriginOffset, nodeTypeArray, flowVariables,		// <- Input
 				interpolationValues, interpolationPositions,		// <- Output
 				ghostFlag, allSurroundingAreFluid, unitNormals);	// <- Output
 		
 		PrimitiveVariablesScalars imagePointPrimVars = interpolatePrimitiveVariables(
 				interpolationValues, interpolationPositions, allSurroundingAreFluid,
-				ghostFlag, ghostNode, surroundingNodes, unitNormals, gridSpacing);
+				ghostFlag, ghostNode, surroundingNodes, unitNormals, gridSpacing, meshOriginOffset);
 
 		PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodePrimitiveVariables(imagePointPrimVars);
 		ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
@@ -369,13 +368,14 @@ void ImmersedBoundary::checkIfSurroundingShouldBeGhost(const Vector3_u &surround
 vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess,
 														   const Vector3_d& gridSpacing,
 														   const Vector3_u& nMeshNodes,
+														   const Vector3_d& meshOriginOffset,
 														   Array3D_nodeType& nodeTypeArray)
 {
 	vector<GhostNode> newGhostNodes;
 	for (GhostNodeVectorIterator ghostIterator{firstGhostToProcess}; ghostIterator!=ghostNodes.end(); ++ghostIterator)
 	{
 		GhostNode& ghostNode = *ghostIterator;
-		Vector3_d ghostNodePosition = getNodePosition(ghostNode.indices, gridSpacing);
+		Vector3_d ghostNodePosition = getNodePosition(ghostNode.indices, gridSpacing, meshOriginOffset);
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
@@ -401,6 +401,7 @@ GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNod
 
 void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
 													   const Vector3_u& nMeshNodes, const Vector3_d& gridSpacing,
+													   const Vector3_d& meshOriginOffset,
 													   const AllFlowVariablesArrayGroup &flowVariables,
 													   InterpolationValues& interpolationValues,		// <- OUTPUT
 													   InterpolationPositions& interpolationPositions)	// <- OUTPUT
@@ -410,7 +411,8 @@ void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surr
 	interpolationValues.w[counter] = flowVariables.primitiveVariables.w(surroundingNodeIndex1D);
 	interpolationValues.p[counter] = flowVariables.primitiveVariables.p(surroundingNodeIndex1D);
 	interpolationValues.T[counter] = flowVariables.primitiveVariables.T(surroundingNodeIndex1D);
-	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, nMeshNodes), gridSpacing );
+	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
+															gridSpacing, meshOriginOffset );
 	interpolationPositions.x[counter] = surroundingNodePosition.x;
 	interpolationPositions.y[counter] = surroundingNodePosition.y;
 	interpolationPositions.z[counter] = surroundingNodePosition.z;
@@ -441,6 +443,7 @@ void ImmersedBoundary::setInterpolationValues(
 		const IndexBoundingBox& surroundingNodes,
 		const Vector3_u& nMeshNodes,
 		const Vector3_d& gridSpacing,
+		const Vector3_d& meshOriginOffset,
 		const Array3D_nodeType& nodeTypeArray,
 		const AllFlowVariablesArrayGroup& flowVariables,
 		InterpolationValues& interpolationValues,		// <-
@@ -456,7 +459,7 @@ void ImmersedBoundary::setInterpolationValues(
 		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
 		{
 			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, nMeshNodes,	// <- Input
-											gridSpacing, flowVariables,						// <- Input
+											gridSpacing, meshOriginOffset, flowVariables,	// <- Input
 											interpolationValues, interpolationPositions);	// <- Output
 		}
 		else if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
@@ -476,9 +479,10 @@ void ImmersedBoundary::setInterpolationValues(
 double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationValues,
 												 const Vector3_u& lowerIndexNode,
 												 const Vector3_d& imagePointPosition,
-												 const Vector3_d& gridSpacing)
+												 const Vector3_d& gridSpacing,
+												 const Vector3_d& meshOriginOffset)
 {
-	Vector3_d lowerIndexNodePosition = getNodePosition(lowerIndexNode, gridSpacing);
+	Vector3_d lowerIndexNodePosition = getNodePosition(lowerIndexNode, gridSpacing, meshOriginOffset);
 	Vector3_d relativePosition = imagePointPosition - lowerIndexNodePosition;
 
 	double variableAt01 = interpolationValues(0)
@@ -500,13 +504,14 @@ PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(
 		const InterpolationValues& interpolationValues,
 		const Vector3_u& lowerIndexNode,
 		const Vector3_d& imagePointPosition,
-		const Vector3_d& gridSpacing )
+		const Vector3_d& gridSpacing,
+		const Vector3_d& meshOriginOffset )
 {
-	double uInterpolated = simplifiedInterpolation(interpolationValues.u, lowerIndexNode, imagePointPosition, gridSpacing);
-	double vInterpolated = simplifiedInterpolation(interpolationValues.v, lowerIndexNode, imagePointPosition, gridSpacing);
-	double wInterpolated = simplifiedInterpolation(interpolationValues.w, lowerIndexNode, imagePointPosition, gridSpacing);
-	double pInterpolated = simplifiedInterpolation(interpolationValues.p, lowerIndexNode, imagePointPosition, gridSpacing);
-	double TInterpolated = simplifiedInterpolation(interpolationValues.T, lowerIndexNode, imagePointPosition, gridSpacing);
+	double uInterpolated = simplifiedInterpolation(interpolationValues.u, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double vInterpolated = simplifiedInterpolation(interpolationValues.v, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double wInterpolated = simplifiedInterpolation(interpolationValues.w, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double pInterpolated = simplifiedInterpolation(interpolationValues.p, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double TInterpolated = simplifiedInterpolation(interpolationValues.T, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
 	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
 }
 
@@ -585,7 +590,8 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
 		const GhostNode& ghostNode,
 		const IndexBoundingBox& surroundingNodes,
 		const vector<Vector3_d>& unitNormals,
-		const Vector3_d& gridSpacing)
+		const Vector3_d& gridSpacing,
+		const Vector3_d& meshOriginOffset )
 {
 	PrimitiveVariablesScalars imagePointPrimVars;
 	if (allSurroundingAreFluid)
@@ -594,7 +600,7 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
 		imagePointPrimVars = simplifiedInterpolationAll(interpolationValues,
 														lowerIndexNode,
 														ghostNode.imagePoint,
-														gridSpacing);
+														gridSpacing, meshOriginOffset);
 	}
 	else
 	{ // Then we must use trilinear interpolation with the Vandermonde matrix:
@@ -618,18 +624,19 @@ radius{radius}
 void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 		   	   	   	   	   	   	   	    const Vector3_d& gridSpacing,
 										const Vector3_u& nMeshNodes,
+										const Vector3_d& meshOriginOffset,
 										Array3D_nodeType& nodeTypeArray	// <- Output
 										)
 {
 	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(gridSpacing, nMeshNodes);
 	vector<size_t> solidNodeIndices;
-	getSolidNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes, solidNodeIndices, nodeTypeArray);
+	getSolidNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, solidNodeIndices, nodeTypeArray);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, nMeshNodes, nodeTypeArray);
-	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, nodeTypeArray);
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	while(newGhostNodes.size() > 0)
 	{
 		GhostNodeVectorIterator nextToProcess = appendGhostNodes(newGhostNodes, nMeshNodes);
-		newGhostNodes = setImagePointPositions(nextToProcess, gridSpacing, nMeshNodes, nodeTypeArray);
+		newGhostNodes = setImagePointPositions(nextToProcess, gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	}
 }
 
@@ -682,6 +689,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
 										   const IndexBoundingBox& indicesToCheck,
 										   const Vector3_d& gridSpacing,
 										   const Vector3_u& nMeshNodes,
+										   const Vector3_d& meshOriginOffset,
 										   vector<size_t>& solidNodeIndices, // <- Output
 										   Array3D_nodeType& nodeTypeArray   // <- Output
 										   )
@@ -691,7 +699,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
 			for (size_t k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
 			{
 				double distanceFromCentroid{0};
-				Vector3_d nodePosition = getNodePosition(i, j, k, gridSpacing);
+				Vector3_d nodePosition = getNodePosition(i, j, k, gridSpacing, meshOriginOffset);
 				if (axis == AxisOrientationEnum::x)
 					distanceFromCentroid = sqrt( pow(nodePosition.y - centroidPosition.y, 2)
 											   + pow(nodePosition.z - centroidPosition.z, 2));
@@ -719,19 +727,20 @@ radius{radius}
 void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 	   	   	   	    				  const Vector3_d& gridSpacing,
 									  const Vector3_u& nMeshNodes,
+									  const Vector3_d& meshOriginOffset,
 									  Array3D_nodeType& nodeTypeArray	// <- Output
 									  )
 {
 	IndexBoundingBox indicesToCheck = getSphereBoundingBox(gridSpacing);
 	vector<size_t> solidNodeIndices;
-	getSolidNodesInSphere(params, indicesToCheck, gridSpacing, nMeshNodes, solidNodeIndices, nodeTypeArray);
+	getSolidNodesInSphere(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, solidNodeIndices, nodeTypeArray);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, nMeshNodes, nodeTypeArray);
 
-	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, nodeTypeArray);
+	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	while(newGhostNodes.size() > 0)
 	{
 		appendGhostNodes(newGhostNodes, nMeshNodes);
-		newGhostNodes = setImagePointPositions(newGhostNodes.begin(), gridSpacing, nMeshNodes, nodeTypeArray);
+		newGhostNodes = setImagePointPositions(newGhostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	}
 }
 
@@ -765,6 +774,7 @@ void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
 		   	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
 									   const Vector3_d& gridSpacing,
 									   const Vector3_u& nMeshNodes,
+									   const Vector3_d& meshOriginOffset,
 									   vector<size_t>& solidNodeIndices, // <- Output
 									   Array3D_nodeType& nodeTypeArray   // <- Output
 		   	   	   	   	   	   	   	   )
@@ -773,7 +783,7 @@ void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
 		for (size_t j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
 			for (size_t k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
 			{
-				Vector3_d nodePosition = getNodePosition(i, j, k, gridSpacing);
+				Vector3_d nodePosition = getNodePosition(i, j, k, gridSpacing, meshOriginOffset);
 				double distanceFromCenter = sqrt( pow(nodePosition.x - centerPosition.x, 2)
 												+ pow(nodePosition.y - centerPosition.y, 2)
 												+ pow(nodePosition.z - centerPosition.z, 2));

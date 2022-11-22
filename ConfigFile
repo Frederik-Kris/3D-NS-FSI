@@ -14,9 +14,9 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 4
-NI = 53
+NI = 51
 NJ = 53
-NK = 4
+NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
@@ -30,7 +30,7 @@ stopTimeLevel = 2
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 1.
+t_end = 200.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -39,6 +39,7 @@ convStabilityLimit = 1.4
 // Constant specifying the viscous stability criterion
 // Should give stability when >-1.5 , but some margin may be necessary.
 viscStabilityLimit = -1.1
+
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterInterval = 0
@@ -75,7 +76,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.02
+savePeriod = 3.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.

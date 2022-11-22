@@ -47,16 +47,20 @@ inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes)
 inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes)
 { return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
 
-inline Vector3_d getNodePosition(size_t i, size_t j, size_t k, const Vector3_d& gridSpacings)
+inline Vector3_d getNodePosition(size_t i, size_t j, size_t k,
+								 const Vector3_d& gridSpacings,
+								 const Vector3_d& meshOriginOffset)
 {
-	double x { ( static_cast<int>(i) - 1 ) * gridSpacings.x };
-	double y { ( static_cast<int>(j) - 1 ) * gridSpacings.y };
-	double z { ( static_cast<int>(k) - 1 ) * gridSpacings.z };
+	double x = ( static_cast<int>(i) - meshOriginOffset.x ) * gridSpacings.x ;
+	double y = ( static_cast<int>(j) - meshOriginOffset.y ) * gridSpacings.y ;
+	double z = ( static_cast<int>(k) - meshOriginOffset.z ) * gridSpacings.z ;
 	return Vector3_d(x, y, z);
 }
 
-inline Vector3_d getNodePosition(const Vector3_u& indices, const Vector3_d& gridSpacings)
-{ return getNodePosition(indices.i, indices.j, indices.k, gridSpacings); }
+inline Vector3_d getNodePosition(const Vector3_u& indices,
+								 const Vector3_d& gridSpacings,
+								 const Vector3_d& meshOriginOffset)
+{ return getNodePosition(indices.i, indices.j, indices.k, gridSpacings, meshOriginOffset); }
 
 struct IndexBoundingBox
 {

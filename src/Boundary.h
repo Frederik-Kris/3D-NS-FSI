@@ -146,11 +146,13 @@ public:
 	virtual void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
 									  const Vector3_u& nMeshNodes,
+									  const Vector3_d& meshOriginOffset,
 									  Array3D_nodeType& nodeTypeArray	// <- Output
 			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
 
 	void applyBoundaryCondition(const Vector3_u& nMeshNodes,
 			  	  	  	  	  	const Vector3_d& gridSpacing,
+								const Vector3_d& meshOriginOffset,
 								const ConfigSettings& params,
 								const Array3D_nodeType& nodeTypeArray,
 								AllFlowVariablesArrayGroup& flowVariables // <- Output
@@ -172,6 +174,7 @@ protected:
 	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess,
 			   	   	   	   	   	   	   	   	 const Vector3_d& gridSpacing,
 											 const Vector3_u& nMeshNodes,
+											 const Vector3_d& meshOriginOffset,
 											 Array3D_nodeType& nodeTypeArray);
 
 	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Vector3_u& nMeshNodes);
@@ -182,13 +185,15 @@ private:
 	double simplifiedInterpolation(const Vector8_d& interpolationValues,
 			 	 	 	 	 	   const Vector3_u& lowerIndexNode,
 								   const Vector3_d& imagePointPosition,
-								   const Vector3_d& gridSpacing);
+								   const Vector3_d& gridSpacing,
+								   const Vector3_d& meshOriginOffset);
 
 	PrimitiveVariablesScalars simplifiedInterpolationAll(
 			const InterpolationValues& interpolationValues,
 			const Vector3_u& lowerIndexNode,
 			const Vector3_d& imagePointPosition,
-			const Vector3_d& gridSpacing );
+			const Vector3_d& gridSpacing,
+			const Vector3_d& meshOriginOffset );
 
 	PrimitiveVariablesScalars getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars);
 
@@ -211,6 +216,7 @@ private:
 
 	void setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
 			   	   	   	   	   	   	     const Vector3_u& nMeshNodes, const Vector3_d& gridSpacing,
+										 const Vector3_d& meshOriginOffset,
 										 const AllFlowVariablesArrayGroup &flowVariables,
 										 InterpolationValues& interpolationValues,			// <- OUTPUT
 										 InterpolationPositions& interpolationPositions);	// <- OUTPUT
@@ -226,6 +232,7 @@ private:
 			const IndexBoundingBox& surroundingNodes,
 			const Vector3_u& nMeshNodes,
 			const Vector3_d& gridSpacing,
+			const Vector3_d& meshOriginOffset,
 			const Array3D_nodeType& nodeTypeArray,
 			const AllFlowVariablesArrayGroup& flowVariables,
 			InterpolationValues& interpolationValues,		// <-
@@ -242,7 +249,8 @@ private:
 			const GhostNode& ghostNode,
 			const IndexBoundingBox& surroundingNodes,
 			const vector<Vector3_d>& unitNormals,
-			const Vector3_d& gridSpacing);
+			const Vector3_d& gridSpacing,
+			const Vector3_d& meshOriginOffset);
 };
 
 // Class to define boundary conditions at an immersed cylinder:
@@ -254,6 +262,7 @@ public:
 	void identifyRelatedNodes(const ConfigSettings& params,
 	   	   	   	   	    	  const Vector3_d& gridSpacing,
 							  const Vector3_u& nMeshNodes,
+							  const Vector3_d& meshOriginOffset,
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 							  ) override;
 
@@ -271,6 +280,7 @@ private:
 			   	   	   	   	   	 const IndexBoundingBox& indicesToCheck,
 								 const Vector3_d& gridSpacing,
 								 const Vector3_u& nMeshNodes,
+								 const Vector3_d& meshOriginOffset,
 								 vector<size_t>& solidNodeIndices, // <- Output
 								 Array3D_nodeType& nodeTypeArray   // <- Output
 			   	   	   	   	   	 );
@@ -285,6 +295,7 @@ public:
 	void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  const Vector3_d& gridSpacing,
 							  const Vector3_u& nMeshNodes,
+							  const Vector3_d& meshOriginOffset,
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 			  	  	  	  	  ) override;
 
@@ -300,6 +311,7 @@ private:
 	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
 							   const Vector3_d& gridSpacing,
 							   const Vector3_u& nMeshNodes,
+							   const Vector3_d& meshOriginOffset,
 							   vector<size_t>& solidNodeIndices, // <- Output
 							   Array3D_nodeType& nodeTypeArray   // <- Output
 	   	   	   	   	   	   	   );
