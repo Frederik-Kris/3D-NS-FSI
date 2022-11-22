@@ -147,43 +147,24 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 	{
 		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double uScalar, vScalar, wScalar;
+		double uScalar{0}, vScalar{0}, wScalar{0};
 		if(normalAxis == AxisOrientationEnum::x)
-		{
-			uScalar = 2*inletVelocity - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar = 				  - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar = 				  - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-			flowVariables.primitiveVariables.u(boundaryAdjacentIndex) = inletVelocity;
-			flowVariables.primitiveVariables.v(boundaryAdjacentIndex) = 0;
-			flowVariables.primitiveVariables.w(boundaryAdjacentIndex) = 0;
-		}
+			uScalar = inletVelocity;
 		else if(normalAxis == AxisOrientationEnum::y)
-		{
-			uScalar = 				  - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar = 2*inletVelocity - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar = 				  - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-			flowVariables.primitiveVariables.u(boundaryAdjacentIndex) = 0;
-			flowVariables.primitiveVariables.v(boundaryAdjacentIndex) = inletVelocity;
-			flowVariables.primitiveVariables.w(boundaryAdjacentIndex) = 0;
-		}
+			vScalar = inletVelocity;
 		else if(normalAxis == AxisOrientationEnum::z)
-		{
-			uScalar = 				  - flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			vScalar = 				  - flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			wScalar = 2*inletVelocity - flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-			flowVariables.primitiveVariables.u(boundaryAdjacentIndex) = 0;
-			flowVariables.primitiveVariables.v(boundaryAdjacentIndex) = 0;
-			flowVariables.primitiveVariables.w(boundaryAdjacentIndex) = inletVelocity;
-		}
+			wScalar = inletVelocity;
 		else
 			throw std::logic_error("Unexpected enum value");
-		double pScalar = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
+		double pScalar = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex)
 						 - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double TScalar = - flowVariables.primitiveVariables.T(nextToAdjacentIndex);
-		PrimitiveVariablesScalars primitiveVarsLocal(uScalar, vScalar, wScalar, pScalar, TScalar);
-		ConservedVariablesScalars   conservedVarsLocal = deriveConservedVariables (primitiveVarsLocal, params);
-		TransportPropertiesScalars transportPropsLocal = deriveTransportProperties(primitiveVarsLocal, params);
-		setFlowVariablesAtNode(index1D, conservedVarsLocal, primitiveVarsLocal, transportPropsLocal, flowVariables);
+		double TScalar = 0;
+		PrimitiveVariablesScalars primitiveVarsScalars(uScalar, vScalar, wScalar, pScalar, TScalar);
+		ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
+		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+		double pEdge = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
+						 - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
 	}
 }
 
