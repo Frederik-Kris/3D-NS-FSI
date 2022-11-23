@@ -293,7 +293,7 @@ void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 		ghostFlag.fill(false);	// <- Sets all 8 values to false
 		bool allSurroundingAreFluid{true};
 		vector<Vector3_d> unitNormals;	// For each of the surrounding nodes that is ghost, we put its unit normal probe here.
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
 		
 		setInterpolationValues(
 				surroundingNodes, nMeshNodes, gridSpacing,			// <- Input
@@ -322,29 +322,87 @@ void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<size_t>& so
 	{
 		Vector3_u solidNode = getIndices3D(index1D, nMeshNodes);
 		bool solidNodeHasFluidNeighbor { false };
-		if (solidNode.i > meshSize.iMin)
+		if (solidNode.i > meshSize.iMin) // Then we can test all nodes at i-1:
+		{
 			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (-1,0,0)
 
-		if (solidNode.i < meshSize.iMax)
+			if (solidNode.j > meshSize.jMin)
+				if (nodeTypeArray(solidNode.i - 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (-1,-1,0)
+
+			if (solidNode.j < meshSize.jMax)
+				if (nodeTypeArray(solidNode.i - 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (-1,1,0)
+
+			if (solidNode.k > meshSize.kMin)
+				if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (-1,0,-1)
+
+			if (solidNode.k < meshSize.kMax)
+				if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (-1,0,1)
+		}
+
+		if (solidNode.i < meshSize.iMax) // Then we can test all nodes at i+1:
+		{
 			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (1,0,0)
+
+			if (solidNode.j > meshSize.jMin)
+				if (nodeTypeArray(solidNode.i + 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (1,-1,0)
+
+			if (solidNode.j < meshSize.jMax)
+				if (nodeTypeArray(solidNode.i + 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (1,1,0)
+
+			if (solidNode.k > meshSize.kMin)
+				if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (1,0,-1)
+
+			if (solidNode.k < meshSize.kMax)
+				if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (1,0,1)
+		}
+
+		// And then we check the nodes at the same i-index (x-coordinate) as the solid node:
 
 		if (solidNode.j > meshSize.jMin)
+		{
 			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (0,-1,0
+
+			if (solidNode.k > meshSize.kMin)
+				if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (0,-1,-1)
+
+			if (solidNode.k < meshSize.kMax)
+				if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (0,-1,1)
+		}
 
 		if (solidNode.j < meshSize.jMax)
+		{
 			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (0,1,0)
+
+			if (solidNode.k > meshSize.kMin)
+				if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (0,1,-1)
+
+			if (solidNode.k < meshSize.kMax)
+				if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+					solidNodeHasFluidNeighbor = true; // (0,1,1)
+		}
 
 		if (solidNode.k > meshSize.kMin)
 			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (0,0,-1)
 
 		if (solidNode.k < meshSize.kMax)
 			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
-				solidNodeHasFluidNeighbor = true;
+				solidNodeHasFluidNeighbor = true; // (0,0,1)
 
 		if (solidNodeHasFluidNeighbor)
 		{
@@ -380,7 +438,7 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterat
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
 		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
 			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 											 newGhostNodes, nodeTypeArray );
