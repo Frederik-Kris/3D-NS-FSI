@@ -91,11 +91,13 @@ struct IndexBoundingBox
 	}
 };
 
-inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point, const Vector3_d& gridSpacings)
+inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point,
+											   const Vector3_d& gridSpacings,
+											   const Vector3_d& meshOriginOffset)
 {
-	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) );
-	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) );
-	size_t kNext = static_cast<size_t>( ceil( point.z / gridSpacings.z ) );
+	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) + meshOriginOffset.x );
+	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) + meshOriginOffset.y );
+	size_t kNext = static_cast<size_t>( ceil( point.z / gridSpacings.z ) + meshOriginOffset.z );
 	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
 	surroundingBox.iMin = iNext - 1;
 	surroundingBox.jMin = jNext - 1;
