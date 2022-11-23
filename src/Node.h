@@ -24,12 +24,12 @@ typedef std::vector<GhostNode>::iterator GhostNodeVectorIterator;
 
 enum class NodeTypeEnum
 {
-	FluidActive, FluidEdge, Solid, Ghost
+	FluidInterior, FluidEdge, FluidGhost, SolidInactive, SolidGhost
 };
 
 struct IndexVectorGroup
 {
-	vector<size_t> fluidActive;
+	vector<size_t> fluidInterior;
 	vector<size_t> fluidEdge;
 	vector<size_t> ghost;
 };

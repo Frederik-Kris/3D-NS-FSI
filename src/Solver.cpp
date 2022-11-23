@@ -176,7 +176,7 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, const Array3D_d
 		                                    Array3D_d& RK4_slope)
 {
 	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 	{
 		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
@@ -207,7 +207,7 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_s
 
 	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 	{
 		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
@@ -248,7 +248,7 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_s
 
 	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 	{
 		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
@@ -289,7 +289,7 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_s
 
 	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 	{
 		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
@@ -336,7 +336,7 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope)
 
 	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 	{
 		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
 		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
@@ -397,7 +397,7 @@ void Solver::computeAllIntermediateSolutions(const ConservedVariablesArrayGroup&
 void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, const Array3D_d& RK4_slope,
 		                                       Array3D_d& intermSolution, double timeIncrement)
 {
-	for(size_t index1D : mesh.indexByType.fluidActive)
+	for(size_t index1D : mesh.indexByType.fluidInterior)
 		intermSolution(index1D) = conservedVar(index1D) + timeIncrement * RK4_slope(index1D);
 }
 
@@ -423,19 +423,19 @@ void Solver::updatePrimitiveVariables()
 			  &mu{mesh.transportProperties.mu},
 			  &kappa{mesh.transportProperties.kappa};
 
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		u(i) = rho_u(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		v(i) = rho_v(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		w(i) = rho_w(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		p(i) = gammaMinusOne * ( rho_E(i) - (rho(i)+1)/2 * (u(i)*u(i) + v(i)*v(i) + w(i)*w(i)) );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re*( T(i) + ScPlusOne ) );
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 		kappa(i) = mu(i) * prandtlFactor;
 }
 
@@ -455,7 +455,7 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, const Array3D_d& k2,
 									const Array3D_d& conservedVar_old, Array3D_d& conservedVar_new)
 {
 	double dtFactor{dt / 6};
-	for(size_t i : mesh.indexByType.fluidActive)
+	for(size_t i : mesh.indexByType.fluidInterior)
 	{
 		double residualValue = dtFactor*( k1(i) + 2*k2(i) + 2*k3(i) + k4(i) );
 		conservedVar_new(i) = conservedVar_old(i) + residualValue;

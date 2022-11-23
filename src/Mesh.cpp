@@ -37,12 +37,12 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	dz = params.L_z / (NK-2);
 	positionOffset.x = 0;
 	positionOffset.y = 1;
-	positionOffset.z = 0;
+	positionOffset.z = 1;
 
-//	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
-//	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-//																AxisOrientationEnum::z,
-//																params.L_y/8.1));
+	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
+	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+																AxisOrientationEnum::z,
+																params.L_y/8.1));
 }
 
 // Sanity check for the combination of boundary conditions.
@@ -56,7 +56,7 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
 	const Vector3_u nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
-	nodeType.setAll(NodeTypeEnum::FluidActive);
+	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
 	IndexBoundingBox unclaimedNodes = meshSize;
 	for(auto&& boundary : edgeBoundaries)
@@ -67,11 +67,12 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, positionOffset, nodeType);
 
 	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
-		if(nodeType(index1D) == NodeTypeEnum::FluidActive)
-			indexByType.fluidActive.push_back(index1D);
+		if(nodeType(index1D) == NodeTypeEnum::FluidInterior)
+			indexByType.fluidInterior.push_back(index1D);
 		else if(nodeType(index1D) == NodeTypeEnum::FluidEdge)
 			indexByType.fluidEdge.push_back(index1D);
-		else if(nodeType(index1D) == NodeTypeEnum::Ghost)
+		else if(nodeType(index1D) == NodeTypeEnum::SolidGhost)
+//			 || nodeType(index1D) == NodeTypeEnum::FluidGhost)
 			indexByType.ghost.push_back(index1D);
 }
 
@@ -150,7 +151,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredChanges = 0;
-	for(size_t i : indexByType.fluidActive)
+	for(size_t i : indexByType.fluidInterior)
 		sumOfSquaredChanges += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredChanges );
 	return normOfChange;

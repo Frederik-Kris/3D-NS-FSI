@@ -7,9 +7,10 @@
 
 #include "Boundary.h"
 
-MeshEdgeBoundary::MeshEdgeBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
+MeshEdgeBoundary::MeshEdgeBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, NodeTypeEnum ownedNodesType)
 : normalAxis{normalAxis},
-  planeIndex{planeIndex}
+  planeIndex{planeIndex},
+  ownedNodesType{ownedNodesType}
 {}
 
 void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
@@ -66,7 +67,7 @@ void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 			for(size_t k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
 			{
 				nodeIndices.push_back(getIndex1D(i,j,k, nMeshNodes));
-				nodeTypeArray(i,j,k) = NodeTypeEnum::FluidEdge;
+				nodeTypeArray(i,j,k) = ownedNodesType;
 			}
 }
 
@@ -131,7 +132,7 @@ size_t MeshEdgeBoundary::getPeriodicIndex(size_t index1D, const Vector3_u& nMesh
 }
 
 InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, double velocity)
-: MeshEdgeBoundary(normalAxis, planeIndex),
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidEdge),
   velocity{velocity}
 {}
 
@@ -167,7 +168,7 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 }
 
 OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
-: MeshEdgeBoundary(normalAxis, planeIndex)
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidEdge)
 {}
 
 void OutletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
@@ -202,7 +203,7 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNode
 }
 
 PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
-: MeshEdgeBoundary(normalAxis, planeIndex)
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
 {}
 
 void PeriodicBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
@@ -228,7 +229,7 @@ void PeriodicBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNo
 }
 
 SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
-: MeshEdgeBoundary(normalAxis, planeIndex)
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
 {}
 
 void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
@@ -292,7 +293,7 @@ void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 		ghostFlag.fill(false);	// <- Sets all 8 values to false
 		bool allSurroundingAreFluid{true};
 		vector<Vector3_d> unitNormals;	// For each of the surrounding nodes that is ghost, we put its unit normal probe here.
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset);
 		
 		setInterpolationValues(
 				surroundingNodes, nMeshNodes, gridSpacing,			// <- Input
@@ -322,34 +323,34 @@ void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<size_t>& so
 		Vector3_u solidNode = getIndices3D(index1D, nMeshNodes);
 		bool solidNodeHasFluidNeighbor { false };
 		if (solidNode.i > meshSize.iMin)
-			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.i < meshSize.iMax)
-			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.j > meshSize.jMin)
-			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.j < meshSize.jMax)
-			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.k > meshSize.kMin)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNode.k < meshSize.kMax)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidActive)
+			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true;
 
 		if (solidNodeHasFluidNeighbor)
 		{
 			ghostNodes.emplace_back(solidNode);
 			ghostNodeMap[index1D] = &ghostNodes.back();
-			nodeTypeArray(solidNode) = NodeTypeEnum::Ghost;
+			nodeTypeArray(solidNode) = NodeTypeEnum::SolidGhost;
 		}
 	}
 }
@@ -358,10 +359,10 @@ void ImmersedBoundary::checkIfSurroundingShouldBeGhost(const Vector3_u &surround
 													   vector<GhostNode>& newGhostNodes,
 													   Array3D_nodeType& nodeTypeArray)
 {
-	if (nodeTypeArray(surroundingNode) == NodeTypeEnum::Solid)
+	if (nodeTypeArray(surroundingNode) == NodeTypeEnum::SolidInactive)
 	{
 		newGhostNodes.emplace_back(surroundingNode);
-		nodeTypeArray(surroundingNode) = NodeTypeEnum::Ghost;
+		nodeTypeArray(surroundingNode) = NodeTypeEnum::SolidGhost;
 	}
 }
 
@@ -379,7 +380,7 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterat
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset);
 		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
 			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 											 newGhostNodes, nodeTypeArray );
@@ -455,14 +456,15 @@ void ImmersedBoundary::setInterpolationValues(
 	uint counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
 	for (size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes))
 	{
-		if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidActive
-		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge)
+		if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
+		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
+		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
 		{
 			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, nMeshNodes,	// <- Input
 											gridSpacing, meshOriginOffset, flowVariables,	// <- Input
 											interpolationValues, interpolationPositions);	// <- Output
 		}
-		else if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::Ghost)
+		else if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
 		{
 			ghostFlag[counter] = true;
 			allSurroundingAreFluid = false;
@@ -713,7 +715,7 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
 					throw std::logic_error("Unexpected enum value");
 				if (distanceFromCentroid < radius - params.machinePrecisionBuffer)
 				{
-					nodeTypeArray(i, j, k) = NodeTypeEnum::Solid;
+					nodeTypeArray(i, j, k) = NodeTypeEnum::SolidInactive;
 					solidNodeIndices.push_back( getIndex1D(i, j, k, nMeshNodes) );
 				}
 			}
@@ -789,7 +791,7 @@ void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
 												+ pow(nodePosition.z - centerPosition.z, 2));
 				if (distanceFromCenter < radius - params.machinePrecisionBuffer)
 				{
-					nodeTypeArray(i, j, k) = NodeTypeEnum::Solid;
+					nodeTypeArray(i, j, k) = NodeTypeEnum::SolidInactive;
 					solidNodeIndices.push_back( getIndex1D(i, j, k, nMeshNodes) );
 				}
 			}

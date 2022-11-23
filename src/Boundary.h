@@ -55,7 +55,8 @@ class MeshEdgeBoundary
 {
 public:
 	MeshEdgeBoundary(AxisOrientationEnum normalAxis,
-					 EdgeIndexEnum planeIndex);
+					 EdgeIndexEnum planeIndex,
+					 NodeTypeEnum ownedNodesType);
 
 	virtual ~MeshEdgeBoundary() = default;
 
@@ -70,6 +71,7 @@ public:
 
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
+	const NodeTypeEnum ownedNodesType;
 protected:
 	vector<size_t> nodeIndices;
 
