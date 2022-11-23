@@ -93,11 +93,18 @@ struct IndexBoundingBox
 
 inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point,
 											   const Vector3_d& gridSpacings,
-											   const Vector3_d& meshOriginOffset)
+											   const Vector3_d& meshOriginOffset,
+											   const Vector3_u& nMeshNodes)
 {
 	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) + meshOriginOffset.x );
 	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) + meshOriginOffset.y );
 	size_t kNext = static_cast<size_t>( ceil( point.z / gridSpacings.z ) + meshOriginOffset.z );
+	iNext = max<size_t>( iNext, 1 ); // Make sure that none of these are less than 1,
+	jNext = max<size_t>( jNext, 1 ); // because that would make the lower index negative,
+	kNext = max<size_t>( kNext, 1 ); // e.g., outside the mesh
+	iNext = min<size_t>( iNext, nMeshNodes.i ); // Also make sure the box is not outside
+	jNext = min<size_t>( jNext, nMeshNodes.j ); // on the max side, which could happen due
+	kNext = min<size_t>( kNext, nMeshNodes.k ); // to machine precision on image point.
 	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
 	surroundingBox.iMin = iNext - 1;
 	surroundingBox.jMin = jNext - 1;
