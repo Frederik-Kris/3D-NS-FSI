@@ -406,8 +406,8 @@ void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<size_t>& so
 
 		if (solidNodeHasFluidNeighbor)
 		{
+			ghostNodeMap[index1D] = ghostNodes.size();
 			ghostNodes.emplace_back(solidNode);
-			ghostNodeMap[index1D] = &ghostNodes.back();
 			nodeTypeArray(solidNode) = NodeTypeEnum::SolidGhost;
 		}
 	}
@@ -451,9 +451,9 @@ GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNod
 {
 	for(const GhostNode& newGhostNode : newGhostNodes)
 	{
-		ghostNodes.push_back(newGhostNode);
 		size_t index1D = getIndex1D( newGhostNode.indices, nMeshNodes );
-		ghostNodeMap[index1D] = &ghostNodes.back();
+		ghostNodeMap[index1D] = ghostNodes.size();
+		ghostNodes.push_back(newGhostNode);
 	}
 	return ghostNodes.end() - newGhostNodes.size();
 }
@@ -484,7 +484,7 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 		InterpolationValues& interpolationValues,		// <- Output
 		InterpolationPositions& interpolationPositions)	// <-
 {
-	GhostNode &surroundingGhostNode = *ghostNodeMap.at(surroundingNodeIndex1D);
+	GhostNode &surroundingGhostNode = ghostNodes.at( ghostNodeMap.at(surroundingNodeIndex1D) );
 	Vector3_d &unitNormal = unitNormals.emplace_back();
 	unitNormal = surroundingGhostNode.imagePoint - surroundingGhostNode.bodyInterceptPoint;
 	unitNormal = unitNormal / unitNormal.length();

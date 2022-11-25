@@ -163,7 +163,7 @@ public:
 protected:
 
 	vector<GhostNode> ghostNodes;
-	std::map<size_t, GhostNode*> ghostNodeMap;
+	std::map<size_t, size_t> ghostNodeMap;
 
 	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices,
 										  const Vector3_u& nMeshNodes,
