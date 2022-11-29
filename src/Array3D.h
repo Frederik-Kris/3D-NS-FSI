@@ -97,6 +97,16 @@ public:
 	double getMin() const
 	{ return *std::min_element( data.begin(), data.end() ); }
 
+	vector<double> subArray(const IndexBoundingBox& bounds) const
+	{
+		vector<double> output;
+		for(size_t i=bounds.iMin; i<=bounds.iMax; ++i)
+			for(size_t j=bounds.jMin; j<=bounds.jMax; ++j)
+				for(size_t k=bounds.kMin; k<=bounds.kMax; ++k)
+					output.push_back( data[i*width*height + j*height + k] );
+		return output;
+	}
+
 private:
 	size_t length, width, height;
 	vector<double> data;
