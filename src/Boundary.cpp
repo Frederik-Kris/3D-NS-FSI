@@ -637,8 +637,8 @@ PrimitiveVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const Inte
 	double uInterpolated = trilinearInterpolation(values.u, imagePoint, vandermondeDirichlet);
 	double vInterpolated = trilinearInterpolation(values.v, imagePoint, vandermondeDirichlet);
 	double wInterpolated = trilinearInterpolation(values.w, imagePoint, vandermondeDirichlet);
-	double pInterpolated = trilinearInterpolation(values.p, imagePoint, vandermondeDirichlet);
-	double TInterpolated = trilinearInterpolation(values.T, imagePoint, vandermondeDirichlet);
+	double pInterpolated = trilinearInterpolation(values.p, imagePoint, vandermondeNeumann);
+	double TInterpolated = trilinearInterpolation(values.T, imagePoint, vandermondeNeumann);
 	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
 }
 
