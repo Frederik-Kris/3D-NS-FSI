@@ -140,6 +140,23 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 										   const ConfigSettings& params,				// <- Input
 										   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
+	// DEBUG, try filtering rho on inlet:
+	vector<double> rhoUnfiltered;
+	for(size_t index1D : nodeIndices)
+	{
+		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+		rhoUnfiltered.push_back(2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+				   - flowVariables.conservedVariables.rho(nextToAdjacentIndex));
+		flowVariables.conservedVariables.rho(index1D) = rhoUnfiltered.back();
+	}
+	for(size_t iii=1; iii<nodeIndices.size()-1; ++iii)
+	{
+		size_t index1D = nodeIndices.at(iii);
+		flowVariables.conservedVariables.rho(index1D) =
+				(2*rhoUnfiltered.at(iii)+rhoUnfiltered.at(iii-1)+rhoUnfiltered.at(iii+1))/4;
+	}
+	// END DEBUG
 	double inletVelocity = min(1., t/10.) * velocity; // TODO: move magic const 10 to params
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
@@ -157,9 +174,11 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 			throw std::logic_error("Unexpected enum value");
 		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
 		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double p = 2*flowVariables.primitiveVariables.p(boundaryAdjacentIndex) // Linear extrapolation
-				   - flowVariables.primitiveVariables.p(nextToAdjacentIndex);
+//		double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+//				   - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+		double rho = flowVariables.conservedVariables.rho(index1D);
 		double T = 0;
+		double p = (T*(1+rho) + rho) / params.Gamma;
 		PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
 		ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
 		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);

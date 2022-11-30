@@ -14,8 +14,8 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 2 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 41
-NJ = 23
+NI = 161
+NJ = 83
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -25,21 +25,20 @@ stopCriterion = "end_time"
 // Number of timesteps to compute. If stopTimeLevel is zero or negative, the simulation result will
 // be the the initial condition. With stopTimeLevel = 1, one timestep will be computed, etc.
 // This setting is only used if stopCriterion = "timesteps".
-stopTimeLevel = 2
+stopTimeLevel = 100
 
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 0.5
+t_end = 3.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
-convStabilityLimit = 1.8
+convStabilityLimit = 0.5
 
 // Constant specifying the viscous stability criterion
 // Should give stability when >-1.5 , but some margin may be necessary.
-viscStabilityLimit = -1.4
-
+viscStabilityLimit = -0.375
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterInterval = 0
@@ -52,11 +51,11 @@ filterInterval = 0
 statusReportInterval = 1.
 
 // Booleans to specify what flow variables to store:
-save_rho   = false
-save_rho_u = false
-save_rho_v = false
-save_rho_w = false
-save_E     = false
+save_rho   = true
+save_rho_u = true
+save_rho_v = true
+save_rho_w = true
+save_E     = true
 save_u     = true
 save_v     = true
 save_w     = true
@@ -76,7 +75,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.
+savePeriod = 1.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -114,14 +113,14 @@ Pr = 0.72
 R = 287.
 
 // Stagnation Reynolds number:
-Re = 100.
+Re = 40.
 
 // Constants C_1 and C_2 in Sutherland's law:
 sutherlands_C1 = 1.458E-6
 sutherlands_C2 = 110.4
 
 // Reference Mach number:
-M_0 = 0.5
+M_0 = 0.25
 
 // Reference temperature IN KELVIN, NOT DIMENSIONLESS:
 T_0 = 300.
