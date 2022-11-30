@@ -52,6 +52,24 @@ public:
 	{}
 };
 
+
+
+struct BCVariablesScalars
+{
+public:
+	double rho;		// Mass density
+	double rho_u;	// Momentum density in x-direction
+	double rho_v;	// Momentum density in y-direction
+	double rho_w;	// Momentum density in z-direction
+	double p;		// Pressure
+
+	BCVariablesScalars(double rho, double rho_u, double rho_v, double rho_w, double p) :
+		rho{rho}, rho_u{rho_u}, rho_v{rho_v}, rho_w{rho_w}, p{p}
+	{}
+
+	BCVariablesScalars() = default;
+};
+
 struct ConservedVariablesArrayGroup
 {
 	Array3D_d rho;		// Mass density
@@ -157,6 +175,20 @@ inline PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariabl
 	double v = rho_v / (1+rho);
 	double w = rho_w / (1+rho);
 	double p = ( params.Gamma - 1 )*( rho_E - (1 + rho)/2 * ( u*u + v*v + w*w ));
+	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
+	return PrimitiveVariablesScalars(u, v, w, p, T);
+}
+
+// Computes scalar values for primitive variables, based on the conserved variables, except
+// rhoE is replaced by pressure.
+// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
+// E.g., decide on the conserved and use this function to get the values for the primitive variables.
+inline PrimitiveVariablesScalars derivePrimitiveVariables(const BCVariablesScalars& bcVariables, const ConfigSettings& params)
+{
+	const double rho{bcVariables.rho}, rho_u{bcVariables.rho_u}, rho_v{bcVariables.rho_v}, rho_w{bcVariables.rho_w}, p{bcVariables.p};
+	double u = rho_u / (1+rho);
+	double v = rho_v / (1+rho);
+	double w = rho_w / (1+rho);
 	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
 	return PrimitiveVariablesScalars(u, v, w, p, T);
 }
