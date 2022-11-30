@@ -320,11 +320,12 @@ void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 				interpolationValues, interpolationPositions,		// <- Output
 				ghostFlag, allSurroundingAreFluid, unitNormals);	// <- Output
 		
-		PrimitiveVariablesScalars imagePointPrimVars = interpolatePrimitiveVariables(
+		BCVariablesScalars imagePointBCVars = interpolateImagePointVariables(
 				interpolationValues, interpolationPositions, allSurroundingAreFluid,
 				ghostFlag, ghostNode, surroundingNodes, unitNormals, gridSpacing, meshOriginOffset);
 
-		PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodePrimitiveVariables(imagePointPrimVars);
+		BCVariablesScalars ghostNodeBCVars = getGhostNodeBCVariables(imagePointBCVars);
+		PrimitiveVariablesScalars ghostNodePrimVars = derivePrimitiveVariables(ghostNodeBCVars, params);
 		ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
 		TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
 		setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps,
@@ -484,11 +485,11 @@ void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surr
 													   InterpolationValues& interpolationValues,		// <- OUTPUT
 													   InterpolationPositions& interpolationPositions)	// <- OUTPUT
 {
-	interpolationValues.u[counter] = flowVariables.primitiveVariables.u(surroundingNodeIndex1D);
-	interpolationValues.v[counter] = flowVariables.primitiveVariables.v(surroundingNodeIndex1D);
-	interpolationValues.w[counter] = flowVariables.primitiveVariables.w(surroundingNodeIndex1D);
+	interpolationValues.rhoU[counter] = flowVariables.conservedVariables.rho_u(surroundingNodeIndex1D);
+	interpolationValues.rhoV[counter] = flowVariables.conservedVariables.rho_v(surroundingNodeIndex1D);
+	interpolationValues.rhoW[counter] = flowVariables.conservedVariables.rho_w(surroundingNodeIndex1D);
 	interpolationValues.p[counter] = flowVariables.primitiveVariables.p(surroundingNodeIndex1D);
-	interpolationValues.T[counter] = flowVariables.primitiveVariables.T(surroundingNodeIndex1D);
+	interpolationValues.rho[counter] = flowVariables.conservedVariables.rho(surroundingNodeIndex1D);
 	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 															gridSpacing, meshOriginOffset );
 	interpolationPositions.x[counter] = surroundingNodePosition.x;
@@ -507,11 +508,11 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 	Vector3_d &unitNormal = unitNormals.emplace_back();
 	unitNormal = surroundingGhostNode.imagePoint - surroundingGhostNode.bodyInterceptPoint;
 	unitNormal = unitNormal / unitNormal.length();
-	interpolationValues.u[counter] = 0;
-	interpolationValues.v[counter] = 0;
-	interpolationValues.w[counter] = 0; // NB! This hardcodes zero Dirichlet condition for velocities
+	interpolationValues.rhoU[counter] = 0;
+	interpolationValues.rhoV[counter] = 0;
+	interpolationValues.rhoW[counter] = 0; // NB! This hardcodes zero Dirichlet condition for velocities
 	interpolationValues.p[counter] = 0; // and zero gradient Neumann conditions for pressure and temperature.
-	interpolationValues.T[counter] = 0;
+	interpolationValues.rho[counter] = 0;
 	interpolationPositions.x[counter] = surroundingGhostNode.bodyInterceptPoint.x;
 	interpolationPositions.y[counter] = surroundingGhostNode.bodyInterceptPoint.y;
 	interpolationPositions.z[counter] = surroundingGhostNode.bodyInterceptPoint.z;
@@ -579,29 +580,29 @@ double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationV
 	return variableAt0123 + (variableAt4567-variableAt0123) * relativePosition.x / gridSpacing.x;
 }
 
-PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(
+BCVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(
 		const InterpolationValues& interpolationValues,
 		const Vector3_u& lowerIndexNode,
 		const Vector3_d& imagePointPosition,
 		const Vector3_d& gridSpacing,
 		const Vector3_d& meshOriginOffset )
 {
-	double uInterpolated = simplifiedInterpolation(interpolationValues.u, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
-	double vInterpolated = simplifiedInterpolation(interpolationValues.v, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
-	double wInterpolated = simplifiedInterpolation(interpolationValues.w, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
-	double pInterpolated = simplifiedInterpolation(interpolationValues.p, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
-	double TInterpolated = simplifiedInterpolation(interpolationValues.T, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
-	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
+	double rho  = simplifiedInterpolation(interpolationValues.rho,  lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double rhoU = simplifiedInterpolation(interpolationValues.rhoU, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double rhoV = simplifiedInterpolation(interpolationValues.rhoV, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double rhoW = simplifiedInterpolation(interpolationValues.rhoW, lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	double p    = simplifiedInterpolation(interpolationValues.p,    lowerIndexNode, imagePointPosition, gridSpacing, meshOriginOffset);
+	return BCVariablesScalars(rho, rhoU, rhoV, rhoW, p);
 }
 
-PrimitiveVariablesScalars ImmersedBoundary::getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars)
+BCVariablesScalars ImmersedBoundary::getGhostNodeBCVariables(const BCVariablesScalars& imagePointBCVars)
 {
-	double uGhost = -imagePointPrimVars.u;	// NB! This hardcodes zero Dirichlet condition for velocities
-	double vGhost = -imagePointPrimVars.v;
-	double wGhost = -imagePointPrimVars.w;
-	double pGhost =  imagePointPrimVars.p;	// and zero gradient Neumann conditions for pressure and temperature.
-	double TGhost =  imagePointPrimVars.T;
-	return PrimitiveVariablesScalars(uGhost, vGhost, wGhost, pGhost, TGhost);
+	double rhoGhost  =  imagePointBCVars.rho;
+	double rhoUGhost = -imagePointBCVars.rho_u;	// NB! This hardcodes zero Dirichlet condition for momentum
+	double rhoVGhost = -imagePointBCVars.rho_v;	// and zero gradient Neumann conditions for pressure and density.
+	double rhoWGhost = -imagePointBCVars.rho_w;
+	double pGhost    =  imagePointBCVars.p;
+	return BCVariablesScalars(rhoGhost, rhoUGhost, rhoVGhost, rhoWGhost, pGhost);
 }
 
 void ImmersedBoundary::populateVandermondeDirichlet(const InterpolationPositions& points, Matrix8x8_d& vandermonde)
@@ -648,20 +649,20 @@ double ImmersedBoundary::trilinearInterpolation(const Vector8_d& interpolationVa
 		 + trilinearCoefficients(7)*imagePoint.x*imagePoint.y*imagePoint.z;
 }
 
-PrimitiveVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const InterpolationValues& values,
+BCVariablesScalars ImmersedBoundary::trilinearInterpolationAll(const InterpolationValues& values,
 																	  const Vector3_d& imagePoint,
 																	  const Matrix8x8_d& vandermondeDirichlet,
 																	  const Matrix8x8_d& vandermondeNeumann)
 {
-	double uInterpolated = trilinearInterpolation(values.u, imagePoint, vandermondeDirichlet);
-	double vInterpolated = trilinearInterpolation(values.v, imagePoint, vandermondeDirichlet);
-	double wInterpolated = trilinearInterpolation(values.w, imagePoint, vandermondeDirichlet);
-	double pInterpolated = trilinearInterpolation(values.p, imagePoint, vandermondeNeumann);
-	double TInterpolated = trilinearInterpolation(values.T, imagePoint, vandermondeNeumann);
-	return PrimitiveVariablesScalars(uInterpolated, vInterpolated, wInterpolated, pInterpolated, TInterpolated);
+	double rho  = trilinearInterpolation(values.rho,  imagePoint, vandermondeNeumann);
+	double rhoU = trilinearInterpolation(values.rhoU, imagePoint, vandermondeDirichlet);
+	double rhoV = trilinearInterpolation(values.rhoV, imagePoint, vandermondeDirichlet);
+	double rhoW = trilinearInterpolation(values.rhoW, imagePoint, vandermondeDirichlet);
+	double p    = trilinearInterpolation(values.p,    imagePoint, vandermondeNeumann);
+	return BCVariablesScalars(rho, rhoU, rhoV, rhoW, p);
 }
 
-PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
+BCVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		const InterpolationValues& interpolationValues,
 		const InterpolationPositions& interpolationPositions,
 		bool allSurroundingAreFluid,
@@ -672,11 +673,11 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
 		const Vector3_d& gridSpacing,
 		const Vector3_d& meshOriginOffset )
 {
-	PrimitiveVariablesScalars imagePointPrimVars;
+	BCVariablesScalars imagePointBCVars;
 	if (allSurroundingAreFluid)
 	{ // Then we can use the simplified interpolation method:
 		Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);
-		imagePointPrimVars = simplifiedInterpolationAll(interpolationValues,
+		imagePointBCVars = simplifiedInterpolationAll(interpolationValues,
 														lowerIndexNode,
 														ghostNode.imagePoint,
 														gridSpacing, meshOriginOffset);
@@ -686,12 +687,12 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolatePrimitiveVariables(
 		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
 		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
 		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
-		imagePointPrimVars = trilinearInterpolationAll(interpolationValues,
+		imagePointBCVars = trilinearInterpolationAll(interpolationValues,
 													   ghostNode.imagePoint,
 													   vandermondeDirichlet,
 													   vandermondeNeumann);
 	}
-	return imagePointPrimVars;
+	return imagePointBCVars;
 }
 
 CylinderBody::CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius) :

@@ -34,11 +34,11 @@ typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
 struct InterpolationValues
 {
-	Vector8_d u;	// Velocity component in x-direction
-	Vector8_d v;	// Velocity component in y-direction
-	Vector8_d w;	// Velocity component in z-direction
+	Vector8_d rhoU;	// Velocity component in x-direction
+	Vector8_d rhoV;	// Velocity component in y-direction
+	Vector8_d rhoW;	// Velocity component in z-direction
 	Vector8_d p;	// Pressure
-	Vector8_d T;	// Temperature
+	Vector8_d rho;	// Temperature
 };
 
 struct InterpolationPositions
@@ -190,14 +190,14 @@ private:
 								   const Vector3_d& gridSpacing,
 								   const Vector3_d& meshOriginOffset);
 
-	PrimitiveVariablesScalars simplifiedInterpolationAll(
+	BCVariablesScalars simplifiedInterpolationAll(
 			const InterpolationValues& interpolationValues,
 			const Vector3_u& lowerIndexNode,
 			const Vector3_d& imagePointPosition,
 			const Vector3_d& gridSpacing,
 			const Vector3_d& meshOriginOffset );
 
-	PrimitiveVariablesScalars getGhostNodePrimitiveVariables(const PrimitiveVariablesScalars& imagePointPrimVars);
+	BCVariablesScalars getGhostNodeBCVariables(const BCVariablesScalars& imagePointBCVars);
 
 	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
 									  Matrix8x8_d& vandermonde);
@@ -211,7 +211,7 @@ private:
 													 const Vector3_d& imagePoint,
 													 const Matrix8x8_d& vandermonde);
 
-	PrimitiveVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
+	BCVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
 														const Vector3_d& imagePoint,
 														const Matrix8x8_d& vandermondeDirichlet,
 														const Matrix8x8_d& vandermondeNeumann);
@@ -243,7 +243,7 @@ private:
 			bool& allSurroundingAreFluid,					// <-
 			vector<Vector3_d>& unitNormals);				// <-
 
-	PrimitiveVariablesScalars interpolatePrimitiveVariables(
+	BCVariablesScalars interpolateImagePointVariables(
 			const InterpolationValues& interpolationValues,
 			const InterpolationPositions& interpolationPositions,
 			bool allSurroundingAreFluid,

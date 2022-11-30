@@ -30,15 +30,15 @@ stopTimeLevel = 100
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 3.
+t_end = 10.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
-convStabilityLimit = 0.5
+convStabilityLimit = 0.9
 
 // Constant specifying the viscous stability criterion
 // Should give stability when >-1.5 , but some margin may be necessary.
-viscStabilityLimit = -0.375
+viscStabilityLimit = -0.68
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterInterval = 0
@@ -75,7 +75,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 1.
+savePeriod = 2.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
