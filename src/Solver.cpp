@@ -137,32 +137,20 @@ void Solver::marchTimeStep(double& t, ulong& timeLevel)
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
-	IndexBoundingBox DEBUGcheckBounds(0, mesh.NJ-1, 1);
-	DEBUGcheckBounds.iMin = 0;
-	DEBUGcheckBounds.jMin = 0;
-	DEBUGcheckBounds.kMin = 1;
-	vector<double> DEBUGcheckOscillations = mesh.conservedVariables.rho.subArray(DEBUGcheckBounds);
-
 	computeRK4slopes(mesh.conservedVariables, k2);  // k2: The slopes at time t + dt/2
 	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt/2, params);
-
-	DEBUGcheckOscillations = mesh.conservedVariables.rho.subArray(DEBUGcheckBounds);
 
 	computeRK4slopes(mesh.conservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
 	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
-	DEBUGcheckOscillations = mesh.conservedVariables.rho.subArray(DEBUGcheckBounds);
-
 	computeRK4slopes(mesh.conservedVariables, k4);	// k4: The slopes at time t + dt
 	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
-
-	DEBUGcheckOscillations = mesh.conservedVariables.rho.subArray(DEBUGcheckBounds);
 
 	// At this stage, the conserved variables at the next time level are stored in the intermediate arrays.
 	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.
