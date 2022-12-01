@@ -19,11 +19,13 @@ public:
 	double rho_u;	// Momentum density in x-direction
 	double rho_v;	// Momentum density in y-direction
 	double rho_w;	// Momentum density in z-direction
-	double rho_E;		// Total specific energy per volume
+	double rho_E;	// Total specific energy per volume
 
 	ConservedVariablesScalars(double rho, double rho_u, double rho_v, double rho_w, double rho_E) :
 		rho{rho}, rho_u{rho_u}, rho_v{rho_v}, rho_w{rho_w}, rho_E{rho_E}
 	{}
+
+	ConservedVariablesScalars() = default;
 };
 
 struct PrimitiveVariablesScalars
@@ -58,13 +60,13 @@ struct BCVariablesScalars
 {
 public:
 	double rho;		// Mass density
-	double rho_u;	// Momentum density in x-direction
-	double rho_v;	// Momentum density in y-direction
-	double rho_w;	// Momentum density in z-direction
+	double rhoU;	// Momentum density in x-direction
+	double rhoV;	// Momentum density in y-direction
+	double rhoW;	// Momentum density in z-direction
 	double p;		// Pressure
 
 	BCVariablesScalars(double rho, double rho_u, double rho_v, double rho_w, double p) :
-		rho{rho}, rho_u{rho_u}, rho_v{rho_v}, rho_w{rho_w}, p{p}
+		rho{rho}, rhoU{rho_u}, rhoV{rho_v}, rhoW{rho_w}, p{p}
 	{}
 
 	BCVariablesScalars() = default;
@@ -185,10 +187,10 @@ inline PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariabl
 // E.g., decide on the conserved and use this function to get the values for the primitive variables.
 inline PrimitiveVariablesScalars derivePrimitiveVariables(const BCVariablesScalars& bcVariables, const ConfigSettings& params)
 {
-	const double rho{bcVariables.rho}, rho_u{bcVariables.rho_u}, rho_v{bcVariables.rho_v}, rho_w{bcVariables.rho_w}, p{bcVariables.p};
-	double u = rho_u / (1+rho);
-	double v = rho_v / (1+rho);
-	double w = rho_w / (1+rho);
+	const double rho{bcVariables.rho}, rhoU{bcVariables.rhoU}, rhoV{bcVariables.rhoV}, rhoW{bcVariables.rhoW}, p{bcVariables.p};
+	double u = rhoU / (1+rho);
+	double v = rhoV / (1+rho);
+	double w = rhoW / (1+rho);
 	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
 	return PrimitiveVariablesScalars(u, v, w, p, T);
 }

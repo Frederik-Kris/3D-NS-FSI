@@ -14,23 +14,23 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 2 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 161
-NJ = 83
+NI = 41
+NJ = 23
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
-stopCriterion = "end_time"
+stopCriterion = "timesteps"
 
 // Number of timesteps to compute. If stopTimeLevel is zero or negative, the simulation result will
 // be the the initial condition. With stopTimeLevel = 1, one timestep will be computed, etc.
 // This setting is only used if stopCriterion = "timesteps".
-stopTimeLevel = 100
+stopTimeLevel = 20
 
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 10.
+t_end = 30.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -75,7 +75,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 2.
+savePeriod = 0.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
