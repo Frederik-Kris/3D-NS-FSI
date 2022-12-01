@@ -31,7 +31,7 @@ void OutputManager::initialize()
 		}
 	}
 	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
-		if( entry.path().generic_string().find("standard.pvsm") == string::npos ) // if path does not contain ".."
+		if( entry.path().generic_string().find(".pvsm") == string::npos ) // if path does not contain ".."
 			try
 				{ std::filesystem::remove(entry.path()); }
 			catch (std::exception& ex)
