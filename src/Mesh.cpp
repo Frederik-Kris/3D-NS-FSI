@@ -25,8 +25,8 @@ nodeType(NI, NJ, NK)
 // Construct the objects that define the boundary conditions (BCs)
 void Mesh::setupBoundaries(const ConfigSettings &params)
 {
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
-	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::min));
+	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
@@ -34,17 +34,17 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 
 	dx = params.L_x / (NI-1);
 	dy = params.L_y / (NJ-3);
-	dz = params.L_z / (NK-3);
+	dz = params.L_z / (NK-2);
 	positionOffset.x = 0;
 	positionOffset.y = 1;
 	positionOffset.z = 1;
 
-//	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
-//	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-//																AxisOrientationEnum::z,
-//																params.L_y/8));
-	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
-	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/10));
+	Vector3_d cylinderCentroidPosition(params.L_x / 2, params.L_y / 2, 0);
+	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
+																AxisOrientationEnum::z,
+																params.L_y/8.1));
+//	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
+//	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
 }
 
 // Sanity check for the combination of boundary conditions.
