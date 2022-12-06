@@ -17,18 +17,18 @@ void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 											const Vector3_u& nMeshNodes,
 											Array3D_nodeType& nodeTypeArray )
 {
-	IndexBoundingBox indexBounds = unclaimedNodes;
+	ownedNodes = unclaimedNodes;
 	switch (normalAxis)
 	{
 	case AxisOrientationEnum::x:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			indexBounds.iMax = indexBounds.iMin;
+			ownedNodes.iMax = ownedNodes.iMin;
 			unclaimedNodes.iMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			indexBounds.iMin = indexBounds.iMax;
+			ownedNodes.iMin = ownedNodes.iMax;
 			unclaimedNodes.iMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
@@ -36,12 +36,12 @@ void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 	case AxisOrientationEnum::y:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			indexBounds.jMax = indexBounds.jMin;
+			ownedNodes.jMax = ownedNodes.jMin;
 			unclaimedNodes.jMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			indexBounds.jMin = indexBounds.jMax;
+			ownedNodes.jMin = ownedNodes.jMax;
 			unclaimedNodes.jMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
@@ -49,12 +49,12 @@ void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 	case AxisOrientationEnum::z:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			indexBounds.kMax = indexBounds.kMin;
+			ownedNodes.kMax = ownedNodes.kMin;
 			unclaimedNodes.kMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			indexBounds.kMin = indexBounds.kMax;
+			ownedNodes.kMin = ownedNodes.kMax;
 			unclaimedNodes.kMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
@@ -62,13 +62,10 @@ void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 	default:
 		throw std::logic_error("Unexpected enum value");
 	}
-	for(size_t i{indexBounds.iMin}; i<=indexBounds.iMax; ++i)
-		for(size_t j{indexBounds.jMin}; j<=indexBounds.jMax; ++j)
-			for(size_t k{indexBounds.kMin}; k<=indexBounds.kMax; ++k)
-			{
-				nodeIndices.push_back(getIndex1D(i,j,k, nMeshNodes));
+	for(size_t i{ownedNodes.iMin}; i<=ownedNodes.iMax; ++i)
+		for(size_t j{ownedNodes.jMin}; j<=ownedNodes.jMax; ++j)
+			for(size_t k{ownedNodes.kMin}; k<=ownedNodes.kMax; ++k)
 				nodeTypeArray(i,j,k) = ownedNodesType;
-			}
 }
 
 void MeshEdgeBoundary::getAdjacentIndices(size_t index1D, const Vector3_u& nMeshNodes,	// <- Input
@@ -136,54 +133,157 @@ InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum plane
   velocity{velocity}
 {}
 
+void InletBoundary::filterInletDensity(const Vector3_u& nMeshNodes,					// <- Input
+		   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
+									   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+{
+	vector<double> rhoFilteredVector;
+	vector<size_t> filteredNodes;
+	if(normalAxis == AxisOrientationEnum::x)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				double rhoFiltered = 0;
+				uint nNeighbors = 0;
+				if(j<ownedNodes.jMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j+1, k);
+					++nNeighbors;
+				}
+				if(j>ownedNodes.jMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j-1, k);
+					++nNeighbors;
+				}
+				if(k<ownedNodes.kMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k+1);
+					++nNeighbors;
+				}
+				if(k>ownedNodes.kMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k-1);
+					++nNeighbors;
+				}
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k);
+				rhoFiltered /= 2 * nNeighbors;
+				rhoFilteredVector.push_back(rhoFiltered);
+				filteredNodes.push_back(getIndex1D(ownedNodes.iMin, j, k, nMeshNodes));
+			}
+	else if(normalAxis == AxisOrientationEnum::y)
+		for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				double rhoFiltered = 0;
+				uint nNeighbors = 0;
+				if(i<ownedNodes.iMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i+1, ownedNodes.jMin, k);
+					++nNeighbors;
+				}
+				if(i>ownedNodes.iMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i-1, ownedNodes.jMin, k);
+					++nNeighbors;
+				}
+				if(k<ownedNodes.kMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k+1);
+					++nNeighbors;
+				}
+				if(k>ownedNodes.kMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k-1);
+					++nNeighbors;
+				}
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k);
+				rhoFiltered /= 2 * nNeighbors;
+				rhoFilteredVector.push_back(rhoFiltered);
+				filteredNodes.push_back(getIndex1D(i, ownedNodes.jMin, k, nMeshNodes));
+			}
+	else if(normalAxis == AxisOrientationEnum::z)
+		for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+			for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			{
+				double rhoFiltered = 0;
+				uint nNeighbors = 0;
+				if(i<ownedNodes.iMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i+1, j, ownedNodes.kMin);
+					++nNeighbors;
+				}
+				if(i>ownedNodes.iMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i-1, j, ownedNodes.kMin);
+					++nNeighbors;
+				}
+				if(j<ownedNodes.jMax)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i, j+1, ownedNodes.kMin);
+					++nNeighbors;
+				}
+				if(j>ownedNodes.jMin)
+				{
+					rhoFiltered += flowVariables.conservedVariables.rho(i, j-1, ownedNodes.kMin);
+					++nNeighbors;
+				}
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, j, ownedNodes.kMin);
+				rhoFiltered /= 2 * nNeighbors;
+				rhoFilteredVector.push_back(rhoFiltered);
+				filteredNodes.push_back(getIndex1D(i, j, ownedNodes.kMin, nMeshNodes));
+			}
+	else
+		throw std::logic_error("Unexpected enum value");
+	for(size_t index{0}; index<filteredNodes.size(); ++index)
+		flowVariables.conservedVariables.rho(filteredNodes[index]) = rhoFilteredVector[index];
+}
+
 void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
 										   const ConfigSettings& params,				// <- Input
 										   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	// DEBUG, try filtering rho on inlet:
-	vector<double> rhoUnfiltered;
-	for(size_t index1D : nodeIndices)
-	{
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		rhoUnfiltered.push_back(2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-				   - flowVariables.conservedVariables.rho(nextToAdjacentIndex));
-		flowVariables.conservedVariables.rho(index1D) = rhoUnfiltered.back();
-	}
-	for(size_t iii=1; iii<nodeIndices.size()-1; ++iii)
-	{
-		size_t index1D = nodeIndices.at(iii);
-		flowVariables.conservedVariables.rho(index1D) =
-				(2*rhoUnfiltered.at(iii)+rhoUnfiltered.at(iii-1)+rhoUnfiltered.at(iii+1))/4;
-	}
-	// END DEBUG
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				flowVariables.conservedVariables.rho(i,j,k) =
+						2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+						- flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+			}
+	filterInletDensity(nMeshNodes, params, flowVariables);
+
 	double inletVelocity = min(1., t/10.) * velocity; // TODO: move magic const 10 to params
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
 
-	for(size_t index1D : nodeIndices)
-	{
-		double u{0}, v{0}, w{0};
-		if(normalAxis == AxisOrientationEnum::x)
-			u = inletVelocity;
-		else if(normalAxis == AxisOrientationEnum::y)
-			v = inletVelocity;
-		else if(normalAxis == AxisOrientationEnum::z)
-			w = inletVelocity;
-		else
-			throw std::logic_error("Unexpected enum value");
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-//		double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-//				   - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-		double rho = flowVariables.conservedVariables.rho(index1D);
-		double T = 0;
-		double p = (T*(1+rho) + rho) / params.Gamma;
-		PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
-		ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
-		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
-	}
+	double u{0}, v{0}, w{0};
+	if(normalAxis == AxisOrientationEnum::x)
+		u = inletVelocity;
+	else if(normalAxis == AxisOrientationEnum::y)
+		v = inletVelocity;
+	else if(normalAxis == AxisOrientationEnum::z)
+		w = inletVelocity;
+	else
+		throw std::logic_error("Unexpected enum value");
+
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = flowVariables.conservedVariables.rho(index1D);
+				double T = 0;
+				double p = (T*(1+rho) + rho) / params.Gamma;
+				PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
+				ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
+				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+			}
 }
 
 OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
@@ -194,31 +294,34 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNode
 		   	   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
 										   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(size_t index1D : nodeIndices)
-	{
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-					 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-		double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
-					   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
-		double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
-					   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
-		double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
-					   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
-		double p = 0;
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+							 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+				double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
+				double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
+				double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
+				double p = 0;
 
-		double u = rho_u / (1+rho);
-		double v = rho_v / (1+rho);
-		double w = rho_w / (1+rho);
-		double T = ( params.Gamma * p - rho ) / ( 1 + rho );
-		double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
+				double u = rho_u / (1+rho);
+				double v = rho_v / (1+rho);
+				double w = rho_w / (1+rho);
+				double T = ( params.Gamma * p - rho ) / ( 1 + rho );
+				double rho_E = p / ( params.Gamma - 1 ) + (1 + rho)/2 * ( u*u + v*v + w*w );
 
-		PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
-		ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
-		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
-	}
+				PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
+				ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
+				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+			}
 }
 
 PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
@@ -229,22 +332,25 @@ void PeriodicBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNo
 	   	   	   	   	   	   	   	   	   	   	  const ConfigSettings& params,					// <- Input
 											  AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(size_t index1D : nodeIndices)
-	{
-		size_t oppositeSideIndex = getPeriodicIndex(index1D, nMeshNodes);
-		flowVariables.conservedVariables.rho  (index1D) = flowVariables.conservedVariables.rho  (oppositeSideIndex);
-		flowVariables.conservedVariables.rho_u(index1D) = flowVariables.conservedVariables.rho_u(oppositeSideIndex);
-		flowVariables.conservedVariables.rho_v(index1D) = flowVariables.conservedVariables.rho_v(oppositeSideIndex);
-		flowVariables.conservedVariables.rho_w(index1D) = flowVariables.conservedVariables.rho_w(oppositeSideIndex);
-		flowVariables.conservedVariables.rho_E(index1D) = flowVariables.conservedVariables.rho_E(oppositeSideIndex);
-		flowVariables.primitiveVariables.u(index1D) = flowVariables.primitiveVariables.u(oppositeSideIndex);
-		flowVariables.primitiveVariables.v(index1D) = flowVariables.primitiveVariables.v(oppositeSideIndex);
-		flowVariables.primitiveVariables.w(index1D) = flowVariables.primitiveVariables.w(oppositeSideIndex);
-		flowVariables.primitiveVariables.p(index1D) = flowVariables.primitiveVariables.p(oppositeSideIndex);
-		flowVariables.primitiveVariables.T(index1D) = flowVariables.primitiveVariables.T(oppositeSideIndex);
-		flowVariables.transportProperties.mu   (index1D) = flowVariables.transportProperties.mu   (oppositeSideIndex);
-		flowVariables.transportProperties.kappa(index1D) = flowVariables.transportProperties.kappa(oppositeSideIndex);
-	}
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t oppositeSideIndex = getPeriodicIndex(index1D, nMeshNodes);
+				flowVariables.conservedVariables.rho  (index1D) = flowVariables.conservedVariables.rho  (oppositeSideIndex);
+				flowVariables.conservedVariables.rho_u(index1D) = flowVariables.conservedVariables.rho_u(oppositeSideIndex);
+				flowVariables.conservedVariables.rho_v(index1D) = flowVariables.conservedVariables.rho_v(oppositeSideIndex);
+				flowVariables.conservedVariables.rho_w(index1D) = flowVariables.conservedVariables.rho_w(oppositeSideIndex);
+				flowVariables.conservedVariables.rho_E(index1D) = flowVariables.conservedVariables.rho_E(oppositeSideIndex);
+				flowVariables.primitiveVariables.u(index1D) = flowVariables.primitiveVariables.u(oppositeSideIndex);
+				flowVariables.primitiveVariables.v(index1D) = flowVariables.primitiveVariables.v(oppositeSideIndex);
+				flowVariables.primitiveVariables.w(index1D) = flowVariables.primitiveVariables.w(oppositeSideIndex);
+				flowVariables.primitiveVariables.p(index1D) = flowVariables.primitiveVariables.p(oppositeSideIndex);
+				flowVariables.primitiveVariables.T(index1D) = flowVariables.primitiveVariables.T(oppositeSideIndex);
+				flowVariables.transportProperties.mu   (index1D) = flowVariables.transportProperties.mu   (oppositeSideIndex);
+				flowVariables.transportProperties.kappa(index1D) = flowVariables.transportProperties.kappa(oppositeSideIndex);
+			}
 }
 
 SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
@@ -255,39 +361,42 @@ void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNo
 	   	   	   	   	   	  	  	  	  	  	  const ConfigSettings& params,					// <- Input
 											  AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(size_t index1D : nodeIndices)
-	{
-		size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-		getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-		double u, v, w;
-		if(normalAxis == AxisOrientationEnum::x)
-		{	// Normal component zero, and other components get zero gradient.
-			u = -flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-		}
-		else if(normalAxis == AxisOrientationEnum::y)
-		{
-			u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			v = -flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-		}
-		else if(normalAxis == AxisOrientationEnum::z)
-		{
-			u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-			v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-			w = -flowVariables.primitiveVariables.w(nextToAdjacentIndex);
-		}
-		else
-			throw std::logic_error("Unexpected enum value");
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double u, v, w;
+				if(normalAxis == AxisOrientationEnum::x)
+				{	// Normal component zero, and other components get zero gradient.
+					u = -flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+					v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+					w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+				}
+				else if(normalAxis == AxisOrientationEnum::y)
+				{
+					u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+					v = -flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+					w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+				}
+				else if(normalAxis == AxisOrientationEnum::z)
+				{
+					u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
+					v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
+					w = -flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+				}
+				else
+					throw std::logic_error("Unexpected enum value");
 
-		double p = flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-		double T = flowVariables.primitiveVariables.T(nextToAdjacentIndex);
-		PrimitiveVariablesScalars  primitiveVarsScalars(u, v, w, p, T);
-		ConservedVariablesScalars conservedVarsScalars   = deriveConservedVariables (primitiveVarsScalars, params);
-		TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-		setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
-	}
+				double p = flowVariables.primitiveVariables.p(nextToAdjacentIndex);
+				double T = flowVariables.primitiveVariables.T(nextToAdjacentIndex);
+				PrimitiveVariablesScalars  primitiveVarsScalars(u, v, w, p, T);
+				ConservedVariablesScalars conservedVarsScalars   = deriveConservedVariables (primitiveVarsScalars, params);
+				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+			}
 }
 
 

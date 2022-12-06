@@ -73,7 +73,7 @@ public:
 	const EdgeIndexEnum planeIndex;
 	const NodeTypeEnum ownedNodesType;
 protected:
-	vector<size_t> nodeIndices;
+	IndexBoundingBox ownedNodes;
 
 	void getAdjacentIndices(size_t index1D, const Vector3_u& nMeshNodes,	// <- Input
 			  	  	  	  	size_t& boundaryAdjacentIndex, 					// <- Output
@@ -89,6 +89,10 @@ public:
 	InletBoundary(AxisOrientationEnum normalAxis,
 				  EdgeIndexEnum planeIndex,
 				  double velocity);
+
+	void filterInletDensity(const Vector3_u& nMeshNodes,				// <- Input
+	   	   	   	   	   	    const ConfigSettings& params,				// <- Input
+							AllFlowVariablesArrayGroup& flowVariables);	// <- Output
 
 	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
