@@ -28,6 +28,13 @@ public:
     data(length * width * height)
 	{}
 
+	// Default constructor. Sets sizes to zero and default-constructs data-vector.
+	Array3D_d() :
+    length(0),
+	width(0),
+    height(0)
+	{}
+
 	// Get reference to a node using 3D indices
 	inline double& operator()(size_t x, size_t y, size_t z)
 	{ return data[x * width * height + y * height + z]; }
