@@ -13,14 +13,14 @@
 //---------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
-// The minimum is 2 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 41
-NJ = 23
-NK = 3
+// The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
+NI = 201
+NJ = 103
+NK = 103
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
-stopCriterion = "timesteps"
+stopCriterion = "end_time"
 
 // Number of timesteps to compute. If stopTimeLevel is zero or negative, the simulation result will
 // be the the initial condition. With stopTimeLevel = 1, one timestep will be computed, etc.
@@ -30,7 +30,7 @@ stopTimeLevel = 20
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 30.
+t_end = 50.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -48,7 +48,7 @@ filterInterval = 0
 //---------------------------------------------------------------------------------
 
 // Wall clock time (in seconds) between status/progression reports written to screen.
-statusReportInterval = 1.
+statusReportInterval = 2.
 
 // Booleans to specify what flow variables to store:
 save_rho   = true
@@ -75,7 +75,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.
+savePeriod = 0.25
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -97,7 +97,7 @@ saveConstantIndex = 1
 
 // Save convergence history in the form of 2-norm of the change between consecutive time levels?
 // Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.
-saveConvergenceHistory = "none"
+saveConvergenceHistory = "density"
 
 //---------------------------------------------------------------------------------
 // Physical Constants
@@ -128,4 +128,4 @@ T_0 = 300.
 // Physical dimensionless size of the domain:
 L_x = 2.
 L_y = 1.
-L_z = 0.05
+L_z = 1.
