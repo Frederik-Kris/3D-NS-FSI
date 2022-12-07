@@ -414,7 +414,7 @@ void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, const Ar
 void Solver::updatePrimitiveVariables()
 {
 	double gammaMinusOne = params.Gamma - 1;
-	double sutherlands_Sc = params.T_0 / params.sutherlands_C2;
+	double sutherlands_Sc = params.sutherlands_C2 / params.T_0;
 	double ScPlusOne = 1 + sutherlands_Sc;
 	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
 	const Array3D_d& rho_u{mesh.conservedVariables.rho_u},

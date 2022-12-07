@@ -200,7 +200,7 @@ inline PrimitiveVariablesScalars derivePrimitiveVariables(const BCVariablesScala
 inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVariablesScalars& primitiveVariables, const ConfigSettings& params)
 {
 	const double T{primitiveVariables.T};
-	double ScPlusOne = 1 + params.T_0 / params.sutherlands_C2;
+	double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
 	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
 	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
 	return TransportPropertiesScalars(mu, kappa);
