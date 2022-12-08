@@ -413,6 +413,7 @@ void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
 											  AllFlowVariablesArrayGroup& flowVariables // <- Output
 											  )
 {
+	filterClosestFluidNodes(nMeshNodes, flowVariables);
 	for(GhostNode ghostNode : ghostNodes)
 	{
 		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
@@ -584,6 +585,42 @@ GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNod
 		ghostNodes.push_back(newGhostNode);
 	}
 	return ghostNodes.end() - newGhostNodes.size();
+}
+
+void ImmersedBoundary::filterClosestFluidNodes(const Vector3_u& nMeshNodes,
+							 	 	 	 	   const AllFlowVariablesArrayGroup& flowVariables)
+{
+	vector<double> rhoFilteredVector;
+	vector<double> energyFilteredVector;
+	for(size_t index1D : filterNodes)
+	{
+		Vector3_u indices = getIndices3D(index1D, nMeshNodes);
+		double rhoFiltered = ( 6*flowVariables.conservedVariables.rho(indices)
+							   + flowVariables.conservedVariables.rho(indices.i+1, indices.j, indices.k)
+							   + flowVariables.conservedVariables.rho(indices.i-1, indices.j, indices.k)
+							   + flowVariables.conservedVariables.rho(indices.i, indices.j+1, indices.k)
+							   + flowVariables.conservedVariables.rho(indices.i, indices.j-1, indices.k)
+							   + flowVariables.conservedVariables.rho(indices.i, indices.j, indices.k+1)
+							   + flowVariables.conservedVariables.rho(indices.i, indices.j, indices.k-1)
+							   ) / 12;
+		double energyFiltered = ( 6*flowVariables.conservedVariables.rho_E(indices)
+							      + flowVariables.conservedVariables.rho_E(indices.i+1, indices.j, indices.k)
+							      + flowVariables.conservedVariables.rho_E(indices.i-1, indices.j, indices.k)
+							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j+1, indices.k)
+							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j-1, indices.k)
+							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j, indices.k+1)
+							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j, indices.k-1)
+							      ) / 12;
+		rhoFilteredVector	.push_back(rhoFiltered);
+		energyFilteredVector.push_back(energyFiltered);
+	}
+	size_t counter = 0;
+	for(size_t index1D : filterNodes)
+	{
+		flowVariables.conservedVariables.rho  (index1D) = rhoFilteredVector   [counter];
+		flowVariables.conservedVariables.rho_E(index1D) = energyFilteredVector[counter];
+		++counter;
+	}
 }
 
 void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
@@ -816,9 +853,10 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 										Array3D_nodeType& nodeTypeArray	// <- Output
 										)
 {
-	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(gridSpacing, nMeshNodes);
+	size_t filterNodesLayerWidth = 2;
+	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(gridSpacing, nMeshNodes, filterNodesLayerWidth);
 	vector<size_t> solidNodeIndices;
-	getSolidNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, solidNodeIndices, nodeTypeArray);
+	getSolidAndFilterNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, filterNodesLayerWidth, solidNodeIndices, nodeTypeArray);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, nMeshNodes, nodeTypeArray);
 	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	while(newGhostNodes.size() > 0)
@@ -846,11 +884,12 @@ Vector3_d CylinderBody::getNormalProbe(const Vector3_d& ghostNodePosition)
 }
 
 IndexBoundingBox CylinderBody::getCylinderBoundingBox(const Vector3_d& gridSpacing,
-													  const Vector3_u& nMeshNodes) const
+													  const Vector3_u& nMeshNodes,
+													  size_t filterNodesLayerWidth) const
 {
-	size_t indexRadiusX { static_cast<size_t>(ceil(radius / gridSpacing.x)) + 1 };
-	size_t indexRadiusY { static_cast<size_t>(ceil(radius / gridSpacing.y)) + 1 };
-	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / gridSpacing.z)) + 1 };
+	size_t indexRadiusX { static_cast<size_t>(ceil(radius / gridSpacing.x)) + 1 + filterNodesLayerWidth };
+	size_t indexRadiusY { static_cast<size_t>(ceil(radius / gridSpacing.y)) + 1 + filterNodesLayerWidth };
+	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / gridSpacing.z)) + 1 + filterNodesLayerWidth };
 	size_t centroidClosestIndexX { static_cast<size_t>(round(centroidPosition.x / gridSpacing.x)) };
 	size_t centroidClosestIndexY { static_cast<size_t>(round(centroidPosition.y / gridSpacing.y)) };
 	size_t centroidClosestIndexZ { static_cast<size_t>(round(centroidPosition.z / gridSpacing.z)) };
@@ -873,11 +912,12 @@ IndexBoundingBox CylinderBody::getCylinderBoundingBox(const Vector3_d& gridSpaci
 	return indicesToCheck;
 }
 
-void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
+void CylinderBody::getSolidAndFilterNodesInCylinder(const ConfigSettings& params,
 										   const IndexBoundingBox& indicesToCheck,
 										   const Vector3_d& gridSpacing,
 										   const Vector3_u& nMeshNodes,
 										   const Vector3_d& meshOriginOffset,
+										   size_t nNodesFilterLayer,
 										   vector<size_t>& solidNodeIndices, // <- Output
 										   Array3D_nodeType& nodeTypeArray   // <- Output
 										   )
@@ -888,15 +928,25 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
 			{
 				double distanceFromCentroid{0};
 				Vector3_d nodePosition = getNodePosition(i, j, k, gridSpacing, meshOriginOffset);
+				double filterLayerWidth;
 				if (axis == AxisOrientationEnum::x)
+				{
 					distanceFromCentroid = sqrt( pow(nodePosition.y - centroidPosition.y, 2)
 											   + pow(nodePosition.z - centroidPosition.z, 2));
+					filterLayerWidth = nNodesFilterLayer*max(gridSpacing.y, gridSpacing.z);
+				}
 				else if (axis == AxisOrientationEnum::y)
+				{
 					distanceFromCentroid = sqrt( pow(nodePosition.x - centroidPosition.x, 2)
 											   + pow(nodePosition.z - centroidPosition.z, 2));
+					filterLayerWidth = nNodesFilterLayer*max(gridSpacing.x, gridSpacing.z);
+				}
 				else if (axis == AxisOrientationEnum::z)
+				{
 					distanceFromCentroid = sqrt( pow(nodePosition.x - centroidPosition.x, 2)
 											   + pow(nodePosition.y - centroidPosition.y, 2));
+					filterLayerWidth = nNodesFilterLayer*max(gridSpacing.x, gridSpacing.y);
+				}
 				else
 					throw std::logic_error("Unexpected enum value");
 				if (distanceFromCentroid < radius - params.machinePrecisionBuffer)
@@ -904,6 +954,9 @@ void CylinderBody::getSolidNodesInCylinder(const ConfigSettings& params,
 					nodeTypeArray(i, j, k) = NodeTypeEnum::SolidInactive;
 					solidNodeIndices.push_back( getIndex1D(i, j, k, nMeshNodes) );
 				}
+				else if (distanceFromCentroid < radius + filterLayerWidth
+						&& nodeTypeArray(i,j,k) == NodeTypeEnum::FluidInterior)
+					filterNodes.push_back( getIndex1D(i, j, k, nMeshNodes) );
 			}
 }
 
@@ -919,9 +972,10 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 									  Array3D_nodeType& nodeTypeArray	// <- Output
 									  )
 {
-	IndexBoundingBox indicesToCheck = getSphereBoundingBox(gridSpacing);
+	size_t filterNodesLayerWidth = 2;
+	IndexBoundingBox indicesToCheck = getSphereBoundingBox(gridSpacing, filterNodesLayerWidth);
 	vector<size_t> solidNodeIndices;
-	getSolidNodesInSphere(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, solidNodeIndices, nodeTypeArray);
+	getSolidAndFilterNodesInSphere(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, filterNodesLayerWidth, solidNodeIndices, nodeTypeArray);
 	findGhostNodesWithFluidNeighbors(solidNodeIndices, nMeshNodes, nodeTypeArray);
 
 	vector<GhostNode> newGhostNodes = setImagePointPositions(ghostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
@@ -940,11 +994,11 @@ Vector3_d SphereBody::getNormalProbe(const Vector3_d& ghostNodePosition)
 	return normalProbe;
 }
 
-IndexBoundingBox SphereBody::getSphereBoundingBox(const Vector3_d& gridSpacing) const
+IndexBoundingBox SphereBody::getSphereBoundingBox(const Vector3_d& gridSpacing, size_t filterNodeLayerWidth) const
 {
-	size_t indexRadiusX { static_cast<size_t>(ceil(radius / gridSpacing.x)) + 1 };
-	size_t indexRadiusY { static_cast<size_t>(ceil(radius / gridSpacing.y)) + 1 };
-	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / gridSpacing.z)) + 1 };
+	size_t indexRadiusX { static_cast<size_t>(ceil(radius / gridSpacing.x)) + 1 + filterNodeLayerWidth };
+	size_t indexRadiusY { static_cast<size_t>(ceil(radius / gridSpacing.y)) + 1 + filterNodeLayerWidth };
+	size_t indexRadiusZ { static_cast<size_t>(ceil(radius / gridSpacing.z)) + 1 + filterNodeLayerWidth };
 	size_t centerClosestIndexX { static_cast<size_t>(round(centerPosition.x / gridSpacing.x)) };
 	size_t centerClosestIndexY { static_cast<size_t>(round(centerPosition.y / gridSpacing.y)) };
 	size_t centerClosestIndexZ { static_cast<size_t>(round(centerPosition.z / gridSpacing.z)) };
@@ -958,15 +1012,17 @@ IndexBoundingBox SphereBody::getSphereBoundingBox(const Vector3_d& gridSpacing) 
 	return indicesToCheck;
 }
 
-void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
-		   	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
-									   const Vector3_d& gridSpacing,
-									   const Vector3_u& nMeshNodes,
-									   const Vector3_d& meshOriginOffset,
-									   vector<size_t>& solidNodeIndices, // <- Output
-									   Array3D_nodeType& nodeTypeArray   // <- Output
-		   	   	   	   	   	   	   	   )
+void SphereBody::getSolidAndFilterNodesInSphere(const ConfigSettings& params,
+		   	   	   	   	   	   	   	   	   	    const IndexBoundingBox& indicesToCheck,
+												const Vector3_d& gridSpacing,
+												const Vector3_u& nMeshNodes,
+												const Vector3_d& meshOriginOffset,
+												size_t nNodesFilterLayer,
+												vector<size_t>& solidNodeIndices, // <- Output
+												Array3D_nodeType& nodeTypeArray   // <- Output
+		   	   	   	   	   	   	   	   	   	    )
 {
+	double filterLayerWidth = nNodesFilterLayer * max({gridSpacing.x, gridSpacing.y, gridSpacing.z});
 	for (size_t i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
 		for (size_t j { indicesToCheck.jMin }; j <= indicesToCheck.jMax; ++j)
 			for (size_t k { indicesToCheck.kMin }; k <= indicesToCheck.kMax; ++k)
@@ -980,6 +1036,9 @@ void SphereBody::getSolidNodesInSphere(const ConfigSettings& params,
 					nodeTypeArray(i, j, k) = NodeTypeEnum::SolidInactive;
 					solidNodeIndices.push_back( getIndex1D(i, j, k, nMeshNodes) );
 				}
+				else if (distanceFromCenter < radius + filterLayerWidth
+						&& nodeTypeArray(i,j,k) == NodeTypeEnum::FluidInterior)
+					filterNodes.push_back( getIndex1D(i, j, k, nMeshNodes) );
 			}
 }
 

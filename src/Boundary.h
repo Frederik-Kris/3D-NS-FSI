@@ -72,8 +72,8 @@ public:
 	const AxisOrientationEnum normalAxis;
 	const EdgeIndexEnum planeIndex;
 	const NodeTypeEnum ownedNodesType;
-protected:
 	IndexBoundingBox ownedNodes;
+protected:
 
 	void getAdjacentIndices(size_t index1D, const Vector3_u& nMeshNodes,	// <- Input
 			  	  	  	  	size_t& boundaryAdjacentIndex, 					// <- Output
@@ -168,6 +168,7 @@ protected:
 
 	vector<GhostNode> ghostNodes;
 	std::map<size_t, size_t> ghostNodeMap;
+	vector<size_t> filterNodes;
 
 	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices,
 										  const Vector3_u& nMeshNodes,
@@ -187,6 +188,9 @@ protected:
 
 private:
 	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
+
+	void filterClosestFluidNodes(const Vector3_u& nMeshNodes,
+								 const AllFlowVariablesArrayGroup& flowVariables);
 
 	double simplifiedInterpolation(const Vector8_d& interpolationValues,
 			 	 	 	 	 	   const Vector3_u& lowerIndexNode,
@@ -280,16 +284,18 @@ private:
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
 
 	IndexBoundingBox getCylinderBoundingBox(const Vector3_d& gridSpacing,
-			  	  	  	  	  	  	  	  	const Vector3_u& nMeshNodes) const;
+			  	  	  	  	  	  	  	  	const Vector3_u& nMeshNodes,
+											size_t filterNodesLayerWidth) const;
 
-	void getSolidNodesInCylinder(const ConfigSettings& params,
-			   	   	   	   	   	 const IndexBoundingBox& indicesToCheck,
-								 const Vector3_d& gridSpacing,
-								 const Vector3_u& nMeshNodes,
-								 const Vector3_d& meshOriginOffset,
-								 vector<size_t>& solidNodeIndices, // <- Output
-								 Array3D_nodeType& nodeTypeArray   // <- Output
-			   	   	   	   	   	 );
+	void getSolidAndFilterNodesInCylinder(const ConfigSettings& params,
+			   	   	   	   	   	 	 	  const IndexBoundingBox& indicesToCheck,
+										  const Vector3_d& gridSpacing,
+										  const Vector3_u& nMeshNodes,
+										  const Vector3_d& meshOriginOffset,
+										  size_t nNodesFilterLayer,
+										  vector<size_t>& solidNodeIndices, // <- Output
+										  Array3D_nodeType& nodeTypeArray   // <- Output
+			   	   	   	   	   	 	 	  );
 };
 
 // Class to define boundary conditions at an immersed sphere:
@@ -311,16 +317,17 @@ private:
 
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
 
-	IndexBoundingBox getSphereBoundingBox(const Vector3_d& gridSpacing) const;
+	IndexBoundingBox getSphereBoundingBox(const Vector3_d& gridSpacing, size_t filterNodeLayerWidth) const;
 
-	void getSolidNodesInSphere(const ConfigSettings& params,
-	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
-							   const Vector3_d& gridSpacing,
-							   const Vector3_u& nMeshNodes,
-							   const Vector3_d& meshOriginOffset,
-							   vector<size_t>& solidNodeIndices, // <- Output
-							   Array3D_nodeType& nodeTypeArray   // <- Output
-	   	   	   	   	   	   	   );
+	void getSolidAndFilterNodesInSphere(const ConfigSettings& params,
+	   	   	   	   	   	   	   	   	    const IndexBoundingBox& indicesToCheck,
+										const Vector3_d& gridSpacing,
+										const Vector3_u& nMeshNodes,
+										const Vector3_d& meshOriginOffset,
+										size_t nNodesFilterLayer,
+										vector<size_t>& solidNodeIndices, // <- Output
+										Array3D_nodeType& nodeTypeArray   // <- Output
+	   	   	   	   	   	   	   	   	    );
 };
 
 #endif /* SRC_BOUNDARY_H_ */

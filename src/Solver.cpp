@@ -125,7 +125,8 @@ double Solver::getViscousTimeStepLimit()
 void Solver::marchTimeStep(double& t, ulong& timeLevel)
 {
 	mesh.checkFinity(mesh.conservedVariables);
-	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params.filterInterval, timeLevel);
+	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho  , mesh.conservedVariablesOld.rho  , params.filterInterval, timeLevel);
+//	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho_E, mesh.conservedVariablesOld.rho_E, params.filterInterval, timeLevel);
 	mesh.swapConservedVariables();	// Swap conserved variables to temporary storage by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
 	// We will use the "main" conserved variable arrays for the intermediate solutions between RK4 steps,

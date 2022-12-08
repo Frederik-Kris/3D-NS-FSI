@@ -14,8 +14,8 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 81
-NJ = 43
+NI = 501
+NJ = 253
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -30,7 +30,7 @@ stopTimeLevel = 20
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 20.
+t_end = 100.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -41,7 +41,7 @@ convStabilityLimit = 0.9
 viscStabilityLimit = -0.68
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
-filterInterval = 0
+filterInterval = 10
 
 //---------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -75,7 +75,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.5
+savePeriod = 0.25
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -112,8 +112,8 @@ Pr = 0.72
 // Specific gas constant:
 R = 287.
 
-// Stagnation Reynolds number:
-Re = 40.
+// Stagnation reference Reynolds number:
+Re = 800.
 
 // Constants C_1 and C_2 in Sutherland's law:
 sutherlands_C1 = 1.458E-6

@@ -39,10 +39,10 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	positionOffset.y = 1;
 	positionOffset.z = 1;
 
-	Vector3_d cylinderCentroidPosition(params.L_x / 2, params.L_y / 2, 0);
+	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
 																AxisOrientationEnum::z,
-																params.L_y/8.1));
+																params.L_y/10));
 //	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
 }
@@ -90,36 +90,31 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 	if(filterInterval > 0)
 		if( (timeLevel+1) % filterInterval == 0 )
 		{
-			size_t iMax{NI-1}, jMax{NJ-1}, kMax{NK-1};
 			// Copy boundary nodes:
-			for(size_t i{0}; i<=iMax; ++i)
-				for(size_t j{0}; j<=jMax; ++j)
-				{
-					variableTemporaryStorage(i,j,0   ) = filterVariable(i,j,0   );
-					variableTemporaryStorage(i,j,kMax) = filterVariable(i,j,kMax);
-				}
-			for(size_t i{0}; i<=iMax; ++i)
-				for(size_t k{1}; k<=kMax-1; ++k)
-				{
-					variableTemporaryStorage(i,0,   k) = filterVariable(i,0,   k);
-					variableTemporaryStorage(i,jMax,k) = filterVariable(i,jMax,k);
-				}
-			for(size_t j{1}; j<=jMax-1; ++j)
-				for(size_t k{1}; k<=kMax-1; ++k)
-				{
-					variableTemporaryStorage(0,   j,k) = filterVariable(0,   j,k);
-					variableTemporaryStorage(iMax,j,k) = filterVariable(iMax,j,k);
-				}
+			for (auto&& edgeBoundary : edgeBoundaries)
+			{
+				const IndexBoundingBox& ownedNodes = edgeBoundary->ownedNodes;
+				for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+					for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+						for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+							variableTemporaryStorage(i,j,k) = filterVariable(i,j,k);
+			}
+			for (size_t index1D : indexByType.ghost)
+				variableTemporaryStorage(index1D) = filterVariable(index1D);
 			// Apply filter to interior nodes:
-			for(size_t i{1}; i<=iMax-1; ++i)
-				for(size_t j{1}; j<=jMax-1; ++j)
-					for(size_t k{1}; k<=kMax-1; ++k)
-					{
-						variableTemporaryStorage(i,j,k) = 1./2.  *   filterVariable(i,j,k)
-														+ 1./12. * ( filterVariable(i+1,j,k) + filterVariable(i-1,j,k)
-																   + filterVariable(i,j+1,k) + filterVariable(i,j-1,k)
-																   + filterVariable(i,j,k+1) + filterVariable(i,j,k-1) );
-					}
+			Vector3_u nNodes(NI, NJ, NK);
+			for (size_t index1D : indexByType.fluidInterior)
+			{
+				Vector3_u indices = getIndices3D(index1D, nNodes);
+				variableTemporaryStorage(index1D) = (6*filterVariable(indices)
+												     + filterVariable(indices.i+1, indices.j, indices.k)
+													 + filterVariable(indices.i-1, indices.j, indices.k)
+													 + filterVariable(indices.i, indices.j+1, indices.k)
+													 + filterVariable(indices.i, indices.j-1, indices.k)
+													 + filterVariable(indices.i, indices.j, indices.k+1)
+													 + filterVariable(indices.i, indices.j, indices.k-1)
+													 ) / 12;
+			}
 			filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
 		}
 }

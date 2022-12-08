@@ -131,7 +131,7 @@ void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 	outputFile << get_csvHeaderString();
 	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidInterior, flowVariables);
 	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidEdge,	  flowVariables);
-	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.ghost,		  flowVariables);
+//	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.ghost,		  flowVariables);
 
 	outputFile.close();
 }
