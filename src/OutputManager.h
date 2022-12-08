@@ -40,6 +40,8 @@ private:
 
 	void storeCurrentSolution_csv_matlab(const Mesh& mesh);
 
+	void computeVorticity(const Mesh& mesh, AxisOrientationEnum axis);
+
 	vector<const Array3D_d*> getPlotVariables(const Mesh& mesh);
 
 	string get_csvHeaderString();
@@ -58,6 +60,7 @@ private:
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
 	Clock wallClockTimer;			// Timer that starts when simulation starts
+	VorticityArrayGroup vorticity;	// 3 arrays to compute vorticity on demand
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */

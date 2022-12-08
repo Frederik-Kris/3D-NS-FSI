@@ -115,6 +115,9 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	save_T         = cfg.lookup("save_T");
 	save_mu        = cfg.lookup("save_mu");
 	save_kappa     = cfg.lookup("save_kappa");
+	save_vorticity_x = cfg.lookup("save_vorticity_x");
+	save_vorticity_y = cfg.lookup("save_vorticity_y");
+	save_vorticity_z = cfg.lookup("save_vorticity_z");
 	saveIC        = cfg.lookup("saveIC");
 	saveFinal     = cfg.lookup("saveFinal");
 	saveIntervals = cfg.lookup("saveIntervals");

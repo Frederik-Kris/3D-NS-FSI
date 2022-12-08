@@ -49,6 +49,9 @@ public:
 	bool save_u, save_v, save_w,            // Specifies what primitive variables to save to disk
 	     save_p, save_T;
 	bool save_mu, save_kappa;               // Specifies what transport properties to save to disk
+	bool save_vorticity_x;	// Specifies whether to save components of vorticity to disk.
+	bool save_vorticity_y;
+	bool save_vorticity_z;
 
 	bool saveIC, saveFinal; // Specifies whether to save IC and final solution
 	bool saveIntervals; 			// Specifies whether to save solutions at given interval

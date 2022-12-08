@@ -9,7 +9,8 @@
 
 OutputManager::OutputManager(const ConfigSettings& params) :
 params(params),
-savedSolutions{0}
+savedSolutions{0},
+vorticity(params.NI, params.NJ, params.NK)
 {
 }
 
@@ -159,6 +160,21 @@ void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
 	}
 }
 
+void OutputManager::computeVorticity(const Mesh& mesh, AxisOrientationEnum axis)
+{
+	if (axis == AxisOrientationEnum::z)
+	{
+		for (size_t index1D : mesh.indexByType.fluidInterior)
+		{
+			Vector3_u indices = getIndices3D(index1D, Vector3_u(mesh.NI, mesh.NJ, mesh.NK));
+			vorticity.z(index1D) = ( mesh.primitiveVariables.v(indices.i+1, indices.j, indices.k)
+								   - mesh.primitiveVariables.v(indices.i-1, indices.j, indices.k) ) / (2*mesh.dx)
+								 - ( mesh.primitiveVariables.u(indices.i, indices.j+1, indices.k)
+								   - mesh.primitiveVariables.u(indices.i, indices.j-1, indices.k) ) / (2*mesh.dy);
+		}
+	}
+}
+
 // Get a vector with pointers to the flow variables that should be saved.
 vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 {
@@ -187,6 +203,11 @@ vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 		flowVariables.push_back(&mesh.transportProperties.mu);
 	if ( params.save_kappa )
 		flowVariables.push_back(&mesh.transportProperties.kappa);
+	if ( params.save_vorticity_z )
+	{
+		computeVorticity(mesh, AxisOrientationEnum::z);
+		flowVariables.push_back(&vorticity.z);
+	}
 	return flowVariables;
 }
 
@@ -219,6 +240,8 @@ string OutputManager::get_csvHeaderString()
 		headers += ", dynamic viscosity";
 	if ( params.save_kappa )
 		headers += ", thermal conductivity";
+	if ( params.save_vorticity_z )
+		headers += ", z-vorticity";
 	return headers;
 }
 

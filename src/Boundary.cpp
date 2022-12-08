@@ -853,7 +853,7 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 										Array3D_nodeType& nodeTypeArray	// <- Output
 										)
 {
-	size_t filterNodesLayerWidth = 2;
+	size_t filterNodesLayerWidth = 2; // TODO: param
 	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(gridSpacing, nMeshNodes, filterNodesLayerWidth);
 	vector<size_t> solidNodeIndices;
 	getSolidAndFilterNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, filterNodesLayerWidth, solidNodeIndices, nodeTypeArray);
@@ -972,7 +972,7 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 									  Array3D_nodeType& nodeTypeArray	// <- Output
 									  )
 {
-	size_t filterNodesLayerWidth = 2;
+	size_t filterNodesLayerWidth = 2; // TODO: param
 	IndexBoundingBox indicesToCheck = getSphereBoundingBox(gridSpacing, filterNodesLayerWidth);
 	vector<size_t> solidNodeIndices;
 	getSolidAndFilterNodesInSphere(params, indicesToCheck, gridSpacing, nMeshNodes, meshOriginOffset, filterNodesLayerWidth, solidNodeIndices, nodeTypeArray);

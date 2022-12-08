@@ -14,8 +14,8 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 501
-NJ = 253
+NI = 301
+NJ = 153
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -41,7 +41,7 @@ convStabilityLimit = 0.9
 viscStabilityLimit = -0.68
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
-filterInterval = 10
+filterInterval = 100
 
 //---------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -63,6 +63,9 @@ save_p     = true
 save_T     = true
 save_mu    = false
 save_kappa = false
+save_vorticity_x = false
+save_vorticity_y = false
+save_vorticity_z = true
 
 // Save initial condition?
 saveIC = true
