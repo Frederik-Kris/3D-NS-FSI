@@ -40,7 +40,7 @@ private:
 
 	void storeCurrentSolution_csv_matlab(const Mesh& mesh);
 
-	void computeVorticity(const Mesh& mesh, AxisOrientationEnum axis);
+	void computeVorticity(const Mesh& mesh, const AxisOrientationEnum axis);
 
 	vector<const Array3D_d*> getPlotVariables(const Mesh& mesh);
 

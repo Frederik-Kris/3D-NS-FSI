@@ -160,13 +160,27 @@ void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
 	}
 }
 
-void OutputManager::computeVorticity(const Mesh& mesh, AxisOrientationEnum axis)
+void OutputManager::computeVorticity(const Mesh& mesh, const AxisOrientationEnum axis)
 {
-	if (axis == AxisOrientationEnum::z)
+	for (size_t index1D : mesh.indexByType.fluidInterior)
 	{
-		for (size_t index1D : mesh.indexByType.fluidInterior)
+		Vector3_u indices = getIndices3D(index1D, Vector3_u(mesh.NI, mesh.NJ, mesh.NK));
+		if (axis == AxisOrientationEnum::x)
 		{
-			Vector3_u indices = getIndices3D(index1D, Vector3_u(mesh.NI, mesh.NJ, mesh.NK));
+			vorticity.x(index1D) = ( mesh.primitiveVariables.w(indices.i, indices.j+1, indices.k)
+								   - mesh.primitiveVariables.w(indices.i, indices.j-1, indices.k) ) / (2*mesh.dy)
+								 - ( mesh.primitiveVariables.v(indices.i, indices.j, indices.k+1)
+								   - mesh.primitiveVariables.v(indices.i, indices.j, indices.k-1) ) / (2*mesh.dz);
+		}
+		if (axis == AxisOrientationEnum::y)
+		{
+			vorticity.y(index1D) = ( mesh.primitiveVariables.u(indices.i, indices.j, indices.k+1)
+								   - mesh.primitiveVariables.u(indices.i, indices.j, indices.k-1) ) / (2*mesh.dz)
+								 - ( mesh.primitiveVariables.w(indices.i+1, indices.j, indices.k)
+								   - mesh.primitiveVariables.w(indices.i-1, indices.j, indices.k) ) / (2*mesh.dx);
+		}
+		if (axis == AxisOrientationEnum::z)
+		{
 			vorticity.z(index1D) = ( mesh.primitiveVariables.v(indices.i+1, indices.j, indices.k)
 								   - mesh.primitiveVariables.v(indices.i-1, indices.j, indices.k) ) / (2*mesh.dx)
 								 - ( mesh.primitiveVariables.u(indices.i, indices.j+1, indices.k)
@@ -203,6 +217,16 @@ vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 		flowVariables.push_back(&mesh.transportProperties.mu);
 	if ( params.save_kappa )
 		flowVariables.push_back(&mesh.transportProperties.kappa);
+	if ( params.save_vorticity_x )
+	{
+		computeVorticity(mesh, AxisOrientationEnum::x);
+		flowVariables.push_back(&vorticity.x);
+	}
+	if ( params.save_vorticity_y )
+	{
+		computeVorticity(mesh, AxisOrientationEnum::y);
+		flowVariables.push_back(&vorticity.y);
+	}
 	if ( params.save_vorticity_z )
 	{
 		computeVorticity(mesh, AxisOrientationEnum::z);
@@ -240,6 +264,10 @@ string OutputManager::get_csvHeaderString()
 		headers += ", dynamic viscosity";
 	if ( params.save_kappa )
 		headers += ", thermal conductivity";
+	if ( params.save_vorticity_x )
+		headers += ", x-vorticity";
+	if ( params.save_vorticity_y )
+		headers += ", y-vorticity";
 	if ( params.save_vorticity_z )
 		headers += ", z-vorticity";
 	return headers;
@@ -273,6 +301,12 @@ vector<string> OutputManager::getVariableFileNames()
 		variableNames.push_back("mu");
 	if ( params.save_kappa )
 		variableNames.push_back("kappa");
+	if ( params.save_vorticity_x )
+		variableNames.push_back("vorticity_x");
+	if ( params.save_vorticity_y )
+		variableNames.push_back("vorticity_y");
+	if ( params.save_vorticity_z )
+		variableNames.push_back("vorticity_z");
 	return variableNames;
 }
 
