@@ -31,8 +31,10 @@ public:
 
 	void categorizeNodes(const ConfigSettings& params);
 
+	bool checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t);
+
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
-									uint filterInterval, ulong timeLevel);
+								const ConfigSettings& params, ulong timeLevel, double t);
 
 	void swapConservedVariables();
 

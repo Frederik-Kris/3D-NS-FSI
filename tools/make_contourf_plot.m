@@ -13,10 +13,10 @@ x = linspace(0,1,21);
 z = linspace(0,1,21);
 
 norm_rho   = readmatrix("../output/norm_rho.dat");
-% norm_rho_u = readmatrix("../output/norm_rho_u.dat");
-% norm_rho_v = readmatrix("../output/norm_rho_v.dat");
-% norm_rho_w = readmatrix("../output/norm_rho_w.dat");
-% norm_E     = readmatrix("../output/norm_rho_E.dat");
+norm_rho_u = readmatrix("../output/norm_rho_u.dat");
+norm_rho_v = readmatrix("../output/norm_rho_v.dat");
+norm_rho_w = readmatrix("../output/norm_rho_w.dat");
+norm_E     = readmatrix("../output/norm_rho_E.dat");
 
 % figure(1);
 % [M, myPlot] = contourf(x, z, u, 30);
@@ -80,33 +80,33 @@ xlabel('time level, n');
 ylabel('||\rho||');
 set(gca, 'YScale', 'log')
 
-% figure(9);
-% plot(norm_rho_u(2:end) / norm_rho_u(2));
-% title('Norm history, \rhou');
-% xlabel('time level, n');
-% ylabel('||\rhou||');
-% set(gca, 'YScale', 'log')
-% 
-% figure(10);
-% plot(norm_rho_v(2:end) / norm_rho_v(2));
-% title('Norm history, \rhov');
-% xlabel('time level, n');
-% ylabel('||\rhov||');
-% set(gca, 'YScale', 'log')
-% 
-% figure(11);
-% plot(norm_rho_w(2:end) / norm_rho_w(2));
-% title('Norm history, \rhow');
-% xlabel('time level, n');
-% ylabel('||\rhow||');
-% set(gca, 'YScale', 'log')
-% 
-% figure(12);
-% plot(norm_E(2:end) / norm_E(2));
-% title('Norm history, \rhoE');
-% xlabel('time level, n');
-% ylabel('||\rhoE||');
-% set(gca, 'YScale', 'log')
+figure(9);
+plot(norm_rho_u(1:end) / norm_rho_u(1));
+title('Norm history, \rhou');
+xlabel('time level, n');
+ylabel('||\rhou||');
+set(gca, 'YScale', 'log')
+
+figure(10);
+plot(norm_rho_v(1:end) / norm_rho_v(1));
+title('Norm history, \rhov');
+xlabel('time level, n');
+ylabel('||\rhov||');
+set(gca, 'YScale', 'log')
+
+figure(11);
+plot(norm_rho_w(1:end) / norm_rho_w(1));
+title('Norm history, \rhow');
+xlabel('time level, n');
+ylabel('||\rhow||');
+set(gca, 'YScale', 'log')
+
+figure(12);
+plot(norm_E(1:end) / norm_E(1));
+title('Norm history, \rhoE');
+xlabel('time level, n');
+ylabel('||\rhoE||');
+set(gca, 'YScale', 'log')
 % 
 % fprintf("max(v) = %1.2f \n", max(max(v)));
 % fprintf("min(v) = %1.2f \n", min(min(v)));

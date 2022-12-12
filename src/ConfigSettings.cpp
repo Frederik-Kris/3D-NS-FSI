@@ -99,7 +99,19 @@ void ConfigSettings::readSettingValues(Config& cfg)
 
 	convStabilityLimit = cfg.lookup("convStabilityLimit");
 	viscStabilityLimit = cfg.lookup("viscStabilityLimit");
-	filterInterval	   = cfg.lookup("filterInterval");
+
+	Setting& filterIntSetting = cfg.lookup("filterIntervals");
+	for(int i=0; i<filterIntSetting.getLength(); ++i)
+		filterIntervals.push_back( (uint) filterIntSetting[i] );
+	Setting& filterIntTimesSetting = cfg.lookup("filterIntervalChangeTimes");
+	for(int i=0; i<filterIntTimesSetting.getLength(); ++i)
+		filterIntervalChangeTimes.push_back(filterIntTimesSetting[i]);
+	if (   filterIntervalChangeTimes.size() > filterIntervals.size()
+		|| filterIntervalChangeTimes.size() < filterIntervals.size()-1 )
+	{
+		errorOccurred = true;
+		std::cerr << "filterIntervalChangeTimes must be the same size or one element smaller than filterIntervals.";
+	}
 
 	statusReportInterval = cfg.lookup("statusReportInterval");
 

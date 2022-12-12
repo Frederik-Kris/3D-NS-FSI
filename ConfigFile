@@ -14,8 +14,8 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 301
-NJ = 153
+NI = 81
+NJ = 43
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -41,7 +41,8 @@ convStabilityLimit = 0.9
 viscStabilityLimit = -0.68
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
-filterInterval = 100
+filterIntervals = [50, 200, 1000]
+filterIntervalChangeTimes = [20., 40., 60.]
 
 //---------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -68,7 +69,7 @@ save_vorticity_y = false
 save_vorticity_z = true
 
 // Save initial condition?
-saveIC = true
+saveIC = false
 
 // Save final solution? (Last time level, at time t_end)
 saveFinal = false
@@ -78,7 +79,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.25
+savePeriod = 5.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -100,7 +101,7 @@ saveConstantIndex = 1
 
 // Save convergence history in the form of 2-norm of the change between consecutive time levels?
 // Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.
-saveConvergenceHistory = "density"
+saveConvergenceHistory = "all"
 
 //---------------------------------------------------------------------------------
 // Physical Constants
@@ -116,7 +117,7 @@ Pr = 0.72
 R = 287.
 
 // Stagnation reference Reynolds number:
-Re = 800.
+Re = 400.
 
 // Constants C_1 and C_2 in Sutherland's law:
 sutherlands_C1 = 1.458E-6

@@ -40,7 +40,8 @@ public:
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
 	double convStabilityLimit;       // Constant specifying the inviscid stability criterion
 	double viscStabilityLimit;       // Constant specifying the viscous stability criterion
-	uint filterInterval;			 // Number of timesteps between each time second order filter is applied
+	vector<uint> filterIntervals;				// Number of timesteps between each time second order filter is applied
+	vector<double> filterIntervalChangeTimes;	// Times to change the filter interval
 
 	double statusReportInterval;	// How much wall clock time between each status/progression report to screen
 

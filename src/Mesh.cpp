@@ -78,6 +78,23 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 			indexByType.ghost.push_back(index1D);
 }
 
+bool Mesh::checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t)
+{
+	size_t counter = 0;
+	for (double intervalChangeTime : params.filterIntervalChangeTimes)
+		if (t > intervalChangeTime)
+			++counter;
+	bool filterNow = false;
+	if ( counter < params.filterIntervals.size() )
+	{
+		uint currentFilterInterval = params.filterIntervals.at(counter);
+		if(currentFilterInterval > 0)
+			if( (timeLevel+1) % currentFilterInterval == 0 )
+				filterNow = true;
+	}
+	return filterNow;
+}
+
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
 // result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
 // Only filters if the modulo of time level plus one, by the filter interval is zero.
@@ -85,38 +102,37 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 // Currently, copies the edge-boundary nodes and filters all interior nodes, including ghost and
 // solid. Consider copying also ghosts, and filter only active fluid nodes.
 void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
-									uint filterInterval, ulong timeLevel)
+									const ConfigSettings& params, ulong timeLevel, double t)
 {
-	if(filterInterval > 0)
-		if( (timeLevel+1) % filterInterval == 0 )
+	if( checkFilterCondition(params, timeLevel, t) )
+	{
+		// Copy boundary nodes:
+		for (auto&& edgeBoundary : edgeBoundaries)
 		{
-			// Copy boundary nodes:
-			for (auto&& edgeBoundary : edgeBoundaries)
-			{
-				const IndexBoundingBox& ownedNodes = edgeBoundary->ownedNodes;
-				for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-					for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-						for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
-							variableTemporaryStorage(i,j,k) = filterVariable(i,j,k);
-			}
-			for (size_t index1D : indexByType.ghost)
-				variableTemporaryStorage(index1D) = filterVariable(index1D);
-			// Apply filter to interior nodes:
-			Vector3_u nNodes(NI, NJ, NK);
-			for (size_t index1D : indexByType.fluidInterior)
-			{
-				Vector3_u indices = getIndices3D(index1D, nNodes);
-				variableTemporaryStorage(index1D) = (6*filterVariable(indices)
-												     + filterVariable(indices.i+1, indices.j, indices.k)
-													 + filterVariable(indices.i-1, indices.j, indices.k)
-													 + filterVariable(indices.i, indices.j+1, indices.k)
-													 + filterVariable(indices.i, indices.j-1, indices.k)
-													 + filterVariable(indices.i, indices.j, indices.k+1)
-													 + filterVariable(indices.i, indices.j, indices.k-1)
-													 ) / 12;
-			}
-			filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
+			const IndexBoundingBox& ownedNodes = edgeBoundary->ownedNodes;
+			for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+				for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+					for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+						variableTemporaryStorage(i,j,k) = filterVariable(i,j,k);
 		}
+		for (size_t index1D : indexByType.ghost)
+			variableTemporaryStorage(index1D) = filterVariable(index1D);
+		// Apply filter to interior nodes:
+		Vector3_u nNodes(NI, NJ, NK);
+		for (size_t index1D : indexByType.fluidInterior)
+		{
+			Vector3_u indices = getIndices3D(index1D, nNodes);
+			variableTemporaryStorage(index1D) = (6*filterVariable(indices)
+												 + filterVariable(indices.i+1, indices.j, indices.k)
+												 + filterVariable(indices.i-1, indices.j, indices.k)
+												 + filterVariable(indices.i, indices.j+1, indices.k)
+												 + filterVariable(indices.i, indices.j-1, indices.k)
+												 + filterVariable(indices.i, indices.j, indices.k+1)
+												 + filterVariable(indices.i, indices.j, indices.k-1)
+												 ) / 12;
+		}
+		filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
+	}
 }
 
 // Swap the contents of all the arrays of conserved variables and the intermediate arrays, by move-semantics.
