@@ -45,7 +45,7 @@ void OutputManager::initialize()
 void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 {
 	if ( params.saveIC )
-		storeCurrentSolution_csv(mesh, t);
+		storeCurrentSolution(mesh, t);
 }
 
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
@@ -65,7 +65,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusRep
 			enoughTimeSinceSave = timeSinceSave + dt >= params.savePeriod;
 		}
 		if ( withinRelevantTimeRegime && enoughTimeSinceSave )
-			storeCurrentSolution_csv(mesh, t);
+			storeCurrentSolution(mesh, t);
 	}
 	// Write to screen:
 	double timeSinceStatusReport = statusReportTimer.getElapsedTime().asSeconds();
@@ -80,19 +80,19 @@ void OutputManager::processFinalOutput(const Mesh& mesh, double t, ulong timeLev
 								const ConservedVariablesVectorGroup& convergenceHistory)
 {
 	if ( params.saveFinal )
-		storeCurrentSolution_csv(mesh, t);
+		storeCurrentSolution(mesh, t);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
 	writeConvergenceHistoryFiles(convergenceHistory);
 }
 
 // Store selected variables from the solution at current time level, using the format(s) specified
-void OutputManager::storeCurrentSolution_csv(const Mesh& mesh, double t)
+void OutputManager::storeCurrentSolution(const Mesh& mesh, double t)
 {
 	if(params.saveForParaview)
-		storeCurrentSolution_csv_paraview(mesh);
+		storeCurrentSolution_vtk(mesh, t);
 	if (params.saveForMatlab)
-		storeCurrentSolution_csv_matlab(mesh);
+		storeCurrentSolutionPlane_csv(mesh);
 	++savedSolutions;
 	outputTimes.push_back(t);
 }
@@ -111,17 +111,153 @@ void OutputManager::writeValuesFromIndices_csv_paraview(const Mesh& mesh, ofstre
 	}
 }
 
+string OutputManager::getVtkHeader(const Mesh& mesh, double t)
+{
+	string vtkHeader;
+	vtkHeader += "# vtk DataFile Version 5.1\n";
+	vtkHeader += "Output at time t = " + to_string(t) + "\n";
+	vtkHeader += "ASCII\n";
+	vtkHeader += "DATASET STRUCTURED_POINTS\n";
+	vtkHeader += "DIMENSIONS " + to_string(mesh.NI) + " " + to_string(mesh.NJ) + " " + to_string(mesh.NK) + "\n";
+	vtkHeader += "ORIGIN " + to_string(-mesh.positionOffset.x * mesh.dx) + " "
+						   + to_string(-mesh.positionOffset.y * mesh.dy) + " "
+						   + to_string(-mesh.positionOffset.z * mesh.dz) + "\n";
+	vtkHeader += "SPACING " + to_string(mesh.dx) + " " + to_string(mesh.dy) + " " + to_string(mesh.dz) + "\n";
+	vtkHeader += "POINT_DATA " + to_string(mesh.nNodesTotal) + "\n";
+	return vtkHeader;
+}
+
+void OutputManager::writeVtkNodeFlags(const Mesh& mesh, ofstream& outputFile)
+{
+	outputFile << "SCALARS Node_Flag int 1\n";
+	outputFile << "LOOKUP_TABLE default\n";
+	for (size_t k{0}; k<mesh.NK; ++k)
+		for (size_t j{0}; j<mesh.NJ; ++j)
+			for (size_t i{0}; i<mesh.NI; ++i)
+			{
+				int flagValue = 0;
+				if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidInterior)
+					flagValue = 0;
+				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidEdge)
+					flagValue = 1;
+				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidGhost)
+					flagValue = 2;
+				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::SolidGhost)
+					flagValue = 3;
+				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::SolidInactive)
+					flagValue = 4;
+				else
+					throw std::logic_error("Unexpected enum value.");
+				outputFile << flagValue << "\n";
+			}
+}
+
+vector<const Array3D_d*> OutputManager::getScalarVariablePointers(const Mesh& mesh)
+{
+	vector<const Array3D_d*> scalarFlowVariables;
+	if ( params.saveDensity )
+		scalarFlowVariables.push_back(&mesh.conservedVariables.rho);
+	if ( params.saveEnergy )
+		scalarFlowVariables.push_back(&mesh.conservedVariables.rho_E);
+	if ( params.savePressure )
+		scalarFlowVariables.push_back(&mesh.primitiveVariables.p);
+	if ( params.saveTemperature )
+		scalarFlowVariables.push_back(&mesh.primitiveVariables.T);
+	if ( params.saveViscosity )
+		scalarFlowVariables.push_back(&mesh.transportProperties.mu);
+	if ( params.saveThermalCond )
+		scalarFlowVariables.push_back(&mesh.transportProperties.kappa);
+	return scalarFlowVariables;
+}
+
+vector<string> OutputManager::getScalarVariableNames()
+{
+	vector<string> variableNames;
+	if ( params.saveDensity )
+		variableNames.push_back("Density");
+	if ( params.saveEnergy )
+		variableNames.push_back("Total_Specific_Energy_per_Volume");
+	if ( params.savePressure )
+		variableNames.push_back("Pressure");
+	if ( params.saveTemperature )
+		variableNames.push_back("Temperature");
+	if ( params.saveViscosity )
+		variableNames.push_back("Dynamic_Viscosity");
+	if ( params.saveThermalCond )
+		variableNames.push_back("Thermal_Conductivity");
+	return variableNames;
+}
+
+void OutputManager::writeVtkScalarData(const Mesh& mesh, ofstream& outputFile)
+{
+	vector<const Array3D_d*> scalarFlowVariables = getScalarVariablePointers(mesh);
+	vector<string> variableNames = getScalarVariableNames();
+	uint counter = 0;
+	for (const Array3D_d* flowVariable : scalarFlowVariables)
+	{
+		outputFile << "SCALARS " << variableNames.at(counter) << " double 1\n";
+		outputFile << "LOOKUP_TABLE default\n";
+		for (size_t k{0}; k<mesh.NK; ++k)
+			for (size_t j{0}; j<mesh.NJ; ++j)
+				for (size_t i{0}; i<mesh.NI; ++i)
+					outputFile << flowVariable->at(i,j,k) << "\n";
+		++counter;
+	}
+}
+
+vector<std::array<const Array3D_d*, 3>> OutputManager::getVectorVariablePointers(const Mesh& mesh)
+{
+	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables;
+	if ( params.saveMomentum )
+	{
+		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&mesh.conservedVariables.rho_u,
+																		&mesh.conservedVariables.rho_v,
+																		&mesh.conservedVariables.rho_w}) );
+	}
+	if ( params.saveVelocity )
+	{
+		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&mesh.primitiveVariables.u,
+																		&mesh.primitiveVariables.v,
+																		&mesh.primitiveVariables.w}) );
+	}
+	return vectorFlowVariables;
+}
+
+vector<string> OutputManager::getVectorVariableNames()
+{
+	vector<string> variableNames;
+	if ( params.saveMomentum )
+		variableNames.push_back("Momentum_Density");
+	if ( params.saveVelocity )
+		variableNames.push_back("Velocity");
+	return variableNames;
+}
+
+void OutputManager::writeVtkVectorData(const Mesh& mesh, ofstream& outputFile)
+{
+	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables = getVectorVariablePointers(mesh);
+	vector<string> variableNames = getVectorVariableNames();
+	uint counter = 0;
+	for (std::array<const Array3D_d*, 3> flowVariableVector : vectorFlowVariables)
+	{
+		outputFile << "VECTORS " << variableNames.at(counter) << " double\n";
+		for (size_t k{0}; k<mesh.NK; ++k)
+			for (size_t j{0}; j<mesh.NJ; ++j)
+				for (size_t i{0}; i<mesh.NI; ++i)
+					outputFile << flowVariableVector[0]->at(i,j,k) << " "
+							   << flowVariableVector[1]->at(i,j,k) << " "
+							   << flowVariableVector[2]->at(i,j,k) << "\n";
+		++counter;
+	}
+}
+
 // Writes a .csv file with the specified flow variables at the current time level.
 // The file is formatted to fit how ParaView wants to import it, with coordinates in the leftmost column.
 // Only the flow variables selected in the ConfigFile are saved.
-void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
+void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 {
-	vector<Array3D_d const*> flowVariables = getPlotVariables(mesh);
-	if ( flowVariables.empty() )
-		return;
-
 	ofstream outputFile;
-	string filename = "output/out.csv." + to_string(savedSolutions);
+	string filename = "output/out.vtk." + to_string(savedSolutions);
 	outputFile.open( filename );
 	if ( !outputFile )
 	{
@@ -129,21 +265,20 @@ void OutputManager::storeCurrentSolution_csv_paraview(const Mesh& mesh)
 		     << "Solution was not saved. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 		return;
 	}
-	outputFile << get_csvHeaderString();
-	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidInterior, flowVariables);
-	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.fluidEdge,	  flowVariables);
-//	writeValuesFromIndices_csv_paraview(mesh, outputFile, mesh.indexByType.ghost,		  flowVariables);
-
+	outputFile << getVtkHeader(mesh, t);
+	writeVtkNodeFlags (mesh, outputFile);
+	writeVtkScalarData(mesh, outputFile);
+	writeVtkVectorData(mesh, outputFile);
 	outputFile.close();
 }
 
 // Writes multiple .csv files with the specified flow variables at the current time level.
 // The file is formatted as a table or matrix, with the values from a specified 2D plane. Matlab
 // can read this file to a matrix. Only the flow variables selected in the ConfigFile are saved.
-void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
+void OutputManager::storeCurrentSolutionPlane_csv(const Mesh& mesh)
 {
-	vector<const Array3D_d*> flowVariables = getPlotVariables(mesh);		// Get pointers to the arrays with data to save
-	vector<string> variableFileNames = getVariableFileNames();	// Get a vector with the names of the variables
+	vector<const Array3D_d*> flowVariables = getFlowVariablePointers_csv(mesh);		// Get pointers to the arrays with data to save
+	vector<string> variableFileNames = getVariableCsvFileNames();	// Get a vector with the names of the variables
 
 	for(size_t i=0; i<flowVariables.size(); ++i)	// Let i go from zero to no. of variables to save.
 	{
@@ -156,7 +291,7 @@ void OutputManager::storeCurrentSolution_csv_matlab(const Mesh& mesh)
 			     << "Solution was not saved. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 			return;
 		}
-		writePlaneTo_csv(outputFile, flowVariables.at(i));
+		writePlaneToCsv(outputFile, flowVariables.at(i));
 	}
 }
 
@@ -190,45 +325,39 @@ void OutputManager::computeVorticity(const Mesh& mesh, const AxisOrientationEnum
 }
 
 // Get a vector with pointers to the flow variables that should be saved.
-vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
+vector<const Array3D_d*> OutputManager::getFlowVariablePointers_csv(const Mesh& mesh)
 {
 	vector<const Array3D_d*> flowVariables;
-	if ( params.save_rho )
+	if ( params.saveDensity )
 		flowVariables.push_back(&mesh.conservedVariables.rho);
-	if ( params.save_rho_u )
+	if ( params.saveMomentum )
+	{
 		flowVariables.push_back(&mesh.conservedVariables.rho_u);
-	if ( params.save_rho_v )
 		flowVariables.push_back(&mesh.conservedVariables.rho_v);
-	if ( params.save_rho_w )
 		flowVariables.push_back(&mesh.conservedVariables.rho_w);
-	if ( params.save_E )
+	}
+	if ( params.saveEnergy )
 		flowVariables.push_back(&mesh.conservedVariables.rho_E);
-	if ( params.save_u )
+	if ( params.saveVelocity )
+	{
 		flowVariables.push_back(&mesh.primitiveVariables.u);
-	if ( params.save_v )
 		flowVariables.push_back(&mesh.primitiveVariables.v);
-	if ( params.save_w )
 		flowVariables.push_back(&mesh.primitiveVariables.w);
-	if ( params.save_p )
+	}
+	if ( params.savePressure )
 		flowVariables.push_back(&mesh.primitiveVariables.p);
-	if ( params.save_T )
+	if ( params.saveTemperature )
 		flowVariables.push_back(&mesh.primitiveVariables.T);
-	if ( params.save_mu )
+	if ( params.saveViscosity )
 		flowVariables.push_back(&mesh.transportProperties.mu);
-	if ( params.save_kappa )
+	if ( params.saveThermalCond )
 		flowVariables.push_back(&mesh.transportProperties.kappa);
-	if ( params.save_vorticity_x )
+	if ( params.saveVorticity )
 	{
 		computeVorticity(mesh, AxisOrientationEnum::x);
 		flowVariables.push_back(&vorticity.x);
-	}
-	if ( params.save_vorticity_y )
-	{
 		computeVorticity(mesh, AxisOrientationEnum::y);
 		flowVariables.push_back(&vorticity.y);
-	}
-	if ( params.save_vorticity_z )
-	{
 		computeVorticity(mesh, AxisOrientationEnum::z);
 		flowVariables.push_back(&vorticity.z);
 	}
@@ -237,81 +366,81 @@ vector<const Array3D_d*> OutputManager::getPlotVariables(const Mesh& mesh)
 
 // Returns a camma-separated string with the names of the flow variables to save.
 // For ParaView to read a .csv file it needs the headers on the first line.
-string OutputManager::get_csvHeaderString()
+string OutputManager::getCsvHeaderString()
 {
 	string headers = "x, y, z";
-	if ( params.save_rho )
-		headers += ", density";
-	if ( params.save_rho_u )
+	if ( params.saveDensity )
+		headers += ", Density";
+	if ( params.saveMomentum )
+	{
 		headers += ", x-momentum";
-	if ( params.save_rho_v )
 		headers += ", y-momentum";
-	if ( params.save_rho_w )
 		headers += ", z-momentum";
-	if ( params.save_E )
-		headers += ", total energy";
-	if ( params.save_u )
-		headers += ", velocity comp u";
-	if ( params.save_v )
-		headers += ", velocity comp v";
-	if ( params.save_w )
-		headers += ", velocity comp w";
-	if ( params.save_p )
-		headers += ", pressure";
-	if ( params.save_T )
-		headers += ", temperature";
-	if ( params.save_mu )
-		headers += ", dynamic viscosity";
-	if ( params.save_kappa )
-		headers += ", thermal conductivity";
-	if ( params.save_vorticity_x )
+	}
+	if ( params.saveEnergy )
+		headers += ", Total energy";
+	if ( params.saveVelocity )
+	{
+		headers += ", Velocity comp u";
+		headers += ", Velocity comp v";
+		headers += ", Velocity comp w";
+	}
+	if ( params.savePressure )
+		headers += ", Pressure";
+	if ( params.saveTemperature )
+		headers += ", Temperature";
+	if ( params.saveViscosity )
+		headers += ", Dynamic viscosity";
+	if ( params.saveThermalCond )
+		headers += ", Thermal conductivity";
+	if ( params.saveVorticity )
+	{
 		headers += ", x-vorticity";
-	if ( params.save_vorticity_y )
 		headers += ", y-vorticity";
-	if ( params.save_vorticity_z )
 		headers += ", z-vorticity";
+	}
 	return headers;
 }
 
 // Returns a vector of strings, which are the names of the variables to save.
-vector<string> OutputManager::getVariableFileNames()
+vector<string> OutputManager::getVariableCsvFileNames()
 {
 	vector<string> variableNames;
-	if ( params.save_rho )
+	if ( params.saveDensity )
 		variableNames.push_back("rho");
-	if ( params.save_rho_u )
+	if ( params.saveMomentum )
+	{
 		variableNames.push_back("rho_u");
-	if ( params.save_rho_v )
 		variableNames.push_back("rho_v");
-	if ( params.save_rho_w )
 		variableNames.push_back("rho_w");
-	if ( params.save_E )
+	}
+	if ( params.saveEnergy )
 		variableNames.push_back("E");
-	if ( params.save_u )
+	if ( params.saveVelocity )
+	{
 		variableNames.push_back("u");
-	if ( params.save_v )
 		variableNames.push_back("v");
-	if ( params.save_w )
 		variableNames.push_back("w");
-	if ( params.save_p )
+	}
+	if ( params.savePressure )
 		variableNames.push_back("p");
-	if ( params.save_T )
+	if ( params.saveTemperature )
 		variableNames.push_back("T");
-	if ( params.save_mu )
+	if ( params.saveViscosity )
 		variableNames.push_back("mu");
-	if ( params.save_kappa )
+	if ( params.saveThermalCond )
 		variableNames.push_back("kappa");
-	if ( params.save_vorticity_x )
+	if ( params.saveVorticity )
+	{
 		variableNames.push_back("vorticity_x");
-	if ( params.save_vorticity_y )
 		variableNames.push_back("vorticity_y");
-	if ( params.save_vorticity_z )
 		variableNames.push_back("vorticity_z");
+	}
 	return variableNames;
 }
 
 // Write the values from a plane, defined in ConfigFile, of one flow variable. It's written like a comma separated table into 'outputFile'.
-void OutputManager::writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable)
+void OutputManager::writePlaneToCsv(ofstream& outputFile, const Array3D_d* flowVariable)
 {
 	switch(params.saveNormalAxis)
 	{

@@ -29,26 +29,42 @@ public:
 	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
 							const ConservedVariablesVectorGroup& convergenceHistory);
 private:
-	void storeCurrentSolution_csv(const Mesh& mesh, double t);
+	void storeCurrentSolution(const Mesh& mesh, double t);
 
 	void writeValuesFromIndices_csv_paraview(const Mesh& mesh,
 											 ofstream& outputFile,
 											 const vector<size_t>& nodesToWrite,
 											 const vector<Array3D_d const*>& flowVariables);
 
-	void storeCurrentSolution_csv_paraview(const Mesh& mesh);
+	string getVtkHeader(const Mesh&, double t);
 
-	void storeCurrentSolution_csv_matlab(const Mesh& mesh);
+	void writeVtkNodeFlags(const Mesh&, ofstream& outputFile);
+
+	vector<const Array3D_d*> getScalarVariablePointers(const Mesh& mesh);
+
+	vector<string> getScalarVariableNames();
+
+	void writeVtkScalarData(const Mesh&, ofstream& outputFile);
+
+	vector<std::array<const Array3D_d*, 3>> getVectorVariablePointers(const Mesh& mesh);
+
+	vector<string> getVectorVariableNames();
+
+	void writeVtkVectorData(const Mesh&, ofstream& outputFile);
+
+	void storeCurrentSolution_vtk(const Mesh& mesh, double t);
+
+	void storeCurrentSolutionPlane_csv(const Mesh& mesh);
 
 	void computeVorticity(const Mesh& mesh, const AxisOrientationEnum axis);
 
-	vector<const Array3D_d*> getPlotVariables(const Mesh& mesh);
+	vector<const Array3D_d*> getFlowVariablePointers_csv(const Mesh& mesh);
 
-	string get_csvHeaderString();
+	string getCsvHeaderString();
 
-	vector<string> getVariableFileNames();
+	vector<string> getVariableCsvFileNames();
 
-	void writePlaneTo_csv(ofstream& outputFile, const Array3D_d* flowVariable);
+	void writePlaneToCsv(ofstream& outputFile, const Array3D_d* flowVariable);
 
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 
