@@ -45,14 +45,10 @@ public:
 
 	double statusReportInterval;	// How much wall clock time between each status/progression report to screen
 
-	bool save_rho, save_rho_u, save_rho_v,  // Specifies what conserved variables to save to disk
-	     save_rho_w, save_E;
-	bool save_u, save_v, save_w,            // Specifies what primitive variables to save to disk
-	     save_p, save_T;
-	bool save_mu, save_kappa;               // Specifies what transport properties to save to disk
-	bool save_vorticity_x;	// Specifies whether to save components of vorticity to disk.
-	bool save_vorticity_y;
-	bool save_vorticity_z;
+	bool saveDensity, saveMomentum, saveEnergy; 		// Specifies what conserved variables to save to disk
+	bool saveVelocity, savePressure, saveTemperature;	// Specifies what primitive variables to save to disk
+	bool saveViscosity, saveThermalCond;	// Specifies what transport properties to save to disk
+	bool saveVorticity;						// Specifies whether to compute and save vorticity to disk.
 
 	bool saveIC, saveFinal; // Specifies whether to save IC and final solution
 	bool saveIntervals; 			// Specifies whether to save solutions at given interval

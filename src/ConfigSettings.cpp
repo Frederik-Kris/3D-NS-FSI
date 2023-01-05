@@ -115,29 +115,23 @@ void ConfigSettings::readSettingValues(Config& cfg)
 
 	statusReportInterval = cfg.lookup("statusReportInterval");
 
-	save_rho       = cfg.lookup("save_rho");
-	save_rho_u     = cfg.lookup("save_rho_u");
-	save_rho_v     = cfg.lookup("save_rho_v");
-	save_rho_w     = cfg.lookup("save_rho_w");
-	save_E         = cfg.lookup("save_E");
-	save_u         = cfg.lookup("save_u");
-	save_v         = cfg.lookup("save_v");
-	save_w         = cfg.lookup("save_w");
-	save_p         = cfg.lookup("save_p");
-	save_T         = cfg.lookup("save_T");
-	save_mu        = cfg.lookup("save_mu");
-	save_kappa     = cfg.lookup("save_kappa");
-	save_vorticity_x = cfg.lookup("save_vorticity_x");
-	save_vorticity_y = cfg.lookup("save_vorticity_y");
-	save_vorticity_z = cfg.lookup("save_vorticity_z");
+	saveDensity		= cfg.lookup("saveDensity");
+	saveMomentum	= cfg.lookup("saveMomentum");
+	saveEnergy		= cfg.lookup("saveEnergy");
+	saveVelocity	= cfg.lookup("saveVelocity");
+	savePressure	= cfg.lookup("savePressure");
+	saveTemperature	= cfg.lookup("saveTemperature");
+	saveViscosity	= cfg.lookup("saveViscosity");
+	saveThermalCond = cfg.lookup("saveThermalCond");
+	saveVorticity	= cfg.lookup("saveVorticity");
 	saveIC        = cfg.lookup("saveIC");
 	saveFinal     = cfg.lookup("saveFinal");
 	saveIntervals = cfg.lookup("saveIntervals");
 	savePeriod    = cfg.lookup("savePeriod");
 	saveIntervalsStartTime = cfg.lookup("saveIntervalsStartTime");
 	saveIntervalsEndTime   = cfg.lookup("saveIntervalsEndTime");
-	saveForParaview= cfg.lookup("saveForParaview");
-	saveForMatlab  = cfg.lookup("saveForMatlab");
+	saveForParaview = cfg.lookup("saveForParaview");
+	saveForMatlab	= cfg.lookup("saveForMatlab");
 
 	if(saveForMatlab)
 	{
