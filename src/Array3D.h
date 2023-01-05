@@ -59,6 +59,16 @@ public:
 	inline double operator()(size_t i) const
 	{ return data[i]; }
 
+	// Get reference to a node using 3D indices
+	// ->at(i,j,k) is more readable than ->operator(i,j,k), or (*array)(i,j,k)
+	inline double& at(size_t x, size_t y, size_t z)
+	{ return data[x * width * height + y * height + z]; }
+
+	// Get value of a node using 3D indices
+	// ->at(i,j,k) is more readable than ->operator(i,j,k), or (*array)(i,j,k)
+	inline double at(size_t x, size_t y, size_t z) const
+	{ return data[x * width * height + y * height + z]; }
+
 	// Get reference to a node using one index
 	// ->at(i) is more readable than ->operator(i), or (*array)(i)
 	inline double& at(size_t i)
