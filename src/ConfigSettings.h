@@ -47,18 +47,13 @@ public:
 
 	bool saveDensity, saveMomentum, saveEnergy; 		// Specifies what conserved variables to save to disk
 	bool saveVelocity, savePressure, saveTemperature;	// Specifies what primitive variables to save to disk
-	bool saveViscosity, saveThermalCond;	// Specifies what transport properties to save to disk
-	bool saveVorticity;						// Specifies whether to compute and save vorticity to disk.
+	bool saveViscosity, saveThermalCond;				// Specifies what transport properties to save to disk
 
 	bool saveIC, saveFinal; // Specifies whether to save IC and final solution
 	bool saveIntervals; 			// Specifies whether to save solutions at given interval
 	double savePeriod;				// How much time between each save, if save_intervals=true
 	double saveIntervalsStartTime;	// When to start periodic saving, if save_intervals=true
 	double saveIntervalsEndTime;	// When to stop periodic saving, if save_intervals=true
-	bool saveForParaview; 				// Whether to save entire 3D solution in a single file for ParaView
-	bool saveForMatlab;					// Whether to save solution in a plane, in multiple files, for Matlab
-	saveNormalAxisEnum saveNormalAxis;	// Normal axis. Defines plot-plane angle if saveForMatlab is true
-	size_t   saveConstantIndex;			// Plot-plane offset if saveForMatlab is true. Must be in [0, gridsize-1].
 	ConvHistoryEnum saveConvergenceHistory; 	// Save 2-norm of change for each time step?
 
 	double Gamma;				// Ratio of specific heats

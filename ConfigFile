@@ -14,8 +14,8 @@
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 81
-NJ = 43
+NI = 161
+NJ = 83
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -30,7 +30,7 @@ stopTimeLevel = 20
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 10.
+t_end = 200.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -42,7 +42,7 @@ viscStabilityLimit = -0.68
 
 // Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
 filterIntervals = [50, 200, 1000]
-filterIntervalChangeTimes = [20., 40., 60.]
+filterIntervalChangeTimes = [30., 60., 100.]
 
 //---------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -53,14 +53,13 @@ statusReportInterval = 2.
 
 // Booleans to specify what flow variables to store:
 saveDensity     = true
-saveMomentum    = true
-saveEnergy      = true
+saveMomentum    = false
+saveEnergy      = false
 saveVelocity    = true
 savePressure    = true
 saveTemperature = true
 saveViscosity   = false
 saveThermalCond = false
-saveVorticity   = false
 
 // Save initial condition?
 saveIC = false
@@ -80,18 +79,6 @@ savePeriod = 5.
 // If ...EndTime <= 0, then it saves periodically until simulation end.
 saveIntervalsStartTime = 0.
 saveIntervalsEndTime = 0.
-
-// How to structure the csv output file(s). Use 'saveForParaview=true' to plot entire 3D solution, the way paraview wants it. 
-// Set 'saveForMatlab=true' to save the values in a plane (defined below), to be imported by matlab to put in e.g. a contour plot.
-saveForParaview = true
-saveForMatlab   = false
-
-// Plot-plane orientation. Select a spatial direction (axis) that the plot-plane should be normal to. Choose "x", "y" or "z".
-saveNormalAxis = "z"
-
-// Plot-plane offset. What value should the index (for the direction selected above) be? Should be non-negative and smaller 
-// than the grid size in that direction. E.g., if "y" was selected, this number should be within [0, NJ-1].
-saveConstantIndex = 1
 
 // Save convergence history in the form of 2-norm of the change between consecutive time levels?
 // Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.

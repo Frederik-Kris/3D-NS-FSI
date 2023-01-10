@@ -123,32 +123,12 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	saveTemperature	= cfg.lookup("saveTemperature");
 	saveViscosity	= cfg.lookup("saveViscosity");
 	saveThermalCond = cfg.lookup("saveThermalCond");
-	saveVorticity	= cfg.lookup("saveVorticity");
 	saveIC        = cfg.lookup("saveIC");
 	saveFinal     = cfg.lookup("saveFinal");
 	saveIntervals = cfg.lookup("saveIntervals");
 	savePeriod    = cfg.lookup("savePeriod");
 	saveIntervalsStartTime = cfg.lookup("saveIntervalsStartTime");
 	saveIntervalsEndTime   = cfg.lookup("saveIntervalsEndTime");
-	saveForParaview = cfg.lookup("saveForParaview");
-	saveForMatlab	= cfg.lookup("saveForMatlab");
-
-	if(saveForMatlab)
-	{
-		string saveNormalAxisString = cfg.lookup("saveNormalAxis").c_str();
-		if(saveNormalAxisString=="x")
-			saveNormalAxis = saveNormalAxisEnum::x;
-		else if(saveNormalAxisString=="y")
-			saveNormalAxis = saveNormalAxisEnum::y;
-		else if(saveNormalAxisString=="z")
-			saveNormalAxis = saveNormalAxisEnum::z;
-		else
-		{
-			errorOccurred = true;
-			std::cerr << "saveNormalAxis must be x, y, or z.\n";
-		}
-		saveConstantIndex = (uint) cfg.lookup("saveConstantIndex");
-	}
 
 	string saveConvergenceHistoryString = cfg.lookup("saveConvergenceHistory").c_str();
 	if(saveConvergenceHistoryString == "none")

@@ -31,11 +31,6 @@ public:
 private:
 	void storeCurrentSolution(const Mesh& mesh, double t);
 
-	void writeValuesFromIndices_csv_paraview(const Mesh& mesh,
-											 ofstream& outputFile,
-											 const vector<size_t>& nodesToWrite,
-											 const vector<Array3D_d const*>& flowVariables);
-
 	string getVtkHeader(const Mesh&, double t);
 
 	void writeVtkNodeFlags(const Mesh&, ofstream& outputFile);
@@ -54,18 +49,6 @@ private:
 
 	void storeCurrentSolution_vtk(const Mesh& mesh, double t);
 
-	void storeCurrentSolutionPlane_csv(const Mesh& mesh);
-
-	void computeVorticity(const Mesh& mesh, const AxisOrientationEnum axis);
-
-	vector<const Array3D_d*> getFlowVariablePointers_csv(const Mesh& mesh);
-
-	string getCsvHeaderString();
-
-	vector<string> getVariableCsvFileNames();
-
-	void writePlaneToCsv(ofstream& outputFile, const Array3D_d* flowVariable);
-
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 
 	void writeOutputTimes();
@@ -76,7 +59,6 @@ private:
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
 	Clock wallClockTimer;			// Timer that starts when simulation starts
-	VorticityArrayGroup vorticity;	// 3 arrays to compute vorticity on demand
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */

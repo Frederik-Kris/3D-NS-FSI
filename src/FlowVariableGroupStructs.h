@@ -117,18 +117,6 @@ struct TransportPropertiesArrayGroup
 	{}
 };
 
-struct VorticityArrayGroup
-{
-	Array3D_d x;
-	Array3D_d y;
-	Array3D_d z;
-	VorticityArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ)
-	: x(gridSizeX, gridSizeY, gridSizeZ),
-	  y(gridSizeX, gridSizeY, gridSizeZ),
-	  z(gridSizeX, gridSizeY, gridSizeZ)
-	{}
-};
-
 struct RK4slopesArrayGroup
 {
 	ConservedVariablesArrayGroup k1, k2, k3, k4; // 4 slopes per conserved variable
