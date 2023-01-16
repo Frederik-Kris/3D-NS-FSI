@@ -405,40 +405,35 @@ ImmersedBoundary::ImmersedBoundary()
 
 }
 
-void ImmersedBoundary::applyBoundaryCondition(const Vector3_u& nMeshNodes,
-											  const Vector3_d& gridSpacing,
-											  const Vector3_d& meshOriginOffset,
-											  const ConfigSettings& params,
-											  const Array3D_nodeType& nodeTypeArray,
-											  AllFlowVariablesArrayGroup& flowVariables // <- Output
-											  )
+void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
+											  MeshDescriptor& mesh // <- In/Output
+  	  	    								  )
 {
-	filterClosestFluidNodes(nMeshNodes, flowVariables);
+	filterClosestFluidNodes(mesh.nNodes, mesh.flowVariables);
 	for(GhostNode ghostNode : ghostNodes)
 	{
-		InterpolationValues interpolationValues;		// Primitive variables at the 8 surrounding interpolation points.
+		InterpolationValues interpolationValues;		// Conserved variables at the 8 surrounding interpolation points.
 		InterpolationPositions interpolationPositions;	// Positions of interpolation points
 		Array8_b ghostFlag;		// A bool flag for each surrounding node. True if ghost.
 		ghostFlag.fill(false);	// <- Sets all 8 values to false
 		bool allSurroundingAreFluid{true};
 		vector<Vector3_d> unitNormals;	// For each of the surrounding nodes that is ghost, we put its unit normal probe here.
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, mesh.spacings, mesh.originOffset, mesh.nNodes);
 		
 		setInterpolationValues(
-				surroundingNodes, nMeshNodes, gridSpacing,			// <- Input
-				meshOriginOffset, nodeTypeArray, flowVariables,		// <- Input
+				surroundingNodes, mesh,								// <- Input
 				interpolationValues, interpolationPositions,		// <- Output
 				ghostFlag, allSurroundingAreFluid, unitNormals);	// <- Output
 		
 		ConservedVariablesScalars imagePointBCVars = interpolateImagePointVariables(
 				interpolationValues, interpolationPositions, allSurroundingAreFluid,
-				ghostFlag, ghostNode, surroundingNodes, unitNormals, gridSpacing, meshOriginOffset);
+				ghostFlag, ghostNode, surroundingNodes, unitNormals, mesh);
 
 		ConservedVariablesScalars ghostNodeConsVars = getGhostNodeBCVariables(imagePointBCVars);
 		PrimitiveVariablesScalars ghostNodePrimVars = derivePrimitiveVariables(ghostNodeConsVars, params);
 		TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
 		setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps,
-								flowVariables);
+								mesh.flowVariables);
 	}
 }
 
@@ -624,19 +619,17 @@ void ImmersedBoundary::filterClosestFluidNodes(const Vector3_u& nMeshNodes,
 }
 
 void ImmersedBoundary::setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
-													   const Vector3_u& nMeshNodes, const Vector3_d& gridSpacing,
-													   const Vector3_d& meshOriginOffset,
-													   const AllFlowVariablesArrayGroup &flowVariables,
+													   const MeshDescriptor& mesh,
 													   InterpolationValues& interpolationValues,		// <- OUTPUT
 													   InterpolationPositions& interpolationPositions)	// <- OUTPUT
 {
-	interpolationValues.rho[counter] = flowVariables.conservedVariables.rho(surroundingNodeIndex1D);
-	interpolationValues.rhoU[counter] = flowVariables.conservedVariables.rho_u(surroundingNodeIndex1D);
-	interpolationValues.rhoV[counter] = flowVariables.conservedVariables.rho_v(surroundingNodeIndex1D);
-	interpolationValues.rhoW[counter] = flowVariables.conservedVariables.rho_w(surroundingNodeIndex1D);
-	interpolationValues.rhoE[counter] = flowVariables.conservedVariables.rho_E(surroundingNodeIndex1D);
-	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
-															gridSpacing, meshOriginOffset );
+	interpolationValues.rho[counter]  = mesh.flowVariables.conservedVariables.rho(surroundingNodeIndex1D);
+	interpolationValues.rhoU[counter] = mesh.flowVariables.conservedVariables.rho_u(surroundingNodeIndex1D);
+	interpolationValues.rhoV[counter] = mesh.flowVariables.conservedVariables.rho_v(surroundingNodeIndex1D);
+	interpolationValues.rhoW[counter] = mesh.flowVariables.conservedVariables.rho_w(surroundingNodeIndex1D);
+	interpolationValues.rhoE[counter] = mesh.flowVariables.conservedVariables.rho_E(surroundingNodeIndex1D);
+	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, mesh.nNodes),
+															mesh.spacings, mesh.originOffset );
 	interpolationPositions.x[counter] = surroundingNodePosition.x;
 	interpolationPositions.y[counter] = surroundingNodePosition.y;
 	interpolationPositions.z[counter] = surroundingNodePosition.z;
@@ -665,11 +658,7 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 
 void ImmersedBoundary::setInterpolationValues(
 		const IndexBoundingBox& surroundingNodes,
-		const Vector3_u& nMeshNodes,
-		const Vector3_d& gridSpacing,
-		const Vector3_d& meshOriginOffset,
-		const Array3D_nodeType& nodeTypeArray,
-		const AllFlowVariablesArrayGroup& flowVariables,
+		const MeshDescriptor& mesh,
 		InterpolationValues& interpolationValues,		// <-
 		InterpolationPositions& interpolationPositions,	// <-
 		Array8_b& ghostFlag,							// <- Output
@@ -677,17 +666,16 @@ void ImmersedBoundary::setInterpolationValues(
 		vector<Vector3_d>& unitNormals)					// <-
 {
 	uint counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
-	for (size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes))
+	for (size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh.nNodes))
 	{
-		if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
-		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
-		||	nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
+		if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
+		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
+		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
 		{
-			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, nMeshNodes,	// <- Input
-											gridSpacing, meshOriginOffset, flowVariables,	// <- Input
+			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, mesh,	// <- Input
 											interpolationValues, interpolationPositions);	// <- Output
 		}
-		else if (nodeTypeArray(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
+		else if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
 		{
 			ghostFlag[counter] = true;
 			allSurroundingAreFluid = false;
@@ -815,8 +803,7 @@ ConservedVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		const GhostNode& ghostNode,
 		const IndexBoundingBox& surroundingNodes,
 		const vector<Vector3_d>& unitNormals,
-		const Vector3_d& gridSpacing,
-		const Vector3_d& meshOriginOffset )
+		const MeshDescriptor& mesh )
 {
 	ConservedVariablesScalars imagePointBCVars;
 	if (allSurroundingAreFluid)
@@ -825,7 +812,7 @@ ConservedVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		imagePointBCVars = simplifiedInterpolationAll(interpolationValues,
 														lowerIndexNode,
 														ghostNode.imagePoint,
-														gridSpacing, meshOriginOffset);
+														mesh.spacings, mesh.originOffset);
 	}
 	else
 	{ // Then we must use trilinear interpolation with the Vandermonde matrix:

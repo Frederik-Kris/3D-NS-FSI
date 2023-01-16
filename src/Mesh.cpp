@@ -29,8 +29,8 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	edgeBoundaries.push_back(std::make_unique<PeriodicBoundary>(AxisOrientationEnum::z, EdgeIndexEnum::max));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::min));
 	edgeBoundaries.push_back(std::make_unique<SymmetryBoundary>(AxisOrientationEnum::y, EdgeIndexEnum::max));
-	edgeBoundaries.push_back(std::make_unique<InletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
-	edgeBoundaries.push_back(std::make_unique<OutletBoundary>(AxisOrientationEnum::x, EdgeIndexEnum::max));
+	edgeBoundaries.push_back(std::make_unique<InletBoundary>   (AxisOrientationEnum::x, EdgeIndexEnum::min, params.M_0));
+	edgeBoundaries.push_back(std::make_unique<OutletBoundary>  (AxisOrientationEnum::x, EdgeIndexEnum::max));
 
 	dx = params.L_x / (NI-1);
 	dy = params.L_y / (NJ-3);
@@ -47,20 +47,13 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
 }
 
-// Sanity check for the combination of boundary conditions.
-void Mesh::assertBoundaryConditionCompliance()
-{
-	// Implement when creating general IBM.
-}
-
 void Mesh::categorizeNodes(const ConfigSettings& params)
 {
-	const IndexBoundingBox meshSize(NI-1, NJ-1, NK-1);
 	const Vector3_u nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
-	IndexBoundingBox unclaimedNodes = meshSize;
+	IndexBoundingBox unclaimedNodes(NI-1, NJ-1, NK-1);
 	for(auto&& boundary : edgeBoundaries)
 		boundary->identifyOwnedNodes(unclaimedNodes, nMeshNodes, nodeType);
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );
@@ -151,12 +144,13 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 	const Vector3_u nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	AllFlowVariablesArrayGroup flowVariableReferences(conservedVariables, primitiveVariables, transportProperties);
+	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
 	for(auto&& boundary : edgeBoundaries)
 		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(nMeshNodes, gridSpacing, positionOffset, params, nodeType, flowVariableReferences);
+		boundary->applyBoundaryCondition(params, meshData);
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels.

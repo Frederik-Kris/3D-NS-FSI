@@ -32,6 +32,27 @@ enum class EdgeIndexEnum
 typedef Eigen::Array<double, 8, 1> Vector8_d;
 typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
+struct MeshDescriptor
+{
+	const Vector3_u& nNodes;
+	const Vector3_d& spacings;
+	const Vector3_d& originOffset;
+	const Array3D_nodeType& nodeType;
+	AllFlowVariablesArrayGroup& flowVariables;
+
+	MeshDescriptor(const Vector3_u& nNodes,
+				   const Vector3_d& gridSpacings,
+				   const Vector3_d& originOffset,
+				   Array3D_nodeType& nodeTypeArray,
+				   AllFlowVariablesArrayGroup& flowVariables)
+	: nNodes{nNodes},
+	  spacings{gridSpacings},
+	  originOffset{originOffset},
+	  nodeType{nodeTypeArray},
+	  flowVariables{flowVariables}
+	{}
+};
+
 struct InterpolationValues
 {
 	Vector8_d rhoU;	// Momentum density in x-direction
@@ -156,12 +177,8 @@ public:
 									  Array3D_nodeType& nodeTypeArray	// <- Output
 			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
 
-	void applyBoundaryCondition(const Vector3_u& nMeshNodes,
-			  	  	  	  	  	const Vector3_d& gridSpacing,
-								const Vector3_d& meshOriginOffset,
-								const ConfigSettings& params,
-								const Array3D_nodeType& nodeTypeArray,
-								AllFlowVariablesArrayGroup& flowVariables // <- Output
+	void applyBoundaryCondition(const ConfigSettings& params,
+								MeshDescriptor& mesh // <- In/Output
 			  	  	  	  	    );
 
 protected:
@@ -225,9 +242,7 @@ private:
 														const Matrix8x8_d& vandermondeNeumann);
 
 	void setInterpolationValuesFluidNode(uint counter, size_t surroundingNodeIndex1D,
-			   	   	   	   	   	   	     const Vector3_u& nMeshNodes, const Vector3_d& gridSpacing,
-										 const Vector3_d& meshOriginOffset,
-										 const AllFlowVariablesArrayGroup &flowVariables,
+			   	   	   	   	   	   	     const MeshDescriptor& mesh,
 										 InterpolationValues& interpolationValues,			// <- OUTPUT
 										 InterpolationPositions& interpolationPositions);	// <- OUTPUT
 
@@ -240,11 +255,7 @@ private:
 
 	void setInterpolationValues(
 			const IndexBoundingBox& surroundingNodes,
-			const Vector3_u& nMeshNodes,
-			const Vector3_d& gridSpacing,
-			const Vector3_d& meshOriginOffset,
-			const Array3D_nodeType& nodeTypeArray,
-			const AllFlowVariablesArrayGroup& flowVariables,
+			const MeshDescriptor& mesh,
 			InterpolationValues& interpolationValues,		// <-
 			InterpolationPositions& interpolationPositions,	// <-
 			Array8_b& ghostFlag,							// <- Output
@@ -259,8 +270,7 @@ private:
 			const GhostNode& ghostNode,
 			const IndexBoundingBox& surroundingNodes,
 			const vector<Vector3_d>& unitNormals,
-			const Vector3_d& gridSpacing,
-			const Vector3_d& meshOriginOffset);
+			const MeshDescriptor& mesh);
 };
 
 // Class to define boundary conditions at an immersed cylinder:

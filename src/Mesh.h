@@ -27,8 +27,6 @@ public:
 
 	void setupBoundaries(const ConfigSettings& params);
 
-	void assertBoundaryConditionCompliance();
-
 	void categorizeNodes(const ConfigSettings& params);
 
 	bool checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t);
