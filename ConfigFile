@@ -8,9 +8,9 @@
  * ________________________________________________________________________________________________
  */
 
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 // Simulation Parameters
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
@@ -40,13 +40,17 @@ convStabilityLimit = 0.9
 // Should give stability when >-1.5 , but some margin may be necessary.
 viscStabilityLimit = -0.68
 
-// Number of timesteps between each time the filter is applied to the solution. Putting zero or negative disables filtering.
+// Number of timesteps between each time the filter is applied to the solution. Putting zero or negative interval disables filtering.
+// The first value in filterIntervals is the interval from simulation start, until time equals the first value in filterIntervalChangeTimes.
+// As time t hits the thresholds in filterIntervalChangeTimes, the intervals change according to the values in filterIntervals.
+// If filterIntervals has one more entry than filterIntervalChangeTimes, then the last value in filterIntervals will be used
+// forever after the last time threshold in filterIntervalChangeTimes is surpassed. Otherwise filtering is disabled after that.
 filterIntervals = [50, 200, 1000]
 filterIntervalChangeTimes = [30., 60., 100.]
 
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
 // Wall clock time (in seconds) between status/progression reports written to screen.
 statusReportInterval = 2.
@@ -81,12 +85,12 @@ saveIntervalsStartTime = 0.
 saveIntervalsEndTime = 0.
 
 // Save convergence history in the form of 2-norm of the change between consecutive time levels?
-// Must be "none" for no save, "density" to save only density, or "all" for all conserved variables.
+// Must be "none" for no save, "density" to save only for density, or "all" for all conserved variables.
 saveConvergenceHistory = "all"
 
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 // Physical Constants
-//---------------------------------------------------------------------------------
+//-------------------------------------------------------------------------------------------------------------------------------
 
 // Ratio of specific heats:
 Gamma = 1.4
@@ -97,7 +101,7 @@ Pr = 0.72
 // Specific gas constant:
 R = 287.
 
-// Stagnation reference Reynolds number:
+// Stagnation reference Reynolds number (rho_0*c_0*L / mu_0):
 Re = 400.
 
 // Constants C_1 and C_2 in Sutherland's law:

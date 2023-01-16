@@ -21,18 +21,15 @@ void Simulation::run()
 	solver.initialize();
 	output.initialize();
 	output.processInitialOutput(solver.mesh, t);
-	Clock statusReportTimer;
 	while ( !checkStoppingCriterion() )
 	{
 		solver.marchTimeStep(t, timeLevel);
-		output.processIntermediateOutput(solver.mesh, statusReportTimer, t, timeLevel, solver.dt);
+		output.processIntermediateOutput(solver.mesh, t, timeLevel, solver.dt);
 	}
 	output.processFinalOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory());
 }
 
 // Check if computing another timestep will violate the stopping criterion. Returns true if simulation should stop.
-// If the the criterion is to stop after a given number of timesteps, no more timesteps are required after this.
-// To stop at an exact time, one last timestep with an adapted dt is required to hit the end-time.
 bool Simulation::checkStoppingCriterion()
 {
 	bool stopSimulating = true;		// until the opposite is proven.

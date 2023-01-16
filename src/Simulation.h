@@ -18,8 +18,11 @@
 class Simulation
 {
 public:
+
 	Simulation(const ConfigSettings& params);
+
 	void run();
+
 private:
 
 	bool checkStoppingCriterion();

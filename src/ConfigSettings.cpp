@@ -7,7 +7,7 @@
 
 #include "ConfigSettings.h"
 
-// Default constructor. Simply loads settings from ConfigFile, if possible.
+// Constructor. Simply loads settings from ConfigFile specified by filename, if possible.
 ConfigSettings::ConfigSettings(string filename)
 {
 	loadSettings(filename);

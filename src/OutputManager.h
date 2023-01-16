@@ -14,21 +14,31 @@
 #include "ConfigSettings.h"
 #include "Mesh.h"
 
+// Subclass of Simulation, meant to take care of program output, e.g. writing to screen
+// and storing results to disk.
 class OutputManager
 {
 public:
+
 	OutputManager(const ConfigSettings& params);
 
 	void initialize();
 
 	void processInitialOutput(const Mesh& mesh, double t);
 
-	void processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer,
-									double t, ulong timeLevel, double dt);
+	void processIntermediateOutput(const Mesh& mesh,
+								   double t,
+								   ulong timeLevel,
+								   double dt);
 
-	void processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
+	void processFinalOutput(const Mesh& mesh,
+							double t,
+							ulong timeLevel,
+							double dt,
 							const ConservedVariablesVectorGroup& convergenceHistory);
+
 private:
+
 	void storeCurrentSolution(const Mesh& mesh, double t);
 
 	string getVtkHeader(const Mesh&, double t);
@@ -58,7 +68,11 @@ private:
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
-	Clock wallClockTimer;			// Timer that starts when simulation starts
+	Clock wallClockTimer;			// Wall clock time for the entire simulation
+	Clock statusReportTimer;		// Wall clock time since last status report to screen
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */
+
+
+

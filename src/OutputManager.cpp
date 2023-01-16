@@ -7,12 +7,14 @@
 
 #include "OutputManager.h"
 
+// Constructor, taking parameters from config file.
 OutputManager::OutputManager(const ConfigSettings& params) :
 params(params),
 savedSolutions{0}
 {
 }
 
+// Preparation before simulation start. Checking for output folder and deleting old results.
 void OutputManager::initialize()
 {
 	bool outputFolderExists = false;
@@ -30,6 +32,7 @@ void OutputManager::initialize()
 			return;
 		}
 	}
+	// Delete all files except ParaView state files:
 	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
 		if( entry.path().generic_string().find(".pvsm") == string::npos ) // if path does not contain ".."
 			try
@@ -41,6 +44,7 @@ void OutputManager::initialize()
 			}
 }
 
+// Check if anything should be written before sim start.
 void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 {
 	if ( params.saveIC )
@@ -50,7 +54,10 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t)
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
 // It will save solution if the next timestep would take the solution past the save-time.
 // Thus, in general it saves too early, but the deviation is dt at most.
-void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusReportTimer, double t, ulong timeLevel, double dt)
+void OutputManager::processIntermediateOutput(const Mesh& mesh,
+											  double t, // <- time
+											  ulong timeLevel,
+											  double dt) // <- timestep size
 {
 	// Save to disk:
 	if(params.saveIntervals)
@@ -75,8 +82,12 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh, Clock& statusRep
 	}
 }
 
-void OutputManager::processFinalOutput(const Mesh& mesh, double t, ulong timeLevel, double dt,
-								const ConservedVariablesVectorGroup& convergenceHistory)
+// If appropriate, process output after simulation has reached its end.
+void OutputManager::processFinalOutput(const Mesh& mesh,
+									   double t, // <- time
+									   ulong timeLevel,
+									   double dt, // <- timestep size
+									   const ConservedVariablesVectorGroup& convergenceHistory)
 {
 	if ( params.saveFinal )
 		storeCurrentSolution(mesh, t);
@@ -85,7 +96,7 @@ void OutputManager::processFinalOutput(const Mesh& mesh, double t, ulong timeLev
 	writeConvergenceHistoryFiles(convergenceHistory);
 }
 
-// Store selected variables from the solution at current time level, using the format(s) specified
+// Store selected variables from the solution at current time level, to disk, and remember the time.
 void OutputManager::storeCurrentSolution(const Mesh& mesh, double t)
 {
 	storeCurrentSolution_vtk(mesh, t);
@@ -93,6 +104,7 @@ void OutputManager::storeCurrentSolution(const Mesh& mesh, double t)
 	outputTimes.push_back(t);
 }
 
+// Get a string with the first lines we need in the .vtk file.
 string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 {
 	string vtkHeader;
@@ -109,7 +121,9 @@ string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 	return vtkHeader;
 }
 
-void OutputManager::writeVtkNodeFlags(const Mesh& mesh, ofstream& outputFile)
+// Define a scalar integer flag value to describe the type of each node, and write that to the .vtk file.
+void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
+									  ofstream& outputFile) // <- OUTPUT, vtk file
 {
 	outputFile << "SCALARS Node_Flag int 1\n";
 	outputFile << "LOOKUP_TABLE default\n";
@@ -134,6 +148,7 @@ void OutputManager::writeVtkNodeFlags(const Mesh& mesh, ofstream& outputFile)
 			}
 }
 
+// Get pointers to the arrays containing scalar flow variables (non-vectors).
 vector<const Array3D_d*> OutputManager::getScalarVariablePointers(const Mesh& mesh)
 {
 	vector<const Array3D_d*> scalarFlowVariables;
@@ -152,6 +167,7 @@ vector<const Array3D_d*> OutputManager::getScalarVariablePointers(const Mesh& me
 	return scalarFlowVariables;
 }
 
+// Get the names of the scalar (non-vector) flow variables as strings without spaces.
 vector<string> OutputManager::getScalarVariableNames()
 {
 	vector<string> variableNames;
@@ -170,7 +186,9 @@ vector<string> OutputManager::getScalarVariableNames()
 	return variableNames;
 }
 
-void OutputManager::writeVtkScalarData(const Mesh& mesh, ofstream& outputFile)
+// Write the current values of the scalar (non-vector) flow variables to specified vtk file.
+void OutputManager::writeVtkScalarData(const Mesh& mesh,
+									   ofstream& outputFile) // <- OUTPUT, vtk file
 {
 	vector<const Array3D_d*> scalarFlowVariables = getScalarVariablePointers(mesh);
 	vector<string> variableNames = getScalarVariableNames();
@@ -187,6 +205,8 @@ void OutputManager::writeVtkScalarData(const Mesh& mesh, ofstream& outputFile)
 	}
 }
 
+// Get pointers to the arrays containing vector flow variables. The std::array with fixed size 3
+// represents the 3D vectors' three components.
 vector<std::array<const Array3D_d*, 3>> OutputManager::getVectorVariablePointers(const Mesh& mesh)
 {
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables;
@@ -205,6 +225,7 @@ vector<std::array<const Array3D_d*, 3>> OutputManager::getVectorVariablePointers
 	return vectorFlowVariables;
 }
 
+// Get the names of the vector flow variables as strings without spaces.
 vector<string> OutputManager::getVectorVariableNames()
 {
 	vector<string> variableNames;
@@ -215,8 +236,11 @@ vector<string> OutputManager::getVectorVariableNames()
 	return variableNames;
 }
 
-void OutputManager::writeVtkVectorData(const Mesh& mesh, ofstream& outputFile)
+// Write the current values of the vector flow variables to specified vtk file.
+void OutputManager::writeVtkVectorData(const Mesh& mesh,
+									   ofstream& outputFile) // <- OUTPUT, vtk file
 {
+	// The std::array with fixed size 3 represents the 3D vectors' three components:
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables = getVectorVariablePointers(mesh);
 	vector<string> variableNames = getVectorVariableNames();
 	uint counter = 0;
@@ -226,16 +250,16 @@ void OutputManager::writeVtkVectorData(const Mesh& mesh, ofstream& outputFile)
 		for (size_t k{0}; k<mesh.NK; ++k)
 			for (size_t j{0}; j<mesh.NJ; ++j)
 				for (size_t i{0}; i<mesh.NI; ++i)
-					outputFile << flowVariableVector[0]->at(i,j,k) << " "
-							   << flowVariableVector[1]->at(i,j,k) << " "
-							   << flowVariableVector[2]->at(i,j,k) << "\n";
+					outputFile << flowVariableVector[0]->at(i,j,k) << " "	// <- x-component
+							   << flowVariableVector[1]->at(i,j,k) << " "	// <- y-component
+							   << flowVariableVector[2]->at(i,j,k) << "\n";	// <- z-component
 		++counter;
 	}
 }
 
-// Writes a .csv file with the specified flow variables at the current time level.
-// The file is formatted to fit how ParaView wants to import it, with coordinates in the leftmost column.
-// Only the flow variables selected in the ConfigFile are saved.
+// Writes a .vtk file with the flow variables specified in the config file at the current time level.
+// The file is formatted to fit how ParaView wants to import it. If there are multiple files, they
+// are numbered 0, 1, ... so ParaView will import it as a time series.
 void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 {
 	ofstream outputFile;
@@ -255,8 +279,11 @@ void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 }
 
 // Writes a brief report with progression, timestep size and wall clock time elapsed, etc.
+// Progression is computed based on the stopping criterion (end time or time level).
 // 'setprecision' is used to control no. of significant digits, default is 6.
-void OutputManager::writeStatusReport_toScreen(double t, ulong timeLevel, double dt)
+void OutputManager::writeStatusReport_toScreen(double t,	// <- time
+											   ulong timeLevel,
+											   double dt)	// <- timestep size
 {
 	cout << "Simulated time: t = " << t;
 	if (params.stopCriterion == StopCriterionEnum::end_time)
@@ -279,7 +306,7 @@ void OutputManager::writeStatusReport_toScreen(double t, ulong timeLevel, double
 	cout << "Wall clock time: " << setprecision(3) << wallClockTimer.getElapsedTime().asSeconds() << setprecision(6) << " sec" << endl << endl;
 }
 
-// Write a file with a list of the actual times when the solution was saved. For debugging.
+// Write a file with a list of the actual times when the solution was saved.
 void OutputManager::writeOutputTimes()
 {
 	ofstream timeFile;
@@ -297,7 +324,6 @@ void OutputManager::writeOutputTimes()
 }
 
 // Write files with lists of the norm of change for the conserved variables.
-// TODO: This function should be customizable to choose in ConfigFile whether to log norms of particular variables. OR, find out which variable is the best indicator for convergence, and only log that one.
 void OutputManager::writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory)
 {
 	vector< vector<double> const* > normHistoriesToSave;

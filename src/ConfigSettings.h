@@ -34,6 +34,7 @@ class ConfigSettings
 public:
 	ConfigSettings(string filename);
 	void loadSettings(string filename);
+	// MORE ELABORATE DESCRIPTIONS OF THESE PARAMETERS ARE IN THE CONFIG FILE ITSELF.
 	size_t NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
 	ulong stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
