@@ -16,9 +16,11 @@
 
 
 // Simple 3D array type for double precision numbers.
+// Data is stored internally as 1D std::vector.
 class Array3D_d
 {
 public:
+
 	// Constructor. Sets the size members and initializes the data-vector with correct size.
 	// Does NOT initialize the elements in the data-vector.
 	Array3D_d(size_t length, size_t width, size_t height) :
@@ -60,22 +62,22 @@ public:
 	{ return data[i]; }
 
 	// Get reference to a node using 3D indices
-	// ->at(i,j,k) is more readable than ->operator(i,j,k), or (*array)(i,j,k)
+	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
 	inline double& at(size_t x, size_t y, size_t z)
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get value of a node using 3D indices
-	// ->at(i,j,k) is more readable than ->operator(i,j,k), or (*array)(i,j,k)
+	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
 	inline double at(size_t x, size_t y, size_t z) const
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get reference to a node using one index
-	// ->at(i) is more readable than ->operator(i), or (*array)(i)
+	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
 	inline double& at(size_t i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
-	// ->at(i) is more readable than ->operator(i), or (*array)(i)
+	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
 	inline double at(size_t i) const
 	{ return data[i]; }
 
@@ -114,22 +116,13 @@ public:
 	double getMin() const
 	{ return *std::min_element( data.begin(), data.end() ); }
 
-	vector<double> subArray(const IndexBoundingBox& bounds) const
-	{
-		vector<double> output;
-		for(size_t i=bounds.iMin; i<=bounds.iMax; ++i)
-			for(size_t j=bounds.jMin; j<=bounds.jMax; ++j)
-				for(size_t k=bounds.kMin; k<=bounds.kMax; ++k)
-					output.push_back( data[i*width*height + j*height + k] );
-		return output;
-	}
-
 private:
-	size_t length, width, height;
+	size_t length, width, height; // Number of nodes in the 3 directions
 	vector<double> data;
 };
 
 // Simple 3D array type for NodeTypeEnum
+// Data is stored internally as 1D std::vector
 class Array3D_nodeType
 {
 public:

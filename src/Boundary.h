@@ -8,22 +8,21 @@
 #ifndef SRC_BOUNDARY_H_
 #define SRC_BOUNDARY_H_
 
-class MeshEdgeBoundary;
-class ImmersedBoundary;
-
 #include "includes_and_names.h"
 #include "Array3D.h"
 #include "ConfigSettings.h"
 #include "FlowVariableGroupStructs.h"
 #include "Node.h"
 #include <eigen3/Eigen/LU>
+#include <map>
 
-
+// The three spatial coordinate axes
 enum class AxisOrientationEnum
 {
 	x, y, z
 };
 
+// Denotes if a boundary plane is at the lowest or highest coordinate value.
 enum class EdgeIndexEnum
 {
 	min, max
@@ -32,6 +31,8 @@ enum class EdgeIndexEnum
 typedef Eigen::Array<double, 8, 1> Vector8_d;
 typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
+// Package struct with data from the mesh.
+// Shortens argument lists, and lets Boundary not depend on Mesh
 struct MeshDescriptor
 {
 	const Vector3_u& nNodes;
@@ -53,6 +54,8 @@ struct MeshDescriptor
 	{}
 };
 
+// Package struct with the variables to interpolate in the image points.
+// 8 values for each variables, since there are 8 nodes surrounding each image point.
 struct InterpolationValues
 {
 	Vector8_d rhoU;	// Momentum density in x-direction
@@ -62,6 +65,8 @@ struct InterpolationValues
 	Vector8_d rhoE;	// Total specific energy
 };
 
+// Package struct with the positions of interpolation points.
+// 8 values for each coordinate, since there are 8 nodes surrounding each image point.
 struct InterpolationPositions
 {
 	Vector8_d x;
@@ -90,10 +95,10 @@ public:
 										AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 										= 0; // <- PURE virtual
 
-	const AxisOrientationEnum normalAxis;
-	const EdgeIndexEnum planeIndex;
-	const NodeTypeEnum ownedNodesType;
-	IndexBoundingBox ownedNodes;
+	const AxisOrientationEnum normalAxis;	// The axis that is normal to the boundary plane
+	const EdgeIndexEnum planeIndex;			// Denotes if the plane is at lowest or highest index side
+	const NodeTypeEnum ownedNodesType;		// The node type that is assigned to the owned nodes
+	IndexBoundingBox ownedNodes;			// The nodes that the BC at this boundary can affect
 protected:
 
 	void getAdjacentIndices(size_t index1D, const Vector3_u& nMeshNodes,	// <- Input
@@ -121,7 +126,7 @@ public:
 								override;
 
 private:
-	double velocity;
+	double velocity;	// The prescribed inlet velocity, that we reach after initial ramp-up.
 };
 
 // Class to define outlet boundary condition:
@@ -174,7 +179,7 @@ public:
    	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
 									  const Vector3_u& nMeshNodes,
 									  const Vector3_d& meshOriginOffset,
-									  Array3D_nodeType& nodeTypeArray	// <- Output
+									  Array3D_nodeType& nodeTypeArray	// <- OUTPUT
 			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
 
 	void applyBoundaryCondition(const ConfigSettings& params,
@@ -183,9 +188,9 @@ public:
 
 protected:
 
-	vector<GhostNode> ghostNodes;
-	std::map<size_t, size_t> ghostNodeMap;
-	vector<size_t> filterNodes;
+	vector<GhostNode> ghostNodes;			// The solid ghost nodes adjacent to this surface
+	std::map<size_t, size_t> ghostNodeMap;	// A codex from 1D index in the mesh, to index of corresponding entry in ghostNodes
+	vector<size_t> filterNodes;				// The closest interior fluid nodes. Filtered when BC is applied.
 
 	void findGhostNodesWithFluidNeighbors(const vector<size_t>& solidNodeIndices,
 										  const Vector3_u& nMeshNodes,
@@ -287,8 +292,8 @@ public:
 							  ) override;
 
 private:
-	Vector3_d centroidPosition;
-	AxisOrientationEnum axis;
+	Vector3_d centroidPosition;	// Only 2 coordinates used, depending on axis orientation
+	AxisOrientationEnum axis;	// Orientation of centroid axis
 	double radius;
 
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;

@@ -22,13 +22,14 @@ enum class saveNormalAxisEnum
 	x, y, z
 };
 
+// What variables to store change-norm for:
 enum class ConvHistoryEnum
 {
 	none, density, all
 };
 
-// This is a class to store ALL the settings imported from 'ConfigFile'.
-// This is more convenient than constantly calling 'lookup' from a 'libconfig::Config' variable.
+// This is a class to store ALL the settings imported from the config file.
+// This is more convenient than constantly calling lookup("string") from a 'libconfig::Config' variable.
 class ConfigSettings
 {
 public:

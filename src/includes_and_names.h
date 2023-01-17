@@ -21,7 +21,7 @@
 #include <exception>
 #include <math.h>
 #include <algorithm>
-#include <SFML/Graphics.hpp>
+#include <SFML/System.hpp>
 #include <libconfig.h++>
 
 
@@ -41,14 +41,7 @@ using std::max;
 using std::min;
 using std::fmod;
 
-using sf::RenderWindow;
-using sf::VideoMode;
-using sf::Event;
-using sf::Keyboard;
-using sf::RectangleShape;
-using sf::Vector2f;
-using sf::Color;
-using sf::Clock;
+using sf::Clock; // Probably use std:chrono instead
 using sf::Time;
 
 using libconfig::Config;

@@ -12,6 +12,7 @@
 #include "Array3D.h"
 #include "SmallVectors.h"
 
+// Package with scalar double values for the conserved variables
 struct ConservedVariablesScalars
 {
 public:
@@ -28,6 +29,7 @@ public:
 	ConservedVariablesScalars() = default;
 };
 
+// Package with scalar double values for the primitive variables
 struct PrimitiveVariablesScalars
 {
 public:
@@ -43,6 +45,7 @@ public:
 	PrimitiveVariablesScalars() = default;
 };
 
+// Package with scalar double values for the transport properties
 struct TransportPropertiesScalars
 {
 public:
@@ -54,24 +57,7 @@ public:
 	{}
 };
 
-
-
-struct BCVariablesScalars
-{
-public:
-	double rho;		// Mass density
-	double rhoU;	// Momentum density in x-direction
-	double rhoV;	// Momentum density in y-direction
-	double rhoW;	// Momentum density in z-direction
-	double p;		// Pressure
-
-	BCVariablesScalars(double rho, double rho_u, double rho_v, double rho_w, double p) :
-		rho{rho}, rhoU{rho_u}, rhoV{rho_v}, rhoW{rho_w}, p{p}
-	{}
-
-	BCVariablesScalars() = default;
-};
-
+// Package with arrays containing the conserved variables
 struct ConservedVariablesArrayGroup
 {
 	Array3D_d rho;		// Mass density
@@ -89,6 +75,7 @@ struct ConservedVariablesArrayGroup
 	{}
 };
 
+// Package with arrays containing the primitive variables
 struct PrimitiveVariablesArrayGroup
 {
 	Array3D_d u;	// Velocity component in x-direction
@@ -106,6 +93,7 @@ struct PrimitiveVariablesArrayGroup
 	{}
 };
 
+// Package with arrays containing the transport properties
 struct TransportPropertiesArrayGroup
 {
 	Array3D_d mu;		// Dynamic viscosity
@@ -117,6 +105,8 @@ struct TransportPropertiesArrayGroup
 	{}
 };
 
+// Package with the intermediate slopes for the RK4 method. Each slope has values for all conserved variables.
+// TODO: This approach wastes memory. Slopes are only required at interior fluid nodes.
 struct RK4slopesArrayGroup
 {
 	ConservedVariablesArrayGroup k1, k2, k3, k4; // 4 slopes per conserved variable
@@ -129,6 +119,8 @@ struct RK4slopesArrayGroup
 	{}
 };
 
+// References to flow variable arrays in the mesh.
+// Used to avoid dependence on Mesh.h, but still give access to the data.
 struct AllFlowVariablesArrayGroup
 {
 	ConservedVariablesArrayGroup&  conservedVariables;
@@ -144,6 +136,7 @@ struct AllFlowVariablesArrayGroup
 	{}
 };
 
+// Package with vectors for the conserved variables
 struct ConservedVariablesVectorGroup
 {
 	vector<double> rho;
@@ -181,20 +174,6 @@ inline PrimitiveVariablesScalars derivePrimitiveVariables(const ConservedVariabl
 	return PrimitiveVariablesScalars(u, v, w, p, T);
 }
 
-// Computes scalar values for primitive variables, based on the conserved variables, except
-// rhoE is replaced by pressure.
-// Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
-// E.g., decide on the conserved and use this function to get the values for the primitive variables.
-inline PrimitiveVariablesScalars derivePrimitiveVariables(const BCVariablesScalars& bcVariables, const ConfigSettings& params)
-{
-	const double rho{bcVariables.rho}, rhoU{bcVariables.rhoU}, rhoV{bcVariables.rhoV}, rhoW{bcVariables.rhoW}, p{bcVariables.p};
-	double u = rhoU / (1+rho);
-	double v = rhoV / (1+rho);
-	double w = rhoW / (1+rho);
-	double T = ( params.Gamma * p - rho ) / ( 1 + rho );
-	return PrimitiveVariablesScalars(u, v, w, p, T);
-}
-
 // Computes scalar values for transport properties, based on the primitive variables.
 // Intent: Can use this when applying initial conditions (IC) or boundary conditions (BC).
 inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVariablesScalars& primitiveVariables, const ConfigSettings& params)
@@ -206,6 +185,7 @@ inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVaria
 	return TransportPropertiesScalars(mu, kappa);
 }
 
+// Set all flow variables at the given mesh node index
 inline void setFlowVariablesAtNode(size_t index1D,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,
@@ -226,6 +206,7 @@ inline void setFlowVariablesAtNode(size_t index1D,
 	flowVariables.transportProperties.kappa(index1D) = transportPropertyScalars.kappa;
 }
 
+// Set all flow variables at the given mesh node
 inline void setFlowVariablesAtNode(Vector3_u node,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,

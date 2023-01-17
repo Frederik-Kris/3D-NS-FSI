@@ -8,17 +8,18 @@
 #ifndef SRC_MESH_H_
 #define SRC_MESH_H_
 
-class Mesh;
-
 #include "Array3D.h"
 #include "FlowVariableGroupStructs.h"
 #include "includes_and_names.h"
 #include "ConfigSettings.h"
 #include "Boundary.h"
 
+// The following typedefs are containers to store different derived classes (boundary types),
+// to utilize polymorphism.
 typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
 typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;
 
+// Class that keeps the actual arrays containing the flow variables, and the boundary conditions (BC)
 class Mesh
 {
 public:
@@ -31,8 +32,11 @@ public:
 
 	bool checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t);
 
-	void applyFilter_ifAppropriate(Array3D_d& variable_old, Array3D_d& variable_new,
-								const ConfigSettings& params, ulong timeLevel, double t);
+	void applyFilter_ifAppropriate(Array3D_d& variable_old, // <- To filter
+								   Array3D_d& variable_tmp, // <- Temporary storage
+								   const ConfigSettings& params,
+								   ulong timeLevel,
+								   double t);
 
 	void swapConservedVariables();
 
@@ -40,6 +44,7 @@ public:
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
+	// Check whether any value is NaN or infinite.
 	void checkFinity(const ConservedVariablesArrayGroup& arrays)
 	{
 		string message("Non-finite value found in ");
@@ -55,6 +60,7 @@ public:
 			cout << message << "rho_E.\n";
 	}
 
+	// Check whether any value is NaN or infinite.
 	void checkFinity(const PrimitiveVariablesArrayGroup& arrays)
 	{
 		string message("Non-finite value found in ");
@@ -78,7 +84,7 @@ public:
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
 	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
-	IndexVectorGroup indexByType;	// 1D Indices to nodes of different types
+	IndexVectorGroup indexByType;	// 1D Indices to nodes of certain types.
 	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
 	Vector3_d positionOffset;		// Offset of origin point, due to mesh edge boundary conditions.
 private:

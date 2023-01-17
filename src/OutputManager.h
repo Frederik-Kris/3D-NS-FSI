@@ -65,7 +65,7 @@ private:
 
 	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 
-	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
+	const ConfigSettings params;	// Parameters and settings, imported from config file
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
 	Clock wallClockTimer;			// Wall clock time for the entire simulation

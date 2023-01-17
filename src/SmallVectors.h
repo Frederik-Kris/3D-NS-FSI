@@ -11,6 +11,7 @@
 
 #include "includes_and_names.h"
 
+// Simple 3D vector with double precision components. Supports basic arithmetic operators.
 struct Vector3_d
 {
 	double x, y, z;
@@ -25,12 +26,14 @@ struct Vector3_d
 
 inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*factor; }
 
+// Simple 3D vector with size_t (unsigned) components
 struct Vector3_u
 {
 	size_t i, j, k;
 	Vector3_u(size_t i, size_t j, size_t k) : i{i}, j{j}, k{k} {}
 };
 
+// Given the 1D index to a node, get the 3D indices
 inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes)
 {
 	size_t i = index1D / (nNodes.j * nNodes.k);
@@ -39,14 +42,17 @@ inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes)
 	return Vector3_u(i,j,k);
 }
 
+// Given the 3D indices to a node, get the 1D index
 inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes)
 {
 	return i * nNodes.j * nNodes.k + j * nNodes.k + k;
 }
 
+// Given the 3D indices to a node, get the 1D index
 inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes)
 { return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
 
+// Get the position (coordinates) of the node with the given indices
 inline Vector3_d getNodePosition(size_t i, size_t j, size_t k,
 								 const Vector3_d& gridSpacings,
 								 const Vector3_d& meshOriginOffset)
@@ -57,25 +63,31 @@ inline Vector3_d getNodePosition(size_t i, size_t j, size_t k,
 	return Vector3_d(x, y, z);
 }
 
+// Get the position (coordinates) of the node with the given indices
 inline Vector3_d getNodePosition(const Vector3_u& indices,
 								 const Vector3_d& gridSpacings,
 								 const Vector3_d& meshOriginOffset)
 { return getNodePosition(indices.i, indices.j, indices.k, gridSpacings, meshOriginOffset); }
 
+// Struct that represents a bounded region of the mesh, defined by lowest and highest indices
 struct IndexBoundingBox
 {
 	size_t iMin, iMax;	// Indices in x-direction
 	size_t jMin, jMax;	// Indices in y-direction
 	size_t kMin, kMax;	// Indices in z-direction
 
+	// Constructor. Takes in the upper index limits, and sets the lower limits to zero.
 	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
 	: iMin{0}, iMax{iMax},
 	  jMin{0}, jMax{jMax},
 	  kMin{0}, kMax{kMax}
 	{}
 
+	// Default constructor. Leaves data uninitialized.
 	IndexBoundingBox() = default;
 
+	// Get a simple fixed size array with the 1D indices to the 8 corner nodes in the box
+	// Ordering: z(k) changes most often, x(i) changes most seldom.
 	Array8_u asIndexList(const Vector3_u& nNodes) const
 	{
 		Array8_u indices = { getIndex1D(iMin, jMin, kMin, nNodes),
@@ -91,6 +103,8 @@ struct IndexBoundingBox
 	}
 };
 
+// Get a box that represents the 8 nodes that surround an arbitrary point.
+// If the point is outside the mesh edges, the box is still inside.
 inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point,
 											   const Vector3_d& gridSpacings,
 											   const Vector3_d& meshOriginOffset,

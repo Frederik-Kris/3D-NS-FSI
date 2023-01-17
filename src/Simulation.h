@@ -27,11 +27,11 @@ private:
 
 	bool checkStoppingCriterion();
 
-	const ConfigSettings params;// Parameters and settings, imported from ConfigFile
+	const ConfigSettings params;// Parameters and settings, imported from config file
 	Solver solver;				// Solver class, for handling numerical method.
 	OutputManager output;		// Class for managing output to screen and files.
 	double t;					// Simulated time
-	ulong timeLevel;				// No. of timesteps computed. Zero is IC.
+	ulong timeLevel;			// No. of timesteps computed. Zero is IC.
 };
 
 

@@ -5,6 +5,11 @@
  * This file specifies all settings, constants and parameters for the program. The intention is
  * that it should not be necessary to change or comment/uncomment stuff all around the source code
  * to customize a simulation. Ideally, everything should be specified here.
+ *
+ * To add a parameter/setting, there are 3 steps:
+ *  - Add it here, with a name, value and comments
+ *  - Add it as a data-member of the ConfigSettings class, in ConfigSettings.h
+ *  - Give it a lookup in the function ConfigSettings::readSettingValues, in ConfigSettings.cpp
  * ________________________________________________________________________________________________
  */
 
