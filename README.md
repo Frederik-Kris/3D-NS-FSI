@@ -5,9 +5,9 @@ The goal for this code is to simulate complex Fluid-Structure Interaction (FSI) 
 The N-S eqs are solved numerically using a 2nd order Finite Difference Method (FDM) and marching in time. 
 
 ## Dependencies
-libconfig++	- For reading config files
-SFML		- Was meant to be used for output. Now only used for timing. Will probably remove this dependency.
-Eigen		- For solving 8x8 linear system for trilinear interpolation.
+- libconfig++	- For reading config files
+- SFML		    - Was meant to be used for output. Now only used for timing. Will probably remove this dependency.
+- Eigen		    - For solving 8x8 linear system for trilinear interpolation.
 
 ## Input
 All input is given via the ConfigFile. All variables from this file are imported using libconfig++, into a class named ConfigSettings. 
