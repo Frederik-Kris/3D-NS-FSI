@@ -54,15 +54,23 @@ struct MeshDescriptor
 	{}
 };
 
+// Package struct with benchmark integral sizes, for cylinder and sphere test cases.
+struct IntegralProperties
+{
+	double drag;
+	double lift;
+	double separationAngle;
+};
+
 // Package struct with the variables to interpolate in the image points.
 // 8 values for each variables, since there are 8 nodes surrounding each image point.
 struct InterpolationValues
 {
-	Vector8_d rhoU;	// Momentum density in x-direction
-	Vector8_d rhoV;	// Momentum density in y-direction
-	Vector8_d rhoW;	// Momentum density in z-direction
-	Vector8_d rho;	// Density
-	Vector8_d rhoE;	// Total specific energy
+	Vector8_d u;	// Velocity component in x-direction
+	Vector8_d v;	// Velocity component in y-direction
+	Vector8_d w;	// Velocity component in z-direction
+	Vector8_d p;	// Pressure
+	Vector8_d T;	// Temperature
 };
 
 // Package struct with the positions of interpolation points.
@@ -186,6 +194,8 @@ public:
 								MeshDescriptor& mesh // <- In/Output
 			  	  	  	  	    );
 
+	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh);
+
 protected:
 
 	vector<GhostNode> ghostNodes;			// The solid ghost nodes adjacent to this surface
@@ -227,7 +237,7 @@ private:
 			const Vector3_d& gridSpacing,
 			const Vector3_d& meshOriginOffset );
 
-	ConservedVariablesScalars getGhostNodeBCVariables(const ConservedVariablesScalars& imagePointBCVars);
+	PrimitiveVariablesScalars getGhostNodeBCVariables(const PrimitiveVariablesScalars& imagePointBCVars);
 
 	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
 									  Matrix8x8_d& vandermonde);
@@ -241,7 +251,7 @@ private:
 													 const Vector3_d& imagePoint,
 													 const Matrix8x8_d& vandermonde);
 
-	ConservedVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
+	PrimitiveVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
 														const Vector3_d& imagePoint,
 														const Matrix8x8_d& vandermondeDirichlet,
 														const Matrix8x8_d& vandermondeNeumann);
@@ -267,7 +277,7 @@ private:
 			bool& allSurroundingAreFluid,					// <-
 			vector<Vector3_d>& unitNormals);				// <-
 
-	ConservedVariablesScalars interpolateImagePointVariables(
+	PrimitiveVariablesScalars interpolateImagePointVariables(
 			const InterpolationValues& interpolationValues,
 			const InterpolationPositions& interpolationPositions,
 			bool allSurroundingAreFluid,
