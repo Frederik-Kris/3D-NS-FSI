@@ -76,6 +76,8 @@ public:
 			cout << message << "T.\n";
 	}
 
+	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
+
 	const size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
 	const size_t nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction

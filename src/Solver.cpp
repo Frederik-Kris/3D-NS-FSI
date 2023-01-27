@@ -158,6 +158,21 @@ void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
+	Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	Vector3_d gridSpacings(mesh.dx, mesh.dy, mesh.dz);
+	AllFlowVariablesArrayGroup flowVarsReferences(mesh.conservedVariables, mesh.primitiveVariables, mesh.transportProperties);
+	MeshDescriptor meshDescriptor(nMeshNodes,
+								  gridSpacings,
+								  mesh.positionOffset,
+								  mesh.nodeType,
+								  flowVarsReferences
+								  );
+	IntegralProperties integralProperties = mesh.getImmersedBoundaries().front()->getIntegralProperties(params, meshDescriptor);
+	liftHistory.push_back(integralProperties.lift);
+	dragHistory.push_back(integralProperties.drag);
+	separationAngles.clear();
+	separationAngles = integralProperties.separationAngles;
+
 	// At this stage, the conserved variables at the next time level are stored in mesh.conservedVariables .
 	storeNormsOfChange();			// Compute norm of the change between old and new time levels, and add to history.
 

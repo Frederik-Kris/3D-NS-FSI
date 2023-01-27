@@ -29,6 +29,9 @@ public:
 	const ConfigSettings params;	// Parameters and settings, imported from ConfigFile
 	Mesh mesh;						// Computational mesh, containing flow variables
 	double dt;						// Time-step size
+	vector<double> liftHistory;
+	vector<double> dragHistory;
+	vector<double> separationAngles;
 
 private:
 	void applyStagnation_IC();

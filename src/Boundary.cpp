@@ -459,10 +459,86 @@ void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
 // Compute integral properties as lift, drag, separation angle.
 IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
 {
+	struct BI_info
+	{
+		Vector3_d BI;
+		Eigen::Vector2d traction;
+		Eigen::Vector2d normal;
+	};
+	std::map<double, BI_info> angleToBIMap;
+	double pi = std::atan2(0, -1);
 	for(const GhostNode& ghostNode : ghostNodes)
 	{
-
+		if(ghostNode.indices.k != 1)
+			continue;
+		Vector3_d BI = ghostNode.bodyInterceptPoint;
+		IndexBoundingBox surroundingNodesOfBI = getSurroundingNodesBox(BI, mesh.spacings,
+																		mesh.originOffset, mesh.nNodes);
+		InterpolationValues interpolationValues;
+		InterpolationPositions interpolationPositions;
+		Array8_b ghostFlag;
+		ghostFlag.fill(false);
+		bool allSurroundingAreFluid{true};
+		vector<Vector3_d> unitNormals;
+		setInterpolationValues(surroundingNodesOfBI, mesh, interpolationValues, interpolationPositions,
+								ghostFlag, allSurroundingAreFluid, unitNormals);
+		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
+		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
+		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
+		Vector8_d aCoeffU = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
+		Vector8_d aCoeffV = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
+		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
+		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
+		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
+		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
+		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
+		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;
+		double dvdy = aCoeffV(2) + aCoeffV(4)*BI.x + aCoeffV(6)*BI.z + aCoeffV(7)*BI.x*BI.z;
+		Eigen::Matrix2d deformation{ {dudx, (dudy+dvdx)/2}, {(dudy+dvdx)/2, dvdy} };
+		Eigen::Matrix2d viscousStress;
+		viscousStress = 2*mu*deformation - 2./3.*mu*(dudx+dvdy)*Eigen::Matrix2d::Identity();
+		Eigen::Matrix2d totalStress;
+		totalStress = viscousStress - p*Eigen::Matrix2d::Identity();
+		Eigen::Vector2d normal({ (ghostNode.imagePoint-BI).x, (ghostNode.imagePoint-BI).y });
+		normal.normalize();
+		Eigen::Vector2d traction = totalStress * normal;
+		Vector3_d cylinderCentroid( params.L_x / 4, params.L_y / 2, 0 );
+		Vector3_d relativePos = BI - cylinderCentroid;
+		double angle = std::atan2(relativePos.y, relativePos.x);
+		if (angle < 0)
+			angle += 2*pi;
+		angleToBIMap[angle].BI = BI;
+		angleToBIMap[angle].traction = traction;
+		angleToBIMap[angle].normal = normal;
 	}
+	IntegralProperties integralProps;
+	double prevAngle = ( angleToBIMap.rbegin() )->first - 2*pi;
+	BI_info prevBI = ( angleToBIMap.rbegin() )->second;
+	Eigen::Vector2d prevUnitTangent({ std::cos(prevAngle+pi/2), std::sin(prevAngle+pi/2) });
+	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
+	Eigen::Vector2d force({0,0});
+	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)
+	{
+		double thisAngle = currentPair.first;
+		const BI_info& thisBI = currentPair.second;
+		Eigen::Vector2d unitTangent({ std::cos(thisAngle+pi/2), std::sin(thisAngle+pi/2) });
+		double wallShearStress = thisBI.traction.transpose() * unitTangent;
+		if(std::signbit(wallShearStress) != std::signbit(prevWallShearStress) )
+		{
+			double separationAngle = prevWallShearStress * (thisAngle-prevAngle) / (prevWallShearStress-wallShearStress) + prevAngle;
+			integralProps.separationAngles.push_back(separationAngle);
+		}
+		double thisSurfaceLength = ( thisBI.BI - prevBI.BI ).length();
+		Eigen::Vector2d forceContribution = ( prevBI.traction + thisBI.traction ) / 2 * thisSurfaceLength;
+		force += forceContribution;
+		prevAngle = thisAngle;
+		prevWallShearStress = wallShearStress;
+		prevBI = thisBI;
+	}
+	integralProps.drag = force(0);
+	integralProps.lift = force(1);
+	return integralProps;
 }
 
 // Given a vector of indices to solid nodes, find all who will be part of the numerical stencil
@@ -603,6 +679,11 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterat
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
 		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
+		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
+			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
+											 newGhostNodes, nodeTypeArray );
+		// Because of the way that lift/drag etc is computed we need also BI to be only surrounded by ghost or fluid:
+		surroundingNodes = getSurroundingNodesBox(ghostNode.bodyInterceptPoint, gridSpacing, meshOriginOffset, nMeshNodes);
 		for( size_t surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
 			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 											 newGhostNodes, nodeTypeArray );
@@ -767,7 +848,7 @@ double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationV
 
 // Get image point values of conserved variables, using the fast simplified interpolation.
 // Only valid if all 8 surrounding nodes are fluid.
-ConservedVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(
+PrimitiveVariablesScalars ImmersedBoundary::simplifiedInterpolationAll(
 		const InterpolationValues& interpolationValues,
 		const Vector3_u& lowerIndexNode,
 		const Vector3_d& imagePointPosition,
@@ -869,7 +950,7 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		const vector<Vector3_d>& unitNormals,
 		const MeshDescriptor& mesh )
 {
-	ConservedVariablesScalars imagePointBCVars;
+	PrimitiveVariablesScalars imagePointBCVars;
 	if (allSurroundingAreFluid)
 	{ // Then we can use the simplified interpolation method:
 		Vector3_u lowerIndexNode(surroundingNodes.iMin, surroundingNodes.jMin, surroundingNodes.kMin);

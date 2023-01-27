@@ -35,7 +35,10 @@ public:
 							double t,
 							ulong timeLevel,
 							double dt,
-							const ConservedVariablesVectorGroup& convergenceHistory);
+							const ConservedVariablesVectorGroup& convergenceHistory,
+							const vector<double>& lift,
+							const vector<double>& drag,
+							const vector<double>& separationAngles);
 
 private:
 
@@ -62,6 +65,10 @@ private:
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 
 	void writeOutputTimes();
+
+	void writeIntegralProperties(const vector<double>& liftHistory,
+								 const vector<double>& dragHistory,
+								 const vector<double>& separationAngles);
 
 	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 

@@ -16,6 +16,7 @@
 #include <eigen3/Eigen/LU>
 #include <map>
 
+
 // The three spatial coordinate axes
 enum class AxisOrientationEnum
 {
@@ -59,7 +60,7 @@ struct IntegralProperties
 {
 	double drag;
 	double lift;
-	double separationAngle;
+	vector<double> separationAngles;
 };
 
 // Package struct with the variables to interpolate in the image points.
@@ -230,7 +231,7 @@ private:
 								   const Vector3_d& gridSpacing,
 								   const Vector3_d& meshOriginOffset);
 
-	ConservedVariablesScalars simplifiedInterpolationAll(
+	PrimitiveVariablesScalars simplifiedInterpolationAll(
 			const InterpolationValues& interpolationValues,
 			const Vector3_u& lowerIndexNode,
 			const Vector3_d& imagePointPosition,

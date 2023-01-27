@@ -26,7 +26,8 @@ void Simulation::run()
 		solver.marchTimeStep(t, timeLevel);
 		output.processIntermediateOutput(solver.mesh, t, timeLevel, solver.dt);
 	}
-	output.processFinalOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory());
+	output.processFinalOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory(),
+								solver.liftHistory, solver.dragHistory, solver.separationAngles);
 }
 
 // Check if computing another timestep will violate the stopping criterion. Returns true if simulation should stop.

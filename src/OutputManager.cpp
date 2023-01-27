@@ -87,13 +87,17 @@ void OutputManager::processFinalOutput(const Mesh& mesh,
 									   double t, // <- time
 									   ulong timeLevel,
 									   double dt, // <- timestep size
-									   const ConservedVariablesVectorGroup& convergenceHistory)
+									   const ConservedVariablesVectorGroup& convergenceHistory,
+									   const vector<double>& lift,
+									   const vector<double>& drag,
+									   const vector<double>& separationAngles)
 {
 	if ( params.saveFinal )
 		storeCurrentSolution(mesh, t);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
 	writeConvergenceHistoryFiles(convergenceHistory);
+	writeIntegralProperties(lift, drag, separationAngles);
 }
 
 // Store selected variables from the solution at current time level, to disk, and remember the time.
@@ -321,6 +325,30 @@ void OutputManager::writeOutputTimes()
 	for (double time : outputTimes)
 		timeFile << time << endl;
 	timeFile.close();
+}
+
+// Write files with history of lift and drag. Also separation angles in final solution.
+void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
+											const vector<double>& dragHistory,
+											const vector<double>& separationAngles)
+{
+	vector<string> names = {"lift", "drag", "separation_angles"};
+	vector<vector<double>> dataSets = {liftHistory, dragHistory, separationAngles};
+	for (uint i : {0,1,2})
+	{
+		ofstream outputFile;
+		string filename = "output/" + names.at(i) + ".dat";
+		outputFile.open( filename );
+		if ( !outputFile)
+		{
+			cout << "Could not open file:  " + filename << endl
+				 << names.at(i) + " was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
+			return;
+		}
+		for (double scalar : dataSets.at(i))
+			outputFile << scalar << endl;
+		outputFile.close();
+	}
 }
 
 // Write files with lists of the norm of change for the conserved variables.

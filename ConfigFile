@@ -35,7 +35,7 @@ stopTimeLevel = 20
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 200.
+t_end = 300.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -50,8 +50,8 @@ viscStabilityLimit = -0.68
 // As time t hits the thresholds in filterIntervalChangeTimes, the intervals change according to the values in filterIntervals.
 // If filterIntervals has one more entry than filterIntervalChangeTimes, then the last value in filterIntervals will be used
 // forever after the last time threshold in filterIntervalChangeTimes is surpassed. Otherwise filtering is disabled after that.
-filterIntervals = [50, 200, 1000]
-filterIntervalChangeTimes = [30., 60., 100.]
+filterIntervals = [30, 150, 1000]
+filterIntervalChangeTimes = [40., 80., 120.]
 
 //-------------------------------------------------------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -74,14 +74,14 @@ saveThermalCond = false
 saveIC = false
 
 // Save final solution? (Last time level, at time t_end)
-saveFinal = false
+saveFinal = true
 
 // Save at constant intervals? (Not including IC, interval length specified below)
 saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 5.
+savePeriod = 20.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -107,7 +107,7 @@ Pr = 0.72
 R = 287.
 
 // Stagnation reference Reynolds number (rho_0*c_0*L / mu_0):
-Re = 400.
+Re = 800.
 
 // Constants C_1 and C_2 in Sutherland's law:
 sutherlands_C1 = 1.458E-6
