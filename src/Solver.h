@@ -38,6 +38,8 @@ private:
 
 	void applyUniformFlow_IC();
 
+	void applyInitialConditions();
+
 	void updateTimeStepSize(double t);
 
 	double getInviscidTimeStepLimit();

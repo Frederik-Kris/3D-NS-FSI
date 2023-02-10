@@ -515,7 +515,7 @@ IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings&
 	IntegralProperties integralProps;
 	double prevAngle = ( angleToBIMap.rbegin() )->first - 2*pi;
 	BI_info prevBI = ( angleToBIMap.rbegin() )->second;
-	Eigen::Vector2d prevUnitTangent({ std::cos(prevAngle+pi/2), std::sin(prevAngle+pi/2) });
+	Eigen::Vector2d prevUnitTangent({ -prevBI.normal(1), prevBI.normal(0) });
 	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
 	Eigen::Vector2d force({0,0});
 	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)

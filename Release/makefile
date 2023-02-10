@@ -55,7 +55,7 @@ main-build: 3D_NS_FSI
 3D_NS_FSI: $(OBJS) $(USER_OBJS) makefile $(OPTIONAL_TOOL_DEPS)
 	@echo 'Building target: $@'
 	@echo 'Invoking: GCC C++ Linker'
-	g++ -L/usr/lib/x86_64-linux-gnu -o "3D_NS_FSI" $(OBJS) $(USER_OBJS) $(LIBS) -lsfml-graphics -lsfml-window -lsfml-system -lconfig++
+	g++ -L/usr/lib/x86_64-linux-gnu -o "3D_NS_FSI" $(OBJS) $(USER_OBJS) $(LIBS) -lsfml-graphics -lsfml-window -lsfml-system -lconfig++ -lvtkCommonCore-7.1 -lvtkCommonDataModel-7.1 -lvtkCommonExecutionModel-7.1 -lvtkIOLegacy-7.1
 	@echo 'Finished building target: $@'
 	@echo ' '
 

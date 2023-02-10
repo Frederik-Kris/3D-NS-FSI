@@ -17,25 +17,29 @@
 // Simulation Parameters
 //-------------------------------------------------------------------------------------------------------------------------------
 
+// Specify whether to continue simulating from output data, using the last outputted time level as initial condition.
+// NB! Coherence between parameters for old and new simulation is not checked. I.e., don't change grid size etc.
+continueSimulation = true
+
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 161
-NJ = 83
+NI = 401
+NJ = 203
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
-stopCriterion = "end_time"
+stopCriterion = "timesteps"
 
-// Number of timesteps to compute. If stopTimeLevel is zero or negative, the simulation result will
+// Number of timesteps to compute. If outstopTimeLevel is zero or negative, the simulation result will
 // be the the initial condition. With stopTimeLevel = 1, one timestep will be computed, etc.
 // This setting is only used if stopCriterion = "timesteps".
-stopTimeLevel = 20
+stopTimeLevel = 1
 
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 300.
+t_end = 500.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -51,7 +55,7 @@ viscStabilityLimit = -0.68
 // If filterIntervals has one more entry than filterIntervalChangeTimes, then the last value in filterIntervals will be used
 // forever after the last time threshold in filterIntervalChangeTimes is surpassed. Otherwise filtering is disabled after that.
 filterIntervals = [30, 150, 1000]
-filterIntervalChangeTimes = [40., 80., 120.]
+filterIntervalChangeTimes = [50., 100., 200.]
 
 //-------------------------------------------------------------------------------------------------------------------------------
 // Parameters for output, e.g. saving/plotting solutions
@@ -77,7 +81,7 @@ saveIC = false
 saveFinal = true
 
 // Save at constant intervals? (Not including IC, interval length specified below)
-saveIntervals = true
+saveIntervals = false
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.

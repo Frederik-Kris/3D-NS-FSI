@@ -55,6 +55,8 @@ public:
 	TransportPropertiesScalars(double mu, double kappa) :
 		mu{mu}, kappa{kappa}
 	{}
+
+	TransportPropertiesScalars() = default;
 };
 
 // Package with arrays containing the conserved variables

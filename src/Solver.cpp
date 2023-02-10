@@ -7,6 +7,8 @@
 
 
 #include "Solver.h"
+#include "ConstantLiteralExpressions.h"
+#include "SolutionImporter.h"
 
 // Constructor. Takes ConfigSettings 'params', with necessary settings from config file
 // Initializes mesh with 3D arrays (but not their elements)
@@ -23,7 +25,7 @@ void Solver::initialize()
 {
 	mesh.setupBoundaries(params);
 	mesh.categorizeNodes(params);
-	applyStagnation_IC();
+	applyInitialConditions();
 	updateTimeStepSize(0);
 }
 
@@ -72,6 +74,38 @@ void Solver::applyUniformFlow_IC()
 	mesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
 	mesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
 	cout << "Done" << endl << endl;
+}
+
+// Apply initial conditions (IC) for the solution. In case of continuation from previous simulation, the last
+// output is loaded and used as IC.
+void Solver::applyInitialConditions()
+{
+	if(!params.continueSimulation)
+		applyStagnation_IC();
+	else
+	{
+		SolutionImporter reader(params);
+		reader.importNormHistories(normHistory);
+		reader.loadVtkFile();
+		if( !reader.allFlowVarsDerivable() )
+		{
+			std::cerr << "Not possible to reconstruct all flow variables using the output in the .vtk file." << endl;
+			applyStagnation_IC();
+			return;
+		}
+		size_t index1D = 0; // NB! Note loop order. Don't use index1D here to access arrays in mesh.
+		for(size_t k{0}; k<mesh.NK; ++k)
+			for(size_t j{0}; j<mesh.NJ; ++j)
+				for(size_t i{0}; i<mesh.NI; ++i)
+				{
+					ConservedVariablesScalars conservedVars;
+					PrimitiveVariablesScalars primitiveVars;
+					TransportPropertiesScalars transportProps;
+					reader.computeAllFlowVars(index1D, conservedVars, primitiveVars, transportProps);
+					setFlowVariablesAtNode( Vector3_u(i,j,k), conservedVars, primitiveVars, transportProps, mesh.flowVariableReferences);
+					++index1D;
+				}
+	}
 }
 
 // Set the time step size (dt) as large as possible, within the stability criterion, without surpassing the end-time.
@@ -160,12 +194,11 @@ void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 
 	Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 	Vector3_d gridSpacings(mesh.dx, mesh.dy, mesh.dz);
-	AllFlowVariablesArrayGroup flowVarsReferences(mesh.conservedVariables, mesh.primitiveVariables, mesh.transportProperties);
 	MeshDescriptor meshDescriptor(nMeshNodes,
 								  gridSpacings,
 								  mesh.positionOffset,
 								  mesh.nodeType,
-								  flowVarsReferences
+								  mesh.flowVariableReferences
 								  );
 	IntegralProperties integralProperties = mesh.getImmersedBoundaries().front()->getIntegralProperties(params, meshDescriptor);
 	liftHistory.push_back(integralProperties.lift);

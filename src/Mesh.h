@@ -85,6 +85,7 @@ public:
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
 	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
+	AllFlowVariablesArrayGroup flowVariableReferences;	// References to all flow variables
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
 	IndexVectorGroup indexByType;	// 1D Indices to nodes of certain types.
 	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)

@@ -76,6 +76,8 @@ void ConfigSettings::tryReadSettingValues(Config& cfg)
 // Looks up settings in the Config variable 'cfg' and assign them to members in the ConfigSettings
 void ConfigSettings::readSettingValues(Config& cfg)
 {
+	continueSimulation = cfg.lookup("continueSimulation");
+
 	NI = (uint) cfg.lookup("NI");
 	NJ = (uint) cfg.lookup("NJ");
 	NK = (uint) cfg.lookup("NK");

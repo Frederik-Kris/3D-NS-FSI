@@ -15,6 +15,7 @@ conservedVariables(NI, NJ, NK),
 conservedVariablesOld(NI, NJ, NK),
 primitiveVariables(NI, NJ, NK),
 transportProperties(NI, NJ, NK),
+flowVariableReferences(conservedVariables, primitiveVariables, transportProperties),
 RK4slopes(NI, NJ, NK),
 nodeType(NI, NJ, NK)
 {
@@ -156,7 +157,6 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	const Vector3_u nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
-	AllFlowVariablesArrayGroup flowVariableReferences(conservedVariables, primitiveVariables, transportProperties);
 	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
 	for(auto&& boundary : edgeBoundaries)

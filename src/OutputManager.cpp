@@ -6,6 +6,8 @@
  */
 
 #include "OutputManager.h"
+#include "ConstantLiteralExpressions.h"
+#include "SolutionImporter.h"
 
 // Constructor, taking parameters from config file.
 OutputManager::OutputManager(const ConfigSettings& params) :
@@ -18,7 +20,7 @@ savedSolutions{0}
 void OutputManager::initialize()
 {
 	bool outputFolderExists = false;
-	std::filesystem::path outputPath("./output");
+	std::filesystem::path outputPath(StringLiterals::outputFolder);
 	if(std::filesystem::exists(outputPath))
 		if(std::filesystem::is_directory(outputPath))
 			outputFolderExists = true;
@@ -32,16 +34,25 @@ void OutputManager::initialize()
 			return;
 		}
 	}
-	// Delete all files except ParaView state files:
-	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
-		if( entry.path().generic_string().find(".pvsm") == string::npos ) // if path does not contain ".."
-			try
-				{ std::filesystem::remove(entry.path()); }
-			catch (std::exception& ex)
-			{
-				std::cerr << "Could not remove " << entry.path() << endl;
-				std::cerr << ex.what() << endl;
-			}
+	if(params.continueSimulation)
+	{
+		SolutionImporter reader(params);
+		outputTimes = reader.getSolutionTimes();
+		savedSolutions = outputTimes.size();
+	}
+	else // Start from scratch
+	{
+		// Delete all files except ParaView state files:
+		for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
+			if( entry.path().generic_string().find(".pvsm") == string::npos ) // if path does not contain ".."
+				try
+		{ std::filesystem::remove(entry.path()); }
+		catch (std::exception& ex)
+		{
+			std::cerr << "Could not remove " << entry.path() << endl;
+			std::cerr << ex.what() << endl;
+		}
+	}
 }
 
 // Check if anything should be written before sim start.
@@ -112,7 +123,7 @@ void OutputManager::storeCurrentSolution(const Mesh& mesh, double t)
 string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 {
 	string vtkHeader;
-	vtkHeader += "# vtk DataFile Version 5.1\n";
+	vtkHeader += "# vtk DataFile Version 4.1\n";
 	vtkHeader += "Output at time t = " + to_string(t) + "\n";
 	vtkHeader += "ASCII\n";
 	vtkHeader += "DATASET STRUCTURED_POINTS\n";
@@ -176,17 +187,17 @@ vector<string> OutputManager::getScalarVariableNames()
 {
 	vector<string> variableNames;
 	if ( params.saveDensity )
-		variableNames.push_back("Density");
+		variableNames.push_back(StringLiterals::densityString);
 	if ( params.saveEnergy )
-		variableNames.push_back("Total_Specific_Energy_per_Volume");
+		variableNames.push_back(StringLiterals::energyString);
 	if ( params.savePressure )
-		variableNames.push_back("Pressure");
+		variableNames.push_back(StringLiterals::pressureString);
 	if ( params.saveTemperature )
-		variableNames.push_back("Temperature");
+		variableNames.push_back(StringLiterals::temperatureString);
 	if ( params.saveViscosity )
-		variableNames.push_back("Dynamic_Viscosity");
+		variableNames.push_back(StringLiterals::viscosityString);
 	if ( params.saveThermalCond )
-		variableNames.push_back("Thermal_Conductivity");
+		variableNames.push_back(StringLiterals::thermalCondString);
 	return variableNames;
 }
 
@@ -234,9 +245,9 @@ vector<string> OutputManager::getVectorVariableNames()
 {
 	vector<string> variableNames;
 	if ( params.saveMomentum )
-		variableNames.push_back("Momentum_Density");
+		variableNames.push_back(StringLiterals::momentumString);
 	if ( params.saveVelocity )
-		variableNames.push_back("Velocity");
+		variableNames.push_back(StringLiterals::velocityString);
 	return variableNames;
 }
 
@@ -267,7 +278,7 @@ void OutputManager::writeVtkVectorData(const Mesh& mesh,
 void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 {
 	ofstream outputFile;
-	string filename = "output/out.vtk." + to_string(savedSolutions);
+	string filename = string(StringLiterals::outputFolder) + StringLiterals::solutionFileNameBase + to_string(savedSolutions);
 	outputFile.open( filename );
 	if ( !outputFile )
 	{
@@ -314,7 +325,7 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 void OutputManager::writeOutputTimes()
 {
 	ofstream timeFile;
-	string filename = "output/times.dat";
+	string filename = string(StringLiterals::outputFolder) + StringLiterals::timesFile;
 	timeFile.open( filename );
 	if ( !timeFile )
 	{
@@ -337,7 +348,7 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 	for (uint i : {0,1,2})
 	{
 		ofstream outputFile;
-		string filename = "output/" + names.at(i) + ".dat";
+		string filename = StringLiterals::outputFolder + names.at(i) + ".dat";
 		outputFile.open( filename );
 		if ( !outputFile)
 		{
@@ -355,30 +366,30 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 void OutputManager::writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory)
 {
 	vector< vector<double> const* > normHistoriesToSave;
-	vector<string> variableNames;
+	vector<string> fileNames;
 	if(params.saveConvergenceHistory != ConvHistoryEnum::none)
 	{
 		normHistoriesToSave.push_back(&convergenceHistory.rho);
-		variableNames.push_back("rho");
+		fileNames.push_back(StringLiterals::normRhoFile);
 	}
 	if(params.saveConvergenceHistory == ConvHistoryEnum::all)
 	{
 		normHistoriesToSave.push_back(&convergenceHistory.rho_u);
-		variableNames.push_back("rho_u");
+		fileNames.push_back(StringLiterals::normRhoUFile);
 		normHistoriesToSave.push_back(&convergenceHistory.rho_v);
-		variableNames.push_back("rho_v");
+		fileNames.push_back(StringLiterals::normRhoVFile);
 		normHistoriesToSave.push_back(&convergenceHistory.rho_w);
-		variableNames.push_back("rho_w");
+		fileNames.push_back(StringLiterals::normRhoWFile);
 		normHistoriesToSave.push_back(&convergenceHistory.rho_E);
-		variableNames.push_back("rho_E");
+		fileNames.push_back(StringLiterals::normRhoEFile);
 	}
-	for(size_t varIndex{0}; varIndex<variableNames.size(); ++varIndex)
+	for(size_t varIndex{0}; varIndex<fileNames.size(); ++varIndex)
 	{
 		ofstream normFile;
-		normFile.open( "output/norm_" + variableNames.at(varIndex) + ".dat"   );
+		normFile.open( StringLiterals::outputFolder + fileNames.at(varIndex) );
 		if ( !normFile )
 		{
-			cout << "Could not open convergence history file for " + variableNames.at(varIndex) + ". " << endl
+			cout << "Could not open convergence history file for " + fileNames.at(varIndex) + ". " << endl
 					<< "Norm history was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 		}
 		else

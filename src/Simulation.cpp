@@ -6,6 +6,7 @@
  */
 
 #include "Simulation.h"
+#include "SolutionImporter.h"
 
 // Constructor taking parameters from config file
 Simulation::Simulation(const ConfigSettings& params) :
@@ -13,7 +14,13 @@ params(params),
 solver(params),
 output(params),
 t{0}, timeLevel{0}
-{}
+{
+	if(params.continueSimulation)
+	{
+		SolutionImporter reader(params);
+		t = reader.getSolutionTimes().back();
+	}
+}
 
 // Initialize and run simulation, and handle output as specified in config file
 void Simulation::run()
