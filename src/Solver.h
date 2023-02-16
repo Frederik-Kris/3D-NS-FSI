@@ -20,7 +20,7 @@ public:
 
 	Solver(const ConfigSettings& params);
 
-	void initialize();
+	void initialize(ulong timeLevel);
 
 	void marchTimeStep(double& t, ulong& timeLevel);
 

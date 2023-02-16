@@ -26,6 +26,7 @@ constexpr char momentumString 	 [] = "Momentum_Density";
 constexpr char outputFolder 		[] = "./output/";
 constexpr char solutionFileNameBase [] = "out.vtk.";
 constexpr char timesFile 			[] = "times.dat";
+constexpr char timeLevelFile 		[] = "latestTimeLevel";
 constexpr char normRhoFile   		[] = "norm_rho.dat";
 constexpr char normRhoUFile 		[] = "norm_rho_u.dat";
 constexpr char normRhoVFile 		[] = "norm_rho_v.dat";

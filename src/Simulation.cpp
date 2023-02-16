@@ -13,21 +13,22 @@ Simulation::Simulation(const ConfigSettings& params) :
 params(params),
 solver(params),
 output(params),
-t{0}, timeLevel{0}
+t{0}, timeLevel{0}, timeLevelStart{0}
 {
 	if(params.continueSimulation)
 	{
 		SolutionImporter reader(params);
 		t = reader.getSolutionTimes().back();
+		timeLevel = timeLevelStart = reader.getStartTimeLevel();
 	}
 }
 
 // Initialize and run simulation, and handle output as specified in config file
 void Simulation::run()
 {
-	solver.initialize();
-	output.initialize();
-	output.processInitialOutput(solver.mesh, t);
+	solver.initialize(timeLevel);
+	output.initialize(timeLevel);
+	output.processInitialOutput(solver.mesh, t, timeLevel);
 	while ( !checkStoppingCriterion() )
 	{
 		solver.marchTimeStep(t, timeLevel);
@@ -44,7 +45,7 @@ bool Simulation::checkStoppingCriterion()
 	switch (params.stopCriterion)
 	{
 	case StopCriterionEnum::timesteps:
-		if ( timeLevel < params.stopTimeLevel )
+		if ( timeLevel-timeLevelStart < params.stopTimeLevel )
 			stopSimulating = false;
 		else
 			stopSimulating = true;

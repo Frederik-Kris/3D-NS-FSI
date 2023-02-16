@@ -159,7 +159,7 @@ void SolutionImporter::computeAllFlowVars(size_t i,
 	transportProps = deriveTransportProperties(primitiveVars, params);
 }
 
-void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory)
+void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory, ulong timeLevel)
 {
 	vector<string> filenames = {StringLiterals::normRhoFile,
 								StringLiterals::normRhoUFile,
@@ -183,7 +183,9 @@ void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHi
 			while( normFile >> norm )
 			{
 				normVectors.at(i)->push_back(norm);
-			}
+				if( normVectors.at(i)->size() == timeLevel )
+					break;	// If one or more time steps were computed after the result
+			}				// was saved, we don't want the norms from those time steps.
 		}
 	}
 }
@@ -203,6 +205,16 @@ vector<double> SolutionImporter::getSolutionTimes()
 	return solutionTimes;
 }
 
+ulong SolutionImporter::getStartTimeLevel()
+{
+	ifstream timeLevelFile( string(StringLiterals::outputFolder) + StringLiterals::timeLevelFile );
+	if(!timeLevelFile)
+		throw std::runtime_error("Could not open time level file.");
+	ulong timeLevel;
+	if(! (timeLevelFile >> timeLevel) )
+		throw std::runtime_error("Could not read time level from file.");
+	return timeLevel;
+}
 
 
 

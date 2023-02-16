@@ -12,13 +12,17 @@
 // Constructor, taking parameters from config file.
 OutputManager::OutputManager(const ConfigSettings& params) :
 params(params),
-savedSolutions{0}
+savedSolutions{0},
+latestSavedTimeLevel{0},
+timeLevelStart{0},
+previousProgression{0}
 {
 }
 
 // Preparation before simulation start. Checking for output folder and deleting old results.
-void OutputManager::initialize()
+void OutputManager::initialize(ulong _timeLevelStart)
 {
+	timeLevelStart = _timeLevelStart;
 	bool outputFolderExists = false;
 	std::filesystem::path outputPath(StringLiterals::outputFolder);
 	if(std::filesystem::exists(outputPath))
@@ -56,10 +60,10 @@ void OutputManager::initialize()
 }
 
 // Check if anything should be written before sim start.
-void OutputManager::processInitialOutput(const Mesh& mesh, double t)
+void OutputManager::processInitialOutput(const Mesh& mesh, double t, ulong timeLevel)
 {
 	if ( params.saveIC )
-		storeCurrentSolution(mesh, t);
+		storeCurrentSolution(mesh, t, timeLevel);
 }
 
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
@@ -82,7 +86,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh,
 			enoughTimeSinceSave = timeSinceSave + dt >= params.savePeriod;
 		}
 		if ( withinRelevantTimeRegime && enoughTimeSinceSave )
-			storeCurrentSolution(mesh, t);
+			storeCurrentSolution(mesh, t, timeLevel);
 	}
 	// Write to screen:
 	double timeSinceStatusReport = statusReportTimer.getElapsedTime().asSeconds();
@@ -104,19 +108,21 @@ void OutputManager::processFinalOutput(const Mesh& mesh,
 									   const vector<double>& separationAngles)
 {
 	if ( params.saveFinal )
-		storeCurrentSolution(mesh, t);
+		storeCurrentSolution(mesh, t, timeLevel);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
+	writeTimeLevel();
 	writeConvergenceHistoryFiles(convergenceHistory);
 	writeIntegralProperties(lift, drag, separationAngles);
 }
 
 // Store selected variables from the solution at current time level, to disk, and remember the time.
-void OutputManager::storeCurrentSolution(const Mesh& mesh, double t)
+void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, ulong timeLevel)
 {
 	storeCurrentSolution_vtk(mesh, t);
 	++savedSolutions;
 	outputTimes.push_back(t);
+	latestSavedTimeLevel = timeLevel;
 }
 
 // Get a string with the first lines we need in the .vtk file.
@@ -301,9 +307,10 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 											   double dt)	// <- timestep size
 {
 	cout << "Simulated time: t = " << t;
+	double progressPercentage{0};
 	if (params.stopCriterion == StopCriterionEnum::end_time)
 	{
-		double progressPercentage = t / params.t_end * 100.;
+		progressPercentage = t / params.t_end * 100.;
 		cout << " , t_end = " << params.t_end << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
 	}
 	else
@@ -312,13 +319,18 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 	cout << "Time level: n = " << timeLevel;
 	if (params.stopCriterion == StopCriterionEnum::timesteps)
 	{
-		double progressPercentage = (double)timeLevel / (double)params.stopTimeLevel * 100.;  // Cast to double to avoid integer division.
+		progressPercentage = (double)(timeLevel-timeLevelStart) / (double)params.stopTimeLevel * 100.;  // Cast to double to avoid integer division.
 		cout << " , n_max = " << params.stopTimeLevel << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
 	}
 	else
 		cout << endl;
 	cout << "Timestep size: dt = " << dt << endl;
-	cout << "Wall clock time: " << setprecision(3) << wallClockTimer.getElapsedTime().asSeconds() << setprecision(6) << " sec" << endl << endl;
+	cout << "Wall clock time: " << setprecision(3) << wallClockTimer.getElapsedTime().asSeconds() << setprecision(6) << " sec" << endl;
+	double newProgress = progressPercentage - previousProgression;
+	double timeSinceReport = statusReportTimer.getElapsedTime().asSeconds();
+	double estimatedTimeLeft = timeSinceReport / newProgress * (100-progressPercentage);
+	cout << "Estimated time to finish: " + getTimeString(estimatedTimeLeft) << endl << endl;
+	previousProgression = progressPercentage;
 }
 
 // Write a file with a list of the actual times when the solution was saved.
@@ -360,6 +372,26 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 			outputFile << scalar << endl;
 		outputFile.close();
 	}
+}
+
+void OutputManager::writeTimeLevel()
+{
+	ofstream outputFile( string(StringLiterals::outputFolder) + StringLiterals::timeLevelFile );
+	if(!outputFile)
+		std::cerr << "Could not create file with number of time steps." << endl;
+	else
+		outputFile << latestSavedTimeLevel;
+	outputFile.close();
+}
+
+string OutputManager::getTimeString(double secondsInput)
+{
+	double hours = floor(secondsInput / 3600);
+	double minutes = floor( fmod(secondsInput, 3600) / 60 );
+	double seconds = fmod( fmod(secondsInput, 3600), 60 );
+	std::stringstream timeSS;
+	timeSS << hours << ":" << setfill('0') << setw(2) <<  minutes << ":" << setfill('0') << setw(2) << round(seconds);
+	return timeSS.str();
 }
 
 // Write files with lists of the norm of change for the conserved variables.

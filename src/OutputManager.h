@@ -22,9 +22,9 @@ public:
 
 	OutputManager(const ConfigSettings& params);
 
-	void initialize();
+	void initialize(ulong timeLevelStart);
 
-	void processInitialOutput(const Mesh& mesh, double t);
+	void processInitialOutput(const Mesh& mesh, double t, ulong timeLevel);
 
 	void processIntermediateOutput(const Mesh& mesh,
 								   double t,
@@ -42,7 +42,7 @@ public:
 
 private:
 
-	void storeCurrentSolution(const Mesh& mesh, double t);
+	void storeCurrentSolution(const Mesh& mesh, double t, ulong timeLevel);
 
 	string getVtkHeader(const Mesh&, double t);
 
@@ -64,7 +64,11 @@ private:
 
 	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
 
+	string getTimeString(double seconds);
+
 	void writeOutputTimes();
+
+	void writeTimeLevel();
 
 	void writeIntegralProperties(const vector<double>& liftHistory,
 								 const vector<double>& dragHistory,
@@ -75,8 +79,11 @@ private:
 	const ConfigSettings params;	// Parameters and settings, imported from config file
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
+	ulong latestSavedTimeLevel;		// The time level when the solution was saved most recently
+	ulong timeLevelStart;			// Time level when the simulation started. Zero unless simulation continued from earlier result.
 	Clock wallClockTimer;			// Wall clock time for the entire simulation
 	Clock statusReportTimer;		// Wall clock time since last status report to screen
+	double previousProgression;		// Store progression between status reports, to estimate runtime
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */

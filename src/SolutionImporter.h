@@ -30,9 +30,11 @@ public:
 							PrimitiveVariablesScalars& primitiveVars,
 							TransportPropertiesScalars& transportProps);
 
-	void importNormHistories(ConservedVariablesVectorGroup& normHistory);
+	void importNormHistories(ConservedVariablesVectorGroup& normHistory, ulong timeLevel);
 
 	vector<double> getSolutionTimes();
+
+	ulong getStartTimeLevel();
 
 private:
 

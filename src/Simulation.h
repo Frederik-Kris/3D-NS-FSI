@@ -32,6 +32,7 @@ private:
 	OutputManager output;		// Class for managing output to screen and files.
 	double t;					// Simulated time
 	ulong timeLevel;			// No. of timesteps computed. Zero is IC.
+	ulong timeLevelStart;		// Time level to start from, if simulation is continued from previous result.
 };
 
 

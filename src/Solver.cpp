@@ -21,11 +21,16 @@ dt{0}
 
 // Preparing solver before starting to march solution.
 // Setup boundaries, apply initial condition (IC) and set the time-step size based on the IC.
-void Solver::initialize()
+void Solver::initialize(ulong timeLevel)
 {
 	mesh.setupBoundaries(params);
 	mesh.categorizeNodes(params);
 	applyInitialConditions();
+	if(params.continueSimulation)
+	{
+		SolutionImporter reader(params);
+		reader.importNormHistories(normHistory, timeLevel);
+	}
 	updateTimeStepSize(0);
 }
 
@@ -85,7 +90,6 @@ void Solver::applyInitialConditions()
 	else
 	{
 		SolutionImporter reader(params);
-		reader.importNormHistories(normHistory);
 		reader.loadVtkFile();
 		if( !reader.allFlowVarsDerivable() )
 		{
