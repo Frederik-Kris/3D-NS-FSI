@@ -5,4 +5,4 @@ output/*
 *.o
 *.d
 *.mk
-
+/tools/BI_point_plots.py
