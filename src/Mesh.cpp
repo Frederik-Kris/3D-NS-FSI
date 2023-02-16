@@ -52,8 +52,7 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 	// Add immersed bodies:
 	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
 	immersedBoundaries.push_back(std::make_unique<CylinderBody>(cylinderCentroidPosition,
-																AxisOrientationEnum::z,
-																params.L_y/10));
+																AxisOrientationEnum::z, 1./2));
 //	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
 }

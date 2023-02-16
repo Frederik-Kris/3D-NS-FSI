@@ -264,7 +264,7 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 			}
 	filterInletDensity(nMeshNodes, params, flowVariables);
 
-	double inletVelocity = min(1., t/10.) * velocity; // TODO: move magic const 10 to params as 'rampUpDuration' etc.
+	double inletVelocity = min(1., t/100.) * velocity; // TODO: move magic const to params as 'rampUpDuration' etc.
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
 
@@ -474,6 +474,8 @@ IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings&
 		Vector3_d BI = ghostNode.bodyInterceptPoint;
 		IndexBoundingBox surroundingNodesOfBI = getSurroundingNodesBox(BI, mesh.spacings,
 																		mesh.originOffset, mesh.nNodes);
+		if( ceil(BI.y/mesh.spacings.y) == BI.y/mesh.spacings.y )
+			std::cout << "WARNING: BI point coincides with mesh node. This will bias the lift/drag calculation." << endl;
 		InterpolationValues interpolationValues;
 		InterpolationPositions interpolationPositions;
 		Array8_b ghostFlag;
@@ -499,7 +501,7 @@ IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings&
 		Eigen::Matrix2d viscousStress;
 		viscousStress = 2*mu*deformation - 2./3.*mu*(dudx+dvdy)*Eigen::Matrix2d::Identity();
 		Eigen::Matrix2d totalStress;
-		totalStress = viscousStress - p*Eigen::Matrix2d::Identity();
+		totalStress = viscousStress - (p + 1./params.Gamma)*Eigen::Matrix2d::Identity();
 		Eigen::Vector2d normal({ (ghostNode.imagePoint-BI).x, (ghostNode.imagePoint-BI).y });
 		normal.normalize();
 		Eigen::Vector2d traction = totalStress * normal;
@@ -518,11 +520,37 @@ IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings&
 	Eigen::Vector2d prevUnitTangent({ -prevBI.normal(1), prevBI.normal(0) });
 	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
 	Eigen::Vector2d force({0,0});
+
+	// DEBUGGING
+//	ofstream xFile;
+//	xFile.open("output/BIx.dat");
+//	ofstream yFile;
+//	yFile.open("output/BIy.dat");
+//	ofstream tractionXFile;
+//	tractionXFile.open("output/tx.dat");
+//	ofstream tractionYFile;
+//	tractionYFile.open("output/ty.dat");
+//	if(!xFile.is_open() || !yFile.is_open() || !tractionXFile.is_open() || !tractionYFile.is_open())
+//		throw std::runtime_error("banana clusterfuck");
+//	for(const std::pair<const double, BI_info>& currentPair : angleToBIMap)
+//	{
+//		const BI_info& entry = currentPair.second;
+//		xFile << entry.BI.x << endl;
+//		yFile << entry.BI.y << endl;
+//		tractionXFile << entry.traction(0) << endl;
+//		tractionYFile << entry.traction(1) << endl;
+//	}
+//	xFile.close();
+//	yFile.close();
+//	tractionXFile.close();
+//	tractionYFile.close();
+	// END DEBUGGING
+
 	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)
 	{
 		double thisAngle = currentPair.first;
 		const BI_info& thisBI = currentPair.second;
-		Eigen::Vector2d unitTangent({ std::cos(thisAngle+pi/2), std::sin(thisAngle+pi/2) });
+		Eigen::Vector2d unitTangent({ -thisBI.normal(1), thisBI.normal(0) });
 		double wallShearStress = thisBI.traction.transpose() * unitTangent;
 		if(std::signbit(wallShearStress) != std::signbit(prevWallShearStress) )
 		{
