@@ -32,6 +32,8 @@ public:
 
 	void importNormHistories(ConservedVariablesVectorGroup& normHistory, ulong timeLevel);
 
+	void importLiftDrag(vector<double>& lift, vector<double>& drag, ulong timeLevel);
+
 	vector<double> getSolutionTimes();
 
 	ulong getStartTimeLevel();

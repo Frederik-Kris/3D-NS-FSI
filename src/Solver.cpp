@@ -30,6 +30,7 @@ void Solver::initialize(ulong timeLevel)
 	{
 		SolutionImporter reader(params);
 		reader.importNormHistories(normHistory, timeLevel);
+		reader.importLiftDrag(liftHistory, dragHistory, timeLevel);
 	}
 	updateTimeStepSize(0);
 }

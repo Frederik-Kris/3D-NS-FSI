@@ -25,15 +25,27 @@ SolutionImporter::SolutionImporter(const ConfigSettings& params)
 // Search the output folder for solution files. Return the last in the time series.
 string SolutionImporter::findLatestSolutionFile()
 {
-	vector<string> solutionFiles;
-	std::filesystem::path outputPath("./output");
+	vector<size_t> solutionFileNumbers;
+	std::filesystem::path outputPath(StringLiterals::outputFolder);
 	// Loop through entries in folder "./output"
 	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
-		if( entry.path().generic_string().find("out.vtk") != string::npos ) // if entry path contains ".."
-			solutionFiles.push_back( entry.path().generic_string() );
-	std::sort( solutionFiles.begin(), solutionFiles.end() );
-	if( !solutionFiles.empty() )
-		return solutionFiles.back();
+		if( entry.path().generic_string().find(StringLiterals::solutionFileNameBase) != string::npos ) // if entry path contains ".."
+			{
+				size_t lastDot = entry.path().generic_string().find_last_of('.');	// Get position of last dot
+				std::stringstream ss;
+				ss << entry.path().generic_string().substr(lastDot+1);	// Read the part after last dot (the no.) into stream
+				size_t fileNumber;
+				ss >> fileNumber;
+				solutionFileNumbers.push_back(fileNumber);
+			}
+	if( !solutionFileNumbers.empty() )
+	{
+		std::stringstream ss;
+		ss << StringLiterals::outputFolder
+		   << StringLiterals::solutionFileNameBase
+		   << *std::max_element( solutionFileNumbers.begin(), solutionFileNumbers.end() );
+		return ss.str();
+	}
 	else
 		throw std::runtime_error("Did not find any output vtk files.");
 }
@@ -216,7 +228,29 @@ ulong SolutionImporter::getStartTimeLevel()
 	return timeLevel;
 }
 
-
+void SolutionImporter::importLiftDrag(vector<double> &lift, vector<double> &drag, ulong timeLevel)
+{
+	std::ifstream liftFile("./output/lift.dat");
+	if(!liftFile)
+		throw std::runtime_error("Didn't find lift file");
+	double liftValue;
+	while(liftFile >> liftValue)
+	{
+		lift.push_back(liftValue);
+		if(lift.size() == timeLevel)
+			break;
+	}
+	std::ifstream dragFile("./output/drag.dat");
+	if(!dragFile)
+		throw std::runtime_error("Didn't find drag file");
+	double dragValue;
+	while(dragFile >> dragValue)
+	{
+		drag.push_back(dragValue);
+		if(drag.size() == timeLevel)
+			break;
+	}
+}
 
 
 
