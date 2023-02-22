@@ -68,7 +68,7 @@ private:
 
 	void writeOutputTimes();
 
-	void writeTimeLevel();
+	void writeTimeLevel(uint timeLevel);
 
 	void writeIntegralProperties(const vector<double>& liftHistory,
 								 const vector<double>& dragHistory,
@@ -79,7 +79,6 @@ private:
 	const ConfigSettings params;	// Parameters and settings, imported from config file
 	uint savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
-	ulong latestSavedTimeLevel;		// The time level when the solution was saved most recently
 	ulong timeLevelStart;			// Time level when the simulation started. Zero unless simulation continued from earlier result.
 	Clock wallClockTimer;			// Wall clock time for the entire simulation
 	Clock statusReportTimer;		// Wall clock time since last status report to screen

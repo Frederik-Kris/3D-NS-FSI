@@ -13,7 +13,6 @@
 OutputManager::OutputManager(const ConfigSettings& params) :
 params(params),
 savedSolutions{0},
-latestSavedTimeLevel{0},
 timeLevelStart{0},
 previousProgression{0}
 {
@@ -111,7 +110,6 @@ void OutputManager::processFinalOutput(const Mesh& mesh,
 		storeCurrentSolution(mesh, t, timeLevel);
 	writeStatusReport_toScreen(t, timeLevel, dt);
 	writeOutputTimes();
-	writeTimeLevel();
 	writeConvergenceHistoryFiles(convergenceHistory);
 	writeIntegralProperties(lift, drag, separationAngles);
 }
@@ -122,7 +120,7 @@ void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, ulong timeL
 	storeCurrentSolution_vtk(mesh, t);
 	++savedSolutions;
 	outputTimes.push_back(t);
-	latestSavedTimeLevel = timeLevel;
+	writeTimeLevel(timeLevel);
 }
 
 // Get a string with the first lines we need in the .vtk file.
@@ -320,12 +318,12 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 	if (params.stopCriterion == StopCriterionEnum::timesteps)
 	{
 		progressPercentage = (double)(timeLevel-timeLevelStart) / (double)params.stopTimeLevel * 100.;  // Cast to double to avoid integer division.
-		cout << " , n_max = " << params.stopTimeLevel << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
+		cout << " , n_max = " << timeLevelStart+params.stopTimeLevel << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
 	}
 	else
 		cout << endl;
 	cout << "Timestep size: dt = " << dt << endl;
-	cout << "Wall clock time: " << setprecision(3) << wallClockTimer.getElapsedTime().asSeconds() << setprecision(6) << " sec" << endl;
+	cout << "Wall clock time: " << getTimeString( wallClockTimer.getElapsedTime().asSeconds() ) << endl;
 	double newProgress = progressPercentage - previousProgression;
 	double timeSinceReport = statusReportTimer.getElapsedTime().asSeconds();
 	double estimatedTimeLeft = timeSinceReport / newProgress * (100-progressPercentage);
@@ -374,13 +372,13 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 	}
 }
 
-void OutputManager::writeTimeLevel()
+void OutputManager::writeTimeLevel(uint timeLevel)
 {
 	ofstream outputFile( string(StringLiterals::outputFolder) + StringLiterals::timeLevelFile );
 	if(!outputFile)
 		std::cerr << "Could not create file with number of time steps." << endl;
 	else
-		outputFile << latestSavedTimeLevel;
+		outputFile << timeLevel;
 	outputFile.close();
 }
 
@@ -390,7 +388,10 @@ string OutputManager::getTimeString(double secondsInput)
 	double minutes = floor( fmod(secondsInput, 3600) / 60 );
 	double seconds = fmod( fmod(secondsInput, 3600), 60 );
 	std::stringstream timeSS;
-	timeSS << hours << ":" << setfill('0') << setw(2) <<  minutes << ":" << setfill('0') << setw(2) << round(seconds);
+	if(secondsInput > 60)
+		timeSS << hours << ":" << setfill('0') << setw(2) <<  minutes << ":" << setfill('0') << setw(2) << round(seconds);
+	else
+		timeSS << setprecision(3) << secondsInput << " sec";
 	return timeSS.str();
 }
 
