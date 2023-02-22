@@ -994,7 +994,7 @@ IntegralProperties CylinderBody::getIntegralProperties(const ConfigSettings& par
 		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
 		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
 		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
-		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re_0*( T + ScPlusOne ) );
 		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
 		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
 		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;
@@ -1209,7 +1209,7 @@ IntegralProperties SphereBody::getIntegralProperties(const ConfigSettings& param
 		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
 		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
 		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
-		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re_0*( T + ScPlusOne ) );
 		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
 		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
 		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;

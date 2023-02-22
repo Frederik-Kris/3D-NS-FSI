@@ -182,7 +182,7 @@ inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVaria
 {
 	const double T{primitiveVariables.T};
 	double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
-	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+	double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re_0*( T + ScPlusOne ) );
 	double kappa = mu / ( (params.Gamma - 1) * params.Pr );
 	return TransportPropertiesScalars(mu, kappa);
 }

@@ -19,12 +19,12 @@
 
 // Specify whether to continue simulating from output data, using the last outputted time level as initial condition.
 // NB! Coherence between parameters for old and new simulation is not checked. I.e., don't change grid size etc.
-continueSimulation = false
+continueSimulation = true
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 800
-NJ = 402
+NI = 100
+NJ = 52
 NK = 3
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
@@ -41,7 +41,7 @@ stopTimeLevel = 1
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 200.
+t_end = 210.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -77,17 +77,17 @@ saveViscosity   = false
 saveThermalCond = false
 
 // Save initial condition?
-saveIC = false
+saveIC = true
 
 // Save final solution? (Last time level, at time t_end)
-saveFinal = true
+saveFinal = false
 
 // Save at constant intervals? (Not including IC, interval length specified below)
-saveIntervals = false
+saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 0.05
+savePeriod = 0.5
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.
@@ -112,8 +112,10 @@ Pr = 0.72
 // Specific gas constant:
 R = 287.
 
-// Stagnation reference Reynolds number (rho_0*c_0*L / mu_0):
-Re = 40.
+// Reynolds number (rho_0 * u_ref * L / mu_0):
+// NB! Remember that viscosity is non-dimensionalized using the stagnation Reynolds number (rho_0 * c_0 * L / mu_0)
+// Remember to factor in the length scale if it is not 1.
+Re = 100.
 
 // Constants C_1 and C_2 in Sutherland's law:
 sutherlands_C1 = 1.458E-6

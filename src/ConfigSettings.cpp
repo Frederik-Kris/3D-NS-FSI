@@ -162,6 +162,7 @@ void ConfigSettings::readSettingValues(Config& cfg)
 void ConfigSettings::setDerivedParameters()
 {
 	machinePrecisionBuffer = std::numeric_limits<double>::epsilon()*(L_x+L_y+L_z);
+	Re_0 = Re / M_0;
 }
 
 

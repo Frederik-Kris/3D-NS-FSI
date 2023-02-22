@@ -526,7 +526,7 @@ void Solver::updatePrimitiveVariables()
 	for(size_t i : mesh.indexByType.fluidInterior)
 		T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
 	for(size_t i : mesh.indexByType.fluidInterior)
-		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re*( T(i) + ScPlusOne ) );
+		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re_0*( T(i) + ScPlusOne ) );
 	for(size_t i : mesh.indexByType.fluidInterior)
 		kappa(i) = mu(i) * prandtlFactor;
 }

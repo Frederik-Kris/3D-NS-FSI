@@ -62,7 +62,8 @@ public:
 	double Gamma;				// Ratio of specific heats
 	double Pr;					// Prandtl number, assumed constant
 	double R;					// Specific gas constant
-	double Re;					// Stagnation Reynolds number
+	double Re;					// Reynolds number. Scaled by ref.velocity.
+	double Re_0;				// Stagnation Reynolds number. Scaled by ref. speed of sound.
 	double sutherlands_C2;		// Second constant in Sutherlands law
 	double M_0;					// Reference Mach number
 	double T_0;					// Reference temperature, NOT DIMENSIONLESS
