@@ -13,6 +13,64 @@
 #include <random>
 #include "Array3D.h"
 
+void testIOManip()
+{
+	double d = 10./7.;
+	cout << d << endl;
+	cout << std::setfill('g') << std::setw(10) << d << " " << d << endl;
+	cout << d << endl;
+}
+
+class BaseClass
+{
+public:
+	virtual ~BaseClass() = default;
+
+	void nonVirtual()
+	{ cout << "base non virtual\n"; }
+
+	virtual void regVirtual()
+	{ cout << "base regular virtual\n"; }
+
+	//virtual void pureVirtual() = 0;
+};
+
+class DerivedClass : public BaseClass
+{
+public:
+	void nonVirtual()
+	{ cout << "derived non virtual\n"; }
+
+	void regVirtual() override
+	{ cout << "derived regular virtual\n"; }
+
+	//void pureVirtual() override
+	//{ cout << "derived pure virtual\n"; }
+};
+
+void testRegularVirtual(BaseClass& bc)
+{ bc.regVirtual(); }
+
+void testVirtualFuncs()
+{
+	DerivedClass oDerived;
+	oDerived.nonVirtual();
+	oDerived.regVirtual();
+	//oDerived.pureVirtual();
+	BaseClass* pBase = &oDerived;
+	pBase->nonVirtual();
+	pBase->regVirtual();
+	//pBase->pureVirtual();
+	BaseClass oBase;
+	oBase.nonVirtual();
+	oBase.regVirtual();
+	oBase = oDerived;
+	oBase.nonVirtual();
+	oBase.regVirtual();
+	testRegularVirtual(oBase);
+	testRegularVirtual(oDerived);
+}
+
 void testModulo()
 {
 	cout << 1 % 4 << endl;
