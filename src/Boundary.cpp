@@ -288,7 +288,10 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 				double rho = flowVariables.conservedVariables.rho(index1D);
 				double T = 0;
 				double p = (T*(1+rho) + rho) / params.Gamma;
-				PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
+				double uTripFlow=u;
+				if(j<nMeshNodes.j/2 && t<110)
+					uTripFlow *=0.6;
+				PrimitiveVariablesScalars primitiveVarsScalars(uTripFlow, v, w, p, T);
 				ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
 				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
@@ -416,6 +419,40 @@ void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNo
 			}
 }
 
+// Constructor, taking no extra arguments
+ExtrapolationBoundary::ExtrapolationBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex)
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
+{}
+
+// Everything is extrapolated
+void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+												   const ConfigSettings& params,				// <- Input
+												   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+{
+	for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
+				size_t index1D = getIndex1D(i, j, k, nMeshNodes);
+				size_t boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
+				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+							 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+				double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
+				double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
+				double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
+				double rho_E = 2*flowVariables.conservedVariables.rho_E(boundaryAdjacentIndex) // Linear extrapolation
+							   - flowVariables.conservedVariables.rho_E(nextToAdjacentIndex);
+				ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
+				PrimitiveVariablesScalars primitiveVarsScalars = derivePrimitiveVariables(conservedVarsScalars, params);
+				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
+				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+			}
+}
+
 // Constructor. Use derived classes instead.
 ImmersedBoundary::ImmersedBoundary()
 {
@@ -454,119 +491,6 @@ void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
 		setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps,
 								mesh.flowVariables);
 	}
-}
-
-// Compute integral properties as lift, drag, separation angle.
-IntegralProperties ImmersedBoundary::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
-{
-	struct BI_info
-	{
-		Vector3_d BI;
-		Eigen::Vector2d traction;
-		Eigen::Vector2d normal;
-	};
-	std::map<double, BI_info> angleToBIMap;
-	double pi = std::atan2(0, -1);
-	for(const GhostNode& ghostNode : ghostNodes)
-	{
-		if(ghostNode.indices.k != 1)
-			continue;
-		Vector3_d BI = ghostNode.bodyInterceptPoint;
-		IndexBoundingBox surroundingNodesOfBI = getSurroundingNodesBox(BI, mesh.spacings,
-																		mesh.originOffset, mesh.nNodes);
-		if( ceil(BI.y/mesh.spacings.y) == BI.y/mesh.spacings.y )
-			std::cout << "WARNING: BI point coincides with mesh node. This will bias the lift/drag calculation." << endl;
-		InterpolationValues interpolationValues;
-		InterpolationPositions interpolationPositions;
-		Array8_b ghostFlag;
-		ghostFlag.fill(false);
-		bool allSurroundingAreFluid{true};
-		vector<Vector3_d> unitNormals;
-		setInterpolationValues(surroundingNodesOfBI, mesh, interpolationValues, interpolationPositions,
-								ghostFlag, allSurroundingAreFluid, unitNormals);
-		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
-		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
-		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
-		Vector8_d aCoeffU = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
-		Vector8_d aCoeffV = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
-		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
-		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
-		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
-		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
-		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
-		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
-		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;
-		double dvdy = aCoeffV(2) + aCoeffV(4)*BI.x + aCoeffV(6)*BI.z + aCoeffV(7)*BI.x*BI.z;
-		Eigen::Matrix2d deformation{ {dudx, (dudy+dvdx)/2}, {(dudy+dvdx)/2, dvdy} };
-		Eigen::Matrix2d viscousStress;
-		viscousStress = 2*mu*deformation - 2./3.*mu*(dudx+dvdy)*Eigen::Matrix2d::Identity();
-		Eigen::Matrix2d totalStress;
-		totalStress = viscousStress - (p + 1./params.Gamma)*Eigen::Matrix2d::Identity();
-		Eigen::Vector2d normal({ (ghostNode.imagePoint-BI).x, (ghostNode.imagePoint-BI).y });
-		normal.normalize();
-		Eigen::Vector2d traction = totalStress * normal;
-		Vector3_d cylinderCentroid( params.L_x / 4, params.L_y / 2, 0 );
-		Vector3_d relativePos = BI - cylinderCentroid;
-		double angle = std::atan2(relativePos.y, relativePos.x);
-		if (angle < 0)
-			angle += 2*pi;
-		angleToBIMap[angle].BI = BI;
-		angleToBIMap[angle].traction = traction;
-		angleToBIMap[angle].normal = normal;
-	}
-	IntegralProperties integralProps;
-	double prevAngle = ( angleToBIMap.rbegin() )->first - 2*pi;
-	BI_info prevBI = ( angleToBIMap.rbegin() )->second;
-	Eigen::Vector2d prevUnitTangent({ -prevBI.normal(1), prevBI.normal(0) });
-	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
-	Eigen::Vector2d force({0,0});
-
-	// DEBUGGING
-//	ofstream xFile;
-//	xFile.open("output/BIx.dat");
-//	ofstream yFile;
-//	yFile.open("output/BIy.dat");
-//	ofstream tractionXFile;
-//	tractionXFile.open("output/tx.dat");
-//	ofstream tractionYFile;
-//	tractionYFile.open("output/ty.dat");
-//	if(!xFile.is_open() || !yFile.is_open() || !tractionXFile.is_open() || !tractionYFile.is_open())
-//		throw std::runtime_error("banana clusterfuck");
-//	for(const std::pair<const double, BI_info>& currentPair : angleToBIMap)
-//	{
-//		const BI_info& entry = currentPair.second;
-//		xFile << entry.BI.x << endl;
-//		yFile << entry.BI.y << endl;
-//		tractionXFile << entry.traction(0) << endl;
-//		tractionYFile << entry.traction(1) << endl;
-//	}
-//	xFile.close();
-//	yFile.close();
-//	tractionXFile.close();
-//	tractionYFile.close();
-	// END DEBUGGING
-
-	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)
-	{
-		double thisAngle = currentPair.first;
-		const BI_info& thisBI = currentPair.second;
-		Eigen::Vector2d unitTangent({ -thisBI.normal(1), thisBI.normal(0) });
-		double wallShearStress = thisBI.traction.transpose() * unitTangent;
-		if(std::signbit(wallShearStress) != std::signbit(prevWallShearStress) )
-		{
-			double separationAngle = prevWallShearStress * (thisAngle-prevAngle) / (prevWallShearStress-wallShearStress) + prevAngle;
-			integralProps.separationAngles.push_back(separationAngle);
-		}
-		double thisSurfaceLength = ( thisBI.BI - prevBI.BI ).length();
-		Eigen::Vector2d forceContribution = ( prevBI.traction + thisBI.traction ) / 2 * thisSurfaceLength;
-		force += forceContribution;
-		prevAngle = thisAngle;
-		prevWallShearStress = wallShearStress;
-		prevBI = thisBI;
-	}
-	integralProps.drag = force(0);
-	integralProps.lift = force(1);
-	return integralProps;
 }
 
 // Given a vector of indices to solid nodes, find all who will be part of the numerical stencil
@@ -1034,6 +958,94 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 	}
 }
 
+// Compute integral properties as lift, drag, separation angle.
+IntegralProperties CylinderBody::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
+{
+	struct BI_info
+	{
+		Vector3_d BI;
+		Eigen::Vector2d traction;
+		Eigen::Vector2d normal;
+	};
+	std::map<double, BI_info> angleToBIMap;
+	double pi = std::atan2(0, -1);
+	for(const GhostNode& ghostNode : ghostNodes)
+	{
+		if(ghostNode.indices.k != 1)
+			continue;
+		Vector3_d BI = ghostNode.bodyInterceptPoint;
+		IndexBoundingBox surroundingNodesOfBI = getSurroundingNodesBox(BI, mesh.spacings,
+																		mesh.originOffset, mesh.nNodes);
+		if( ceil(BI.y/mesh.spacings.y) == BI.y/mesh.spacings.y )
+			std::cout << "WARNING: BI point coincides with mesh node. This will bias the lift/drag calculation." << endl;
+		InterpolationValues interpolationValues;
+		InterpolationPositions interpolationPositions;
+		Array8_b ghostFlag;
+		ghostFlag.fill(false);
+		bool allSurroundingAreFluid{true};
+		vector<Vector3_d> unitNormals;
+		setInterpolationValues(surroundingNodesOfBI, mesh, interpolationValues, interpolationPositions,
+								ghostFlag, allSurroundingAreFluid, unitNormals);
+		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
+		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
+		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
+		Vector8_d aCoeffU = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
+		Vector8_d aCoeffV = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
+		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
+		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
+		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
+		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
+		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
+		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;
+		double dvdy = aCoeffV(2) + aCoeffV(4)*BI.x + aCoeffV(6)*BI.z + aCoeffV(7)*BI.x*BI.z;
+		Eigen::Matrix2d deformation{ {dudx, (dudy+dvdx)/2}, {(dudy+dvdx)/2, dvdy} };
+		Eigen::Matrix2d viscousStress;
+		viscousStress = 2*mu*deformation - 2./3.*mu*(dudx+dvdy)*Eigen::Matrix2d::Identity();
+		Eigen::Matrix2d totalStress;
+		totalStress = viscousStress - (p + 1./params.Gamma)*Eigen::Matrix2d::Identity();
+		Eigen::Vector2d normal({ (ghostNode.imagePoint-BI).x, (ghostNode.imagePoint-BI).y });
+		normal.normalize();
+		Eigen::Vector2d traction = totalStress * normal;
+		Vector3_d cylinderCentroid( params.L_x / 4, params.L_y / 2, 0 );
+		Vector3_d relativePos = BI - cylinderCentroid;
+		double angle = std::atan2(relativePos.y, relativePos.x);
+		if (angle < 0)
+			angle += 2*pi;
+		angleToBIMap[angle].BI = BI;
+		angleToBIMap[angle].traction = traction;
+		angleToBIMap[angle].normal = normal;
+	}
+	IntegralProperties integralProps;
+	double prevAngle = ( angleToBIMap.rbegin() )->first - 2*pi;
+	BI_info prevBI = ( angleToBIMap.rbegin() )->second;
+	Eigen::Vector2d prevUnitTangent({ -prevBI.normal(1), prevBI.normal(0) });
+	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
+	Eigen::Vector2d force({0,0});
+
+	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)
+	{
+		double thisAngle = currentPair.first;
+		const BI_info& thisBI = currentPair.second;
+		Eigen::Vector2d unitTangent({ -thisBI.normal(1), thisBI.normal(0) });
+		double wallShearStress = thisBI.traction.transpose() * unitTangent;
+		if(std::signbit(wallShearStress) != std::signbit(prevWallShearStress) )
+		{
+			double separationAngle = prevWallShearStress * (thisAngle-prevAngle) / (prevWallShearStress-wallShearStress) + prevAngle;
+			integralProps.separationAngles.push_back(separationAngle);
+		}
+		double thisSurfaceLength = ( thisBI.BI - prevBI.BI ).length();
+		Eigen::Vector2d forceContribution = ( prevBI.traction + thisBI.traction ) / 2 * thisSurfaceLength;
+		force += forceContribution;
+		prevAngle = thisAngle;
+		prevWallShearStress = wallShearStress;
+		prevBI = thisBI;
+	}
+	integralProps.drag = force(0);
+	integralProps.lift = force(1);
+	return integralProps;
+}
+
 // Get vector from given ghost node position to the closest point on the surface.
 Vector3_d CylinderBody::getNormalProbe(const Vector3_d& ghostNodePosition)
 {
@@ -1159,6 +1171,94 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 		appendGhostNodes(newGhostNodes, nMeshNodes);
 		newGhostNodes = setImagePointPositions(newGhostNodes.begin(), gridSpacing, nMeshNodes, meshOriginOffset, nodeTypeArray);
 	}
+}
+
+// Compute integral properties as lift, drag, separation angle.
+IntegralProperties SphereBody::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
+{
+	struct BI_info
+	{
+		Vector3_d BI;
+		Eigen::Vector2d traction;
+		Eigen::Vector2d normal;
+	};
+	std::map<double, BI_info> angleToBIMap;
+	double pi = std::atan2(0, -1);
+	for(const GhostNode& ghostNode : ghostNodes)
+	{
+		if(ghostNode.indices.k != 1)
+			continue;
+		Vector3_d BI = ghostNode.bodyInterceptPoint;
+		IndexBoundingBox surroundingNodesOfBI = getSurroundingNodesBox(BI, mesh.spacings,
+																		mesh.originOffset, mesh.nNodes);
+		if( ceil(BI.y/mesh.spacings.y) == BI.y/mesh.spacings.y )
+			std::cout << "WARNING: BI point coincides with mesh node. This will bias the lift/drag calculation." << endl;
+		InterpolationValues interpolationValues;
+		InterpolationPositions interpolationPositions;
+		Array8_b ghostFlag;
+		ghostFlag.fill(false);
+		bool allSurroundingAreFluid{true};
+		vector<Vector3_d> unitNormals;
+		setInterpolationValues(surroundingNodesOfBI, mesh, interpolationValues, interpolationPositions,
+								ghostFlag, allSurroundingAreFluid, unitNormals);
+		Matrix8x8_d vandermondeDirichlet, vandermondeNeumann;
+		populateVandermondeDirichlet(interpolationPositions, vandermondeDirichlet);
+		populateVandermondeNeumann(interpolationPositions, ghostFlag, unitNormals, vandermondeNeumann);
+		Vector8_d aCoeffU = vandermondeDirichlet.fullPivLu().solve( interpolationValues.u.matrix() );
+		Vector8_d aCoeffV = vandermondeDirichlet.fullPivLu().solve( interpolationValues.v.matrix() );
+		double p = trilinearInterpolation(interpolationValues.p, BI, vandermondeNeumann);
+		double T = trilinearInterpolation(interpolationValues.T, BI, vandermondeNeumann);
+		double ScPlusOne = 1 + params.sutherlands_C2 / params.T_0;
+		double mu = pow( 1+T, 1.5 ) * ScPlusOne / ( params.Re*( T + ScPlusOne ) );
+		double dudx = aCoeffU(1) + aCoeffU(4)*BI.y + aCoeffU(5)*BI.z + aCoeffU(7)*BI.y*BI.z;
+		double dvdx = aCoeffV(1) + aCoeffV(4)*BI.y + aCoeffV(5)*BI.z + aCoeffV(7)*BI.y*BI.z;
+		double dudy = aCoeffU(2) + aCoeffU(4)*BI.x + aCoeffU(6)*BI.z + aCoeffU(7)*BI.x*BI.z;
+		double dvdy = aCoeffV(2) + aCoeffV(4)*BI.x + aCoeffV(6)*BI.z + aCoeffV(7)*BI.x*BI.z;
+		Eigen::Matrix2d deformation{ {dudx, (dudy+dvdx)/2}, {(dudy+dvdx)/2, dvdy} };
+		Eigen::Matrix2d viscousStress;
+		viscousStress = 2*mu*deformation - 2./3.*mu*(dudx+dvdy)*Eigen::Matrix2d::Identity();
+		Eigen::Matrix2d totalStress;
+		totalStress = viscousStress - (p + 1./params.Gamma)*Eigen::Matrix2d::Identity();
+		Eigen::Vector2d normal({ (ghostNode.imagePoint-BI).x, (ghostNode.imagePoint-BI).y });
+		normal.normalize();
+		Eigen::Vector2d traction = totalStress * normal;
+		Vector3_d cylinderCentroid( params.L_x / 4, params.L_y / 2, 0 );
+		Vector3_d relativePos = BI - cylinderCentroid;
+		double angle = std::atan2(relativePos.y, relativePos.x);
+		if (angle < 0)
+			angle += 2*pi;
+		angleToBIMap[angle].BI = BI;
+		angleToBIMap[angle].traction = traction;
+		angleToBIMap[angle].normal = normal;
+	}
+	IntegralProperties integralProps;
+	double prevAngle = ( angleToBIMap.rbegin() )->first - 2*pi;
+	BI_info prevBI = ( angleToBIMap.rbegin() )->second;
+	Eigen::Vector2d prevUnitTangent({ -prevBI.normal(1), prevBI.normal(0) });
+	double prevWallShearStress = prevBI.traction.transpose() * prevUnitTangent;
+	Eigen::Vector2d force({0,0});
+
+	for (const std::pair<const double, BI_info>& currentPair : angleToBIMap)
+	{
+		double thisAngle = currentPair.first;
+		const BI_info& thisBI = currentPair.second;
+		Eigen::Vector2d unitTangent({ -thisBI.normal(1), thisBI.normal(0) });
+		double wallShearStress = thisBI.traction.transpose() * unitTangent;
+		if(std::signbit(wallShearStress) != std::signbit(prevWallShearStress) )
+		{
+			double separationAngle = prevWallShearStress * (thisAngle-prevAngle) / (prevWallShearStress-wallShearStress) + prevAngle;
+			integralProps.separationAngles.push_back(separationAngle);
+		}
+		double thisSurfaceLength = ( thisBI.BI - prevBI.BI ).length();
+		Eigen::Vector2d forceContribution = ( prevBI.traction + thisBI.traction ) / 2 * thisSurfaceLength;
+		force += forceContribution;
+		prevAngle = thisAngle;
+		prevWallShearStress = wallShearStress;
+		prevBI = thisBI;
+	}
+	integralProps.drag = force(0);
+	integralProps.lift = force(1);
+	return integralProps;
 }
 
 // Get vector from given ghost node position to the closest point on the surface.

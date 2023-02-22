@@ -169,9 +169,21 @@ public:
 	SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
 
 	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
-			const ConfigSettings& params,				// <- Input
-			AllFlowVariablesArrayGroup& flowVariables)	// <- Output
-			override;
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
+};
+
+// Class to define a boundary condition where all variables are extrapolated:
+class ExtrapolationBoundary : public MeshEdgeBoundary
+{
+public:
+	ExtrapolationBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex);
+
+	void applyBoundaryCondition(double t, const Vector3_u& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
 };
 
 // Base class for immersed boundaries.
@@ -195,7 +207,7 @@ public:
 								MeshDescriptor& mesh // <- In/Output
 			  	  	  	  	    );
 
-	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh);
+	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) = 0;
 
 protected:
 
@@ -219,6 +231,27 @@ protected:
 
 	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Vector3_u& nMeshNodes);
 
+	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
+									  Matrix8x8_d& vandermonde);
+
+	void populateVandermondeNeumann(const InterpolationPositions& interpolationPoints,
+									const Array8_b& ghostFlags,
+									const vector<Vector3_d>& unitNormals,
+									Matrix8x8_d& vandermonde);
+
+	void setInterpolationValues(
+			const IndexBoundingBox& surroundingNodes,
+			const MeshDescriptor& mesh,
+			InterpolationValues& interpolationValues,		// <-
+			InterpolationPositions& interpolationPositions,	// <-
+			Array8_b& ghostFlag,							// <- Output
+			bool& allSurroundingAreFluid,					// <-
+			vector<Vector3_d>& unitNormals);				// <-
+
+	double trilinearInterpolation(const Vector8_d& interpolationValues,
+													 const Vector3_d& imagePoint,
+													 const Matrix8x8_d& vandermonde);
+
 private:
 	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
 
@@ -240,18 +273,6 @@ private:
 
 	PrimitiveVariablesScalars getGhostNodeBCVariables(const PrimitiveVariablesScalars& imagePointBCVars);
 
-	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
-									  Matrix8x8_d& vandermonde);
-
-	void populateVandermondeNeumann(const InterpolationPositions& interpolationPoints,
-									const Array8_b& ghostFlags,
-									const vector<Vector3_d>& unitNormals,
-									Matrix8x8_d& vandermonde);
-
-	double trilinearInterpolation(const Vector8_d& interpolationValues,
-													 const Vector3_d& imagePoint,
-													 const Matrix8x8_d& vandermonde);
-
 	PrimitiveVariablesScalars trilinearInterpolationAll(const InterpolationValues&,
 														const Vector3_d& imagePoint,
 														const Matrix8x8_d& vandermondeDirichlet,
@@ -268,15 +289,6 @@ private:
 			vector<Vector3_d>& unitNormals,					// <-
 			InterpolationValues& interpolationValues,		// <- Output
 			InterpolationPositions& interpolationPositions);// <-
-
-	void setInterpolationValues(
-			const IndexBoundingBox& surroundingNodes,
-			const MeshDescriptor& mesh,
-			InterpolationValues& interpolationValues,		// <-
-			InterpolationPositions& interpolationPositions,	// <-
-			Array8_b& ghostFlag,							// <- Output
-			bool& allSurroundingAreFluid,					// <-
-			vector<Vector3_d>& unitNormals);				// <-
 
 	PrimitiveVariablesScalars interpolateImagePointVariables(
 			const InterpolationValues& interpolationValues,
@@ -301,6 +313,8 @@ public:
 							  const Vector3_d& meshOriginOffset,
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 							  ) override;
+
+	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) override;
 
 private:
 	Vector3_d centroidPosition;	// Only 2 coordinates used, depending on axis orientation
@@ -336,6 +350,8 @@ public:
 							  const Vector3_d& meshOriginOffset,
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 			  	  	  	  	  ) override;
+
+	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) override;
 
 private:
 	Vector3_d centerPosition;
