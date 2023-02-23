@@ -264,7 +264,7 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 			}
 	filterInletDensity(nMeshNodes, params, flowVariables);
 
-	double inletVelocity = min(1., t/100.) * velocity; // TODO: move magic const to params as 'rampUpDuration' etc.
+	double inletVelocity = min(1., t/50.) * velocity; // TODO: move magic const to params as 'rampUpDuration' etc.
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
 
@@ -289,8 +289,10 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_u& nMeshNodes
 				double T = 0;
 				double p = (T*(1+rho) + rho) / params.Gamma;
 				double uTripFlow=u;
-				if(j<nMeshNodes.j/2 && t<110)
-					uTripFlow *=0.6;
+				if(params.Re>50 && j<nMeshNodes.j/2 && t<50)
+					uTripFlow *=0.9;
+				else if(params.Re>50 && j<nMeshNodes.j/2 && t<60)
+					uTripFlow = u - (60.-t)/10.*0.1*u;
 				PrimitiveVariablesScalars primitiveVarsScalars(uTripFlow, v, w, p, T);
 				ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
