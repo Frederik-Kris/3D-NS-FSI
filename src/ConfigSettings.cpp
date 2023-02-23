@@ -82,6 +82,26 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	NJ = (uint) cfg.lookup("NJ");
 	NK = (uint) cfg.lookup("NK");
 
+	L_x	= cfg.lookup("L_x");
+	L_y	= cfg.lookup("L_y");
+	L_z	= cfg.lookup("L_z");
+
+	Setting& refineXSetting = cfg.lookup("refineBoundX");
+	for(int i=0; i<refineXSetting.getLength(); ++i)
+		refineBoundX.push_back( refineXSetting[i] );
+	Setting& refineYSetting = cfg.lookup("refineBoundY");
+	for(int i=0; i<refineYSetting.getLength(); ++i)
+		refineBoundY.push_back( refineYSetting[i] );
+	Setting& refineZSetting = cfg.lookup("refineBoundZ");
+	for(int i=0; i<refineZSetting.getLength(); ++i)
+		refineBoundZ.push_back( refineZSetting[i] );
+	Setting& refineLevelSetting = cfg.lookup("refineLevels");
+	for(int i=0; i<refineLevelSetting.getLength(); ++i)
+		specifiedRefinementLevels.push_back( RefinementSpecification{Vector3_u( (uint)refineLevelSetting[i].lookup("indices")[0],
+																				(uint)refineLevelSetting[i].lookup("indices")[1],
+																				(uint)refineLevelSetting[i].lookup("indices")[2] ),
+																	 refineLevelSetting[i].lookup("level")} );
+
 	string stopCriterionString = cfg.lookup("stopCriterion").c_str();
 	if (stopCriterionString == "timesteps")
 	{
@@ -152,9 +172,6 @@ void ConfigSettings::readSettingValues(Config& cfg)
 	sutherlands_C2	= cfg.lookup("sutherlands_C2");
 	M_0				= cfg.lookup("M_0");
 	T_0				= cfg.lookup("T_0");
-	L_x				= cfg.lookup("L_x");
-	L_y				= cfg.lookup("L_y");
-	L_z				= cfg.lookup("L_z");
 }
 
 // Set parameters that are not given in the config file.

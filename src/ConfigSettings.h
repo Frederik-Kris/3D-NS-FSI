@@ -11,6 +11,7 @@
 
 
 #include "includes_and_names.h"
+#include "SmallVectors.h"
 
 enum class StopCriterionEnum
 {
@@ -28,6 +29,12 @@ enum class ConvHistoryEnum
 	none, density, all
 };
 
+struct RefinementSpecification
+{
+	Vector3_u region;
+	uint level;
+};
+
 // This is a class to store ALL the settings imported from the config file.
 // This is more convenient than constantly calling lookup("string") from a 'libconfig::Config' variable.
 class ConfigSettings
@@ -38,6 +45,13 @@ public:
 	// MORE ELABORATE DESCRIPTIONS OF THESE PARAMETERS ARE IN THE CONFIG FILE ITSELF.
 	bool continueSimulation;		 // Use newest output as initial condition
 	size_t NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
+	double L_x, L_y, L_z;			 // Dimensionless size of domain
+	vector<double> refineBoundX;	 // Where to split domain into local grid refinement regions
+	vector<double> refineBoundY;
+	vector<double> refineBoundZ;
+	vector<RefinementSpecification> specifiedRefinementLevels; // Regions where we specified refine level in config file
+
+
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
 	ulong stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
@@ -67,7 +81,6 @@ public:
 	double sutherlands_C2;		// Second constant in Sutherlands law
 	double M_0;					// Reference Mach number
 	double T_0;					// Reference temperature, NOT DIMENSIONLESS
-	double L_x, L_y, L_z;		// Physical dimensionless size of domain
 
 	bool errorOccurred;			// Error flag, set true if reading the 'ConfigFile' fails
 

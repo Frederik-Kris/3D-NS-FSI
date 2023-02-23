@@ -19,13 +19,33 @@
 
 // Specify whether to continue simulating from output data, using the last outputted time level as initial condition.
 // NB! Coherence between parameters for old and new simulation is not checked. I.e., don't change grid size etc.
-continueSimulation = true
+continueSimulation = false
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
 NI = 100
 NJ = 52
 NK = 3
+
+// Dimensionless size of the domain:
+L_x = 20.
+L_y = 10.
+L_z = 0.05
+
+// Local grid refining regions:
+// These are the places where we split the domain into different regions with different refinement levels.
+// If empty list "[]" then there is no split in that direction. E.g., 2D cases etc.
+// The values are guiding. The actial borders must appear on actual grid lines.
+refineBoundX = [3., 4., 6., 7.]
+refineBoundY = [3., 4., 6., 7.]
+refineBoundZ = []
+
+// Regions where we set a given refinement level:
+// Given as array "[]" of groups "{}". Each group should be {indices=[ , , ], level= }
+refineLevels = (
+// example:	{indices = [2,2,0]; level = 2},	<- remove comma if there's only one
+		{indices = [2,2,0]; level = 2}
+		)
 
 // Stopping criterion. Should be either "timesteps", to compute an exact number of timesteps, 
 // or "end_time" to simulate until a given time. See the next two settings.
@@ -126,8 +146,3 @@ M_0 = 0.25
 
 // Reference temperature IN KELVIN, NOT DIMENSIONLESS:
 T_0 = 300.
-
-// Physical dimensionless size of the domain:
-L_x = 20.
-L_y = 10.
-L_z = 0.05
