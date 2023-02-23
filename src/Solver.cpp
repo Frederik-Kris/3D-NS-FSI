@@ -169,7 +169,6 @@ double Solver::getViscousTimeStepLimit()
 void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 						   ulong& timeLevel)	// <- OUTPUT
 {
-	mesh.checkFinity(mesh.conservedVariables);
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params, timeLevel, t);
 	mesh.swapConservedVariables();	// Swap conserved variables and "old" arrays by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
