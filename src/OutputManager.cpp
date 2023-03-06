@@ -309,7 +309,7 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 	if (params.stopCriterion == StopCriterionEnum::end_time)
 	{
 		progressPercentage = t / params.t_end * 100.;
-		cout << " , t_end = " << params.t_end << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
+		cout << " , t_end = " << params.t_end << " ( " << setprecision(4) << progressPercentage << setprecision(6) << " % )" << endl;
 	}
 	else
 		cout << endl;
@@ -318,7 +318,7 @@ void OutputManager::writeStatusReport_toScreen(double t,	// <- time
 	if (params.stopCriterion == StopCriterionEnum::timesteps)
 	{
 		progressPercentage = (double)(timeLevel-timeLevelStart) / (double)params.stopTimeLevel * 100.;  // Cast to double to avoid integer division.
-		cout << " , n_max = " << timeLevelStart+params.stopTimeLevel << " ( " << setprecision(3) << progressPercentage << setprecision(6) << " % )" << endl;
+		cout << " , n_max = " << timeLevelStart+params.stopTimeLevel << " ( " << setprecision(4) << progressPercentage << setprecision(6) << " % )" << endl;
 	}
 	else
 		cout << endl;
@@ -344,7 +344,7 @@ void OutputManager::writeOutputTimes()
 		return;
 	}
 	for (double time : outputTimes)
-		timeFile << time << endl;
+		timeFile << setprecision(8) << time << endl;
 	timeFile.close();
 }
 
