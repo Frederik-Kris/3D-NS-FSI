@@ -467,7 +467,6 @@ void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
 											  MeshDescriptor& mesh // <- In/Output
   	  	    								  )
 {
-	filterClosestFluidNodes(mesh.nNodes, mesh.flowVariables);
 	for(GhostNode ghostNode : ghostNodes)
 	{
 		InterpolationValues interpolationValues;		// Conserved variables at the 8 surrounding interpolation points.
