@@ -12,12 +12,7 @@
 #include "FlowVariableGroupStructs.h"
 #include "includes_and_names.h"
 #include "ConfigSettings.h"
-#include "Boundary.h"
-
-// The following typedefs are containers to store different derived classes (boundary types),
-// to utilize polymorphism.
-typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
-typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;
+#include "SubMesh.h"
 
 // Class that keeps the actual arrays containing the flow variables, and the boundary conditions (BC)
 class Mesh
@@ -27,8 +22,6 @@ public:
 	Mesh(const ConfigSettings& params);
 
 	void setupBoundaries(const ConfigSettings& params);
-
-	void categorizeNodes(const ConfigSettings& params);
 
 	bool checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t);
 
@@ -76,23 +69,14 @@ public:
 			cout << message << "T.\n";
 	}
 
-	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
-
-	const size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
-	const size_t nNodesTotal;	// Total number of nodes in the mesh
-	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
-	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
-	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
-	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
-	TransportPropertiesArrayGroup transportProperties;	// Viscosity and thermal conductivity
-	AllFlowVariablesArrayGroup flowVariableReferences;	// References to all flow variables
-	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
-	IndexVectorGroup indexByType;	// 1D Indices to nodes of certain types.
-	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
-	Vector3_d positionOffset;		// Offset of origin point, due to mesh edge boundary conditions.
+	vector<SubMesh> subMeshes;	// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
+	const size_t NI, NJ, NK;	// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
+	Vector3_d positionOffset;	// Offset of origin point, i.e., coordinates of node (0,0,0).
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies
 };
 
 #endif /* SRC_MESH_H_ */
+
+

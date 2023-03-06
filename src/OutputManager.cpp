@@ -132,9 +132,9 @@ string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 	vtkHeader += "ASCII\n";
 	vtkHeader += "DATASET STRUCTURED_POINTS\n";
 	vtkHeader += "DIMENSIONS " + to_string(mesh.NI) + " " + to_string(mesh.NJ) + " " + to_string(mesh.NK) + "\n";
-	vtkHeader += "ORIGIN " + to_string(-mesh.positionOffset.x * mesh.dx) + " "
-						   + to_string(-mesh.positionOffset.y * mesh.dy) + " "
-						   + to_string(-mesh.positionOffset.z * mesh.dz) + "\n";
+	vtkHeader += "ORIGIN " + to_string(mesh.positionOffset.x) + " "
+						   + to_string(mesh.positionOffset.y) + " "
+						   + to_string(mesh.positionOffset.z) + "\n";
 	vtkHeader += "SPACING " + to_string(mesh.dx) + " " + to_string(mesh.dy) + " " + to_string(mesh.dz) + "\n";
 	vtkHeader += "POINT_DATA " + to_string(mesh.nNodesTotal) + "\n";
 	return vtkHeader;

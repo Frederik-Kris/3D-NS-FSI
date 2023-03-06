@@ -7,18 +7,48 @@
 
 #include "Mesh.h"
 
+// Constructor. Taking parameters in ConfigSettings.
 Mesh::Mesh(const ConfigSettings& params) :
-NI{params.NI}, NJ{params.NJ}, NK{params.NK},
-nNodesTotal{NI*NJ*NK},
-dx{ -1 }, dy{ -1 }, dz{ -1 }, // <- Depend on boundary condition types, must set later
-conservedVariables(NI, NJ, NK),
-conservedVariablesOld(NI, NJ, NK),
-primitiveVariables(NI, NJ, NK),
-transportProperties(NI, NJ, NK),
-flowVariableReferences(conservedVariables, primitiveVariables, transportProperties),
-RK4slopes(NI, NJ, NK),
-nodeType(NI, NJ, NK)
+NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 {
+	vector<double> xThresholds = params.refineBoundX;
+	vector<double> yThresholds = params.refineBoundY;
+	vector<double> zThresholds = params.refineBoundZ;
+	xThresholds.insert( xThresholds.begin(), 0 );
+	yThresholds.insert( yThresholds.begin(), 0 );
+	zThresholds.insert( zThresholds.begin(), 0 );
+	xThresholds.push_back(params.L_x);
+	yThresholds.push_back(params.L_y);
+	zThresholds.push_back(params.L_z);
+	double dxBase = params.L_x / (NI-1);
+	double dyBase = params.L_y / (NJ-1);
+	double dzBase = params.L_z / (NK-1);
+	for(size_t i=0; i<xThresholds.size()-1; ++i)
+	{
+		size_t iMin = round(xThresholds[i  ]/dxBase);
+		size_t iMax = round(xThresholds[i+1]/dxBase);
+		if(iMax-iMin < 2)
+			throw std::runtime_error("A submesh is too small in the x direction.");
+		for(size_t j=0; j<yThresholds.size()-1; ++j)
+		{
+			size_t jMin = round(yThresholds[j  ]/dyBase);
+			size_t jMax = round(yThresholds[j+1]/dyBase);
+			if(jMax-jMin < 2)
+				throw std::runtime_error("A submesh is too small in the y direction.");
+			for(size_t k=0; k<zThresholds.size()-1; ++k)
+			{
+				size_t kMin = round(zThresholds[k  ]/dzBase);
+				size_t kMax = round(zThresholds[k+1]/dzBase);
+				if(kMax-kMin < 2)
+					throw std::runtime_error("A submesh is too small in the z direction.");
+ØØ; // LAGE SUBMESHES HER?
+			}
+		}
+	}
+	if(params.refineBoundX.size() > 0)
+	{
+
+	}
 }
 
 
@@ -40,14 +70,14 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 
 	// Set grid spacing and origin point offset based on the BC types:
 	// In/Out:		spacing=N-1, offset=0
-	// Periodic:	spacing=N-2, offset=1 or 0
-	// Symmetry:	spacing=N-3, offset=1
+	// Periodic:	spacing=N-2, offset=-gridSpacing or 0
+	// Symmetry:	spacing=N-3, offset=-gridSpacing
 	dx = params.L_x / (NI-1);
 	dy = params.L_y / (NJ-3);
 	dz = params.L_z / (NK-2);
 	positionOffset.x = 0;
-	positionOffset.y = 1;
-	positionOffset.z = 1;
+	positionOffset.y = -1 * dy;
+	positionOffset.z = -1 * dz;
 
 	// Add immersed bodies:
 	Vector3_d cylinderCentroidPosition(params.L_x / 4, params.L_y / 2, 0);
@@ -55,30 +85,6 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 																AxisOrientationEnum::z, 1./2));
 //	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
-}
-
-// Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
-void Mesh::categorizeNodes(const ConfigSettings& params)
-{
-	const Vector3_u nMeshNodes(NI, NJ, NK);
-	const Vector3_d gridSpacing(dx, dy, dz);
-	nodeType.setAll(NodeTypeEnum::FluidInterior);
-
-	IndexBoundingBox unclaimedNodes(NI-1, NJ-1, NK-1);						// At first, all nodes are unclaimed.
-	for(auto&& boundary : edgeBoundaries)									// Loop through mesh edge boundaries.
-		boundary->identifyOwnedNodes(unclaimedNodes, nMeshNodes, nodeType);	// Each boundary flags and claims nodes.
-	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );			// Reverse order, so last added is first applied.
-
-	// Then each immersed boundary finds its solid and ghost nodes, and body intercept and image points:
-	for(auto&& boundary : immersedBoundaries)
-		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, positionOffset, nodeType);
-
-	// Finally we note the indices of interior fluid nodes and solid ghost nodes, so we can loop through only those:
-	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
-		if(nodeType(index1D) == NodeTypeEnum::FluidInterior)
-			indexByType.fluidInterior.push_back(index1D);
-		else if(nodeType(index1D) == NodeTypeEnum::SolidGhost)
-			indexByType.solidGhost.push_back(index1D);
 }
 
 // Check if the 2nd order filter should be applied at the current time
@@ -133,11 +139,8 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 // This operation is super fast and needs no extra copy. Only the ownership of the data is changed.
 void Mesh::swapConservedVariables()
 {
-	conservedVariables.rho  .dataSwap(conservedVariablesOld.rho  );
-	conservedVariables.rho_u.dataSwap(conservedVariablesOld.rho_u);
-	conservedVariables.rho_v.dataSwap(conservedVariablesOld.rho_v);
-	conservedVariables.rho_w.dataSwap(conservedVariablesOld.rho_w);
-	conservedVariables.rho_E.dataSwap(conservedVariablesOld.rho_E);
+	for(SubMesh& subMesh : subMeshes)
+		subMesh.swapConservedVariables();
 }
 
 // Loop through boundaries, who are derived classes of MeshEdgeBoundary and ImmersedBoundary,
