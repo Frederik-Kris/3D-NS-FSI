@@ -110,17 +110,6 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 {
 	if( checkFilterCondition(params, timeLevel, t) )
 	{
-		// Copy boundary nodes:
-		for (auto&& edgeBoundary : edgeBoundaries)
-		{
-			const IndexBoundingBox& ownedNodes = edgeBoundary->ownedNodes;
-			for(size_t i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-				for(size_t j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-					for(size_t k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
-						variableTemporaryStorage(i,j,k) = filterVariable(i,j,k);
-		}
-		for (size_t index1D : indexByType.solidGhost)
-			variableTemporaryStorage(index1D) = filterVariable(index1D);
 		// Apply filter to interior nodes:
 		Vector3_u nNodes(NI, NJ, NK);
 		for (size_t index1D : indexByType.fluidInterior)
@@ -136,6 +125,7 @@ void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& varia
 												 ) / 12;
 		}
 		filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
+		applyAllBoundaryConditions(t, params);
 	}
 }
 
