@@ -23,6 +23,29 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 	double dxBase = params.L_x / (NI-1);
 	double dyBase = params.L_y / (NJ-1);
 	double dzBase = params.L_z / (NK-1);
+	size_t nRegionsX = xThresholds.size()-1;
+	size_t nRegionsY = yThresholds.size()-1;
+	size_t nRegionsZ = zThresholds.size()-1;
+	vector<vector<vector<uint>>> regionLevels;
+	for(size_t i=0; i<nRegionsX; ++i)
+	{
+		regionLevels.emplace_back();
+		for(size_t j=0; j<nRegionsY; ++j)
+		{
+			regionLevels[i].emplace_back();
+			for(size_t k=0; k<nRegionsZ; ++k)
+				regionLevels[i][j].push_back(0);
+		}
+	}
+	for(const RefinementSpecification& refSpec : params.specifiedRefinementLevels)
+	{
+		Vector3_u region = refSpec.region;
+		regionLevels[region.i][region.j][region.k] = refSpec.level;
+		for(size_t indexOffset=1; indexOffset<= refSpec.level; ++indexOffset)
+		{
+			size_t iMin=std::max(0, region.i-indexOffset);
+		}
+	}
 	for(size_t i=0; i<xThresholds.size()-1; ++i)
 	{
 		size_t iMin = round(xThresholds[i  ]/dxBase);
@@ -41,7 +64,7 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 				size_t kMax = round(zThresholds[k+1]/dzBase);
 				if(kMax-kMin < 2)
 					throw std::runtime_error("A submesh is too small in the z direction.");
-ØØ; // LAGE SUBMESHES HER?
+				params.specifiedRefinementLevels
 			}
 		}
 	}
