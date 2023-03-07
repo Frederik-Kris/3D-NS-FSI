@@ -1,6 +1,9 @@
 clear;
 close all;
 
+C_D_list = [];
+for vtkNum = 0 : 14
+
 NI=1600;
 NJ=802;
 NK=3;
@@ -23,7 +26,7 @@ formatString = "%s";
 formatFloat = '%f';
 formatInt = '%i';
 
-filePath = "/media/frederk/Dump drive/Simulations/Cylinder extrap Re40 Ma0.25 1600x802x3/output/out.vtk.9";
+filePath = sprintf("/media/frederk/Dump drive/Simulations/Cylinder extrap Re40 Ma0.25 1600x802x3/output/out.vtk.%i", vtkNum);
 
 fileID = fopen(filePath, 'r');
 fscanf(fileID, formatString, 34);
@@ -216,10 +219,15 @@ end
 C_D = force(1) * 2 / ( rho_0 * u_ref^2 * D );
 C_L = force(2) * 2 / ( rho_0 * u_ref^2 * D );
 
-figure(1);
-plot(BI_points(1,:), BI_points(2,:));
-hold on;
-quiver(BI_points(1,:), BI_points(2,:), traction_vecs(1,:), traction_vecs(2,:));
-axis equal;
+C_D_list(end+1)=C_D;
+
+end % for
+
+
+% figure(1);
+% plot(BI_points(1,:), BI_points(2,:));
+% hold on;
+% quiver(BI_points(1,:), BI_points(2,:), traction_vecs(1,:), traction_vecs(2,:));
+% axis equal;
 
 
