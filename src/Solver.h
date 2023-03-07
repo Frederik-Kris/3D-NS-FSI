@@ -20,9 +20,9 @@ public:
 
 	Solver(const ConfigSettings& params);
 
-	void initialize(ulong timeLevel);
+	void initialize(long timeLevel);
 
-	void marchTimeStep(double& t, ulong& timeLevel);
+	void marchTimeStep(double& t, long& timeLevel);
 
 	const ConservedVariablesVectorGroup& getConvergenceHistory() const {return normHistory;}
 

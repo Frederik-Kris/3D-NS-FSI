@@ -23,48 +23,74 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 	double dxBase = params.L_x / (NI-1);
 	double dyBase = params.L_y / (NJ-1);
 	double dzBase = params.L_z / (NK-1);
-	size_t nRegionsX = xThresholds.size()-1;
-	size_t nRegionsY = yThresholds.size()-1;
-	size_t nRegionsZ = zThresholds.size()-1;
-	vector<vector<vector<uint>>> regionLevels;
-	for(size_t i=0; i<nRegionsX; ++i)
+	int nRegionsX = xThresholds.size()-1;
+	int nRegionsY = yThresholds.size()-1;
+	int nRegionsZ = zThresholds.size()-1;
+	vector<vector<vector<int>>> regionLevels;
+	for(int i=0; i<nRegionsX; ++i)
 	{
 		regionLevels.emplace_back();
-		for(size_t j=0; j<nRegionsY; ++j)
+		for(int j=0; j<nRegionsY; ++j)
 		{
 			regionLevels[i].emplace_back();
-			for(size_t k=0; k<nRegionsZ; ++k)
+			for(int k=0; k<nRegionsZ; ++k)
 				regionLevels[i][j].push_back(0);
 		}
 	}
 	for(const RefinementSpecification& refSpec : params.specifiedRefinementLevels)
 	{
-		Vector3_u region = refSpec.region;
-		regionLevels[region.i][region.j][region.k] = refSpec.level;
-		for(size_t indexOffset=1; indexOffset<= refSpec.level; ++indexOffset)
+		Vector3_i region = refSpec.region;
+		for(int indexOffset=refSpec.level-1; indexOffset<=1; ++indexOffset)
 		{
-			size_t iMin=std::max(0, region.i-indexOffset);
+			int iMin=max(region.i-indexOffset, 0);
+			int iMax=min(region.i+indexOffset, nRegionsX-1);
+			int jMin=max(region.j-indexOffset, 0);
+			int jMax=min(region.j+indexOffset, nRegionsY-1);
+			int kMin=max(region.k-indexOffset, 0);
+			int kMax=min(region.k+indexOffset, nRegionsZ-1);
+			for(int i=iMin; i<=iMax; ++i)
+				for(int j=jMin; j<=jMax; ++j)
+					for(int k=kMin; k<=kMax; ++k)
+						regionLevels[i][j][k] = max( regionLevels[i][j][k], refSpec.level-1 );
 		}
+		regionLevels[region.i][region.j][region.k] = max( regionLevels[region.i][region.j][region.k], refSpec.level );
 	}
-	for(size_t i=0; i<xThresholds.size()-1; ++i)
+	for(int i=0; i<nRegionsX; ++i)
 	{
-		size_t iMin = round(xThresholds[i  ]/dxBase);
-		size_t iMax = round(xThresholds[i+1]/dxBase);
+		int iMin = round(xThresholds[i  ]/dxBase);
+		int iMax = round(xThresholds[i+1]/dxBase);
 		if(iMax-iMin < 2)
 			throw std::runtime_error("A submesh is too small in the x direction.");
-		for(size_t j=0; j<yThresholds.size()-1; ++j)
+		for(int j=0; j<nRegionsY; ++j)
 		{
-			size_t jMin = round(yThresholds[j  ]/dyBase);
-			size_t jMax = round(yThresholds[j+1]/dyBase);
+			int jMin = round(yThresholds[j  ]/dyBase);
+			int jMax = round(yThresholds[j+1]/dyBase);
 			if(jMax-jMin < 2)
 				throw std::runtime_error("A submesh is too small in the y direction.");
-			for(size_t k=0; k<zThresholds.size()-1; ++k)
+			for(int k=0; k<nRegionsZ; ++k)
 			{
-				size_t kMin = round(zThresholds[k  ]/dzBase);
-				size_t kMax = round(zThresholds[k+1]/dzBase);
+				int kMin = round(zThresholds[k  ]/dzBase);
+				int kMax = round(zThresholds[k+1]/dzBase);
 				if(kMax-kMin < 2)
 					throw std::runtime_error("A submesh is too small in the z direction.");
-				params.specifiedRefinementLevels
+				Vector3_i subMeshSize(-1,-1,-1);
+				subMeshSize.i = (iMax-iMin) * pow(2, regionLevels[i][j][k]) + 1;
+				subMeshSize.j = (jMax-jMin) * pow(2, regionLevels[i][j][k]) + 1;
+				subMeshSize.k = (kMax-kMin) * pow(2, regionLevels[i][j][k]) + 1;
+				EdgeBoundaryCollection subMeshEdgeBCs;
+				for(auto&& boundary : edgeBoundaries)
+				{
+					bool iMinExists=false, iMaxExists=false;
+					bool jMinExists=false, jMaxExists=false;
+					bool kMinExists=false, kMaxExists=false;
+					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::min && iMin == 0)
+					{
+						subMeshEdgeBCs.push_back( std::unique_ptr<MeshEdgeBoundary>() );
+						ØØ; // LAGE EN PURE VIRTUAL I BOUNDARY KLASSENE SOM RETURNERER UNIQUE_PTR MED KOPI AV SEG SELV
+						// RETURN TYPE BLIR BASE CLASS, MEN MAN TAR MAKE_UNIQE<DERIVED>
+					}
+				}
+				subMeshes.emplace_back(subMeshSize);
 			}
 		}
 	}
@@ -111,10 +137,10 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 }
 
 // Check if the 2nd order filter should be applied at the current time
-bool Mesh::checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t)
+bool Mesh::checkFilterCondition(const ConfigSettings& params, long timeLevel, double t)
 {
 	// Loop through the list of specified times in the config file, and see if we have surpassed them:
-	size_t counter = 0;
+	int counter = 0;
 	for (double intervalChangeTime : params.filterIntervalChangeTimes)
 		if (t > intervalChangeTime)
 			++counter;
@@ -123,7 +149,7 @@ bool Mesh::checkFilterCondition(const ConfigSettings& params, ulong timeLevel, d
 	// filter interval and check if timeLevel+1 is divisible by that interval:
 	if ( counter < params.filterIntervals.size() )
 	{
-		uint currentFilterInterval = params.filterIntervals.at(counter);
+		int currentFilterInterval = params.filterIntervals.at(counter);
 		if(currentFilterInterval > 0)
 			if( (timeLevel+1) % currentFilterInterval == 0 )
 				filterNow = true;
@@ -135,15 +161,15 @@ bool Mesh::checkFilterCondition(const ConfigSettings& params, ulong timeLevel, d
 // result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
 // Only filters if conditions set in config file are met.
 void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
-									const ConfigSettings& params, ulong timeLevel, double t)
+									const ConfigSettings& params, long timeLevel, double t)
 {
 	if( checkFilterCondition(params, timeLevel, t) )
 	{
 		// Apply filter to interior nodes:
-		Vector3_u nNodes(NI, NJ, NK);
-		for (size_t index1D : indexByType.fluidInterior)
+		Vector3_i nNodes(NI, NJ, NK);
+		for (int index1D : indexByType.fluidInterior)
 		{
-			Vector3_u indices = getIndices3D(index1D, nNodes);
+			Vector3_i indices = getIndices3D(index1D, nNodes);
 			variableTemporaryStorage(index1D) = (6*filterVariable(indices)
 												 + filterVariable(indices.i+1, indices.j, indices.k)
 												 + filterVariable(indices.i-1, indices.j, indices.k)
@@ -170,7 +196,7 @@ void Mesh::swapConservedVariables()
 // and apply their boundary conditions.
 void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
-	const Vector3_u nMeshNodes(NI, NJ, NK);
+	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
@@ -186,7 +212,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 double Mesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue)
 {
 	double sumOfSquaredDifferences = 0;
-	for(size_t i : indexByType.fluidInterior)
+	for(int i : indexByType.fluidInterior)
 		sumOfSquaredDifferences += pow(oldValue(i)-newValue(i), 2);
 	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredDifferences );
 	return normOfChange;

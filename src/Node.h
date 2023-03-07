@@ -14,11 +14,11 @@
 // Struct representing a solid ghost node related to an immersed surface
 struct GhostNode
 {
-	Vector3_u indices;
+	Vector3_i indices;
 	Vector3_d bodyInterceptPoint;
 	Vector3_d imagePoint;
 
-	GhostNode(Vector3_u indices) : indices(indices) {}
+	GhostNode(Vector3_i indices) : indices(indices) {}
 };
 
 typedef std::vector<GhostNode>::iterator GhostNodeVectorIterator;
@@ -37,8 +37,8 @@ enum class NodeTypeEnum
 // Intent: Looping through all nodes of a given type without checking flags.
 struct IndexVectorGroup
 {
-	vector<size_t> fluidInterior;
-	vector<size_t> solidGhost;
+	vector<int> fluidInterior;
+	vector<int> solidGhost;
 };
 
 

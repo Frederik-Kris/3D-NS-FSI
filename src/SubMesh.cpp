@@ -8,8 +8,8 @@
 #include "SubMesh.h"
 
 // Constructor. Taking in no. of nodes in each direction.
-SubMesh::SubMesh(size_t NI, size_t NJ, size_t NK)
-: NI{NI}, NJ{NJ}, NK{NK},
+SubMesh::SubMesh(Vector3_i subMeshSize)
+: NI{subMeshSize.i}, NJ{subMeshSize.j}, NK{subMeshSize.k},
   nNodesTotal{NI*NJ*NK},
   dx{-1}, dy{-1}, dz{-1},
   conservedVariables(NI, NJ, NK),
@@ -26,7 +26,7 @@ SubMesh::SubMesh(size_t NI, size_t NJ, size_t NK)
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
 void SubMesh::categorizeNodes(const ConfigSettings& params)
 {
-	const Vector3_u nMeshNodes(NI, NJ, NK);
+	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
@@ -40,7 +40,7 @@ void SubMesh::categorizeNodes(const ConfigSettings& params)
 		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, positionOffset, nodeType);
 
 	// Finally we note the indices of interior fluid nodes and solid ghost nodes, so we can loop through only those:
-	for(size_t index1D{0}; index1D<nNodesTotal; ++index1D)
+	for(int index1D{0}; index1D<nNodesTotal; ++index1D)
 		if(nodeType(index1D) == NodeTypeEnum::FluidInterior)
 			indexByType.fluidInterior.push_back(index1D);
 		else if(nodeType(index1D) == NodeTypeEnum::SolidGhost)
@@ -62,7 +62,7 @@ void SubMesh::swapConservedVariables()
 // and apply their boundary conditions.
 void SubMesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
-	const Vector3_u nMeshNodes(NI, NJ, NK);
+	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 

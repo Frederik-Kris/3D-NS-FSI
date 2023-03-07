@@ -23,7 +23,7 @@ public:
 
 	// Constructor. Sets the size members and initializes the data-vector with correct size.
 	// Does NOT initialize the elements in the data-vector.
-	Array3D_d(size_t length, size_t width, size_t height) :
+	Array3D_d(int length, int width, int height) :
     length(length),
 	width(width),
     height(height),
@@ -38,47 +38,47 @@ public:
 	{}
 
 	// Get reference to a node using 3D indices
-	inline double& operator()(size_t x, size_t y, size_t z)
+	inline double& operator()(int x, int y, int z)
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get value of a node using 3D indices
-	inline double operator()(size_t x, size_t y, size_t z) const
+	inline double operator()(int x, int y, int z) const
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get reference to a node using 3D indices in Vector3_u
-	inline double& operator()(Vector3_u indices)
+	inline double& operator()(Vector3_i indices)
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
 	// Get value of a node using 3D indices in Vector3_u
-	inline double operator()(Vector3_u indices) const
+	inline double operator()(Vector3_i indices) const
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
 	// Get reference to a node using one index
-	inline double& operator()(size_t i)
+	inline double& operator()(int i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
-	inline double operator()(size_t i) const
+	inline double operator()(int i) const
 	{ return data[i]; }
 
 	// Get reference to a node using 3D indices
 	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
-	inline double& at(size_t x, size_t y, size_t z)
+	inline double& at(int x, int y, int z)
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get value of a node using 3D indices
 	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
-	inline double at(size_t x, size_t y, size_t z) const
+	inline double at(int x, int y, int z) const
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get reference to a node using one index
 	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
-	inline double& at(size_t i)
+	inline double& at(int i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
 	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
-	inline double at(size_t i) const
+	inline double at(int i) const
 	{ return data[i]; }
 
 	// Set all the nodes in the array to value 'd'
@@ -98,16 +98,16 @@ public:
 		return allFinite;
 	}
 
-	size_t getLength() const
+	int getLength() const
 	{ return length; }
 
-	size_t getWidth() const
+	int getWidth() const
 	{ return width; }
 
-	size_t getHeight() const
+	int getHeight() const
 	{ return height; }
 
-	size_t getSize() const
+	int getSize() const
 	{ return data.size(); }
 
 	double getMax() const
@@ -117,7 +117,7 @@ public:
 	{ return *std::min_element( data.begin(), data.end() ); }
 
 private:
-	size_t length, width, height; // Number of nodes in the 3 directions
+	int length, width, height; // Number of nodes in the 3 directions
 	vector<double> data;
 };
 
@@ -128,7 +128,7 @@ class Array3D_nodeType
 public:
 	// Constructor. Sets the size members and initializes the data-vector with correct size.
 	// Does NOT initialize the elements in the data-vector.
-	Array3D_nodeType(size_t length, size_t width, size_t height) :
+	Array3D_nodeType(int length, int width, int height) :
     length(length),
 	width(width),
     height(height),
@@ -136,27 +136,27 @@ public:
 	{}
 
 	// Get reference to a node using 3D indices
-	inline NodeTypeEnum& operator()(size_t x, size_t y, size_t z)
+	inline NodeTypeEnum& operator()(int x, int y, int z)
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get value of a node using 3D indices
-	inline NodeTypeEnum operator()(size_t x, size_t y, size_t z) const
+	inline NodeTypeEnum operator()(int x, int y, int z) const
 	{ return data[x * width * height + y * height + z]; }
 
 	// Get reference to a node using 3D indices in vector
-	inline NodeTypeEnum& operator()(Vector3_u indices)
+	inline NodeTypeEnum& operator()(Vector3_i indices)
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
 	// Get value of a node using 3D indices in vector
-	inline NodeTypeEnum operator()(Vector3_u indices) const
+	inline NodeTypeEnum operator()(Vector3_i indices) const
 	{ return data[indices.i * width * height + indices.j * height + indices.k]; }
 
 	// Get reference to a node using one index
-	inline NodeTypeEnum& operator()(size_t i)
+	inline NodeTypeEnum& operator()(int i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
-	inline NodeTypeEnum operator()(size_t i) const
+	inline NodeTypeEnum operator()(int i) const
 	{ return data[i]; }
 
 	// Set all the nodes in the array to value 'type'
@@ -168,7 +168,7 @@ public:
 	{ std::swap(data, other.data); }
 
 private:
-	size_t length, width, height;
+	int length, width, height;
 	vector<NodeTypeEnum> data;
 };
 

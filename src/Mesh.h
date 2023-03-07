@@ -23,12 +23,12 @@ public:
 
 	void setupBoundaries(const ConfigSettings& params);
 
-	bool checkFilterCondition(const ConfigSettings& params, ulong timeLevel, double t);
+	bool checkFilterCondition(const ConfigSettings& params, long timeLevel, double t);
 
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, // <- To filter
 								   Array3D_d& variable_tmp, // <- Temporary storage
 								   const ConfigSettings& params,
-								   ulong timeLevel,
+								   long timeLevel,
 								   double t);
 
 	void swapConservedVariables();
@@ -70,7 +70,7 @@ public:
 	}
 
 	vector<SubMesh> subMeshes;	// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
-	const size_t NI, NJ, NK;	// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
+	const int NI, NJ, NK;	// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
 	Vector3_d positionOffset;	// Offset of origin point, i.e., coordinates of node (0,0,0).
 private:
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh

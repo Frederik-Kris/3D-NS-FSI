@@ -31,8 +31,8 @@ enum class ConvHistoryEnum
 
 struct RefinementSpecification
 {
-	Vector3_u region;
-	uint level;
+	Vector3_i region;
+	int level;
 };
 
 // This is a class to store ALL the settings imported from the config file.
@@ -44,7 +44,7 @@ public:
 	void loadSettings(string filename);
 	// MORE ELABORATE DESCRIPTIONS OF THESE PARAMETERS ARE IN THE CONFIG FILE ITSELF.
 	bool continueSimulation;		 // Use newest output as initial condition
-	size_t NI, NJ, NK;			     // Number of grid points in x-, y- and z-direction, respectively
+	int NI, NJ, NK;			     	 // Number of grid points in x-, y- and z-direction, respectively
 	double L_x, L_y, L_z;			 // Dimensionless size of domain
 	vector<double> refineBoundX;	 // Where to split domain into local grid refinement regions
 	vector<double> refineBoundY;
@@ -53,11 +53,11 @@ public:
 
 
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
-	ulong stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
+	long stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
 	double convStabilityLimit;       // Constant specifying the inviscid stability criterion
 	double viscStabilityLimit;       // Constant specifying the viscous stability criterion
-	vector<uint> filterIntervals;				// Number of timesteps between each time second order filter is applied
+	vector<int> filterIntervals;				// Number of timesteps between each time second order filter is applied
 	vector<double> filterIntervalChangeTimes;	// Times to change the filter interval
 
 	double statusReportInterval;	// How much wall clock time between each status/progression report to screen
@@ -66,7 +66,7 @@ public:
 	bool saveVelocity, savePressure, saveTemperature;	// Specifies what primitive variables to save to disk
 	bool saveViscosity, saveThermalCond;				// Specifies what transport properties to save to disk
 
-	bool saveIC, saveFinal; // Specifies whether to save IC and final solution
+	bool saveIC, saveFinal; 		// Specifies whether to save IC and final solution
 	bool saveIntervals; 			// Specifies whether to save solutions at given interval
 	double savePeriod;				// How much time between each save, if save_intervals=true
 	double saveIntervalsStartTime;	// When to start periodic saving, if save_intervals=true

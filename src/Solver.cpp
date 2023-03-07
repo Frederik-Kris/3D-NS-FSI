@@ -21,7 +21,7 @@ dt{0}
 
 // Preparing solver before starting to march solution.
 // Setup boundaries, apply initial condition (IC) and set the time-step size based on the IC.
-void Solver::initialize(ulong timeLevel)
+void Solver::initialize(long timeLevel)
 {
 	mesh.setupBoundaries(params);
 	mesh.categorizeNodes(params);
@@ -98,16 +98,16 @@ void Solver::applyInitialConditions()
 			applyStagnation_IC();
 			return;
 		}
-		size_t index1D = 0; // NB! Note loop order. Don't use index1D here to access arrays in mesh.
-		for(size_t k{0}; k<mesh.NK; ++k)
-			for(size_t j{0}; j<mesh.NJ; ++j)
-				for(size_t i{0}; i<mesh.NI; ++i)
+		int index1D = 0; // NB! Note loop order. Don't use index1D here to access arrays in mesh.
+		for(int k{0}; k<mesh.NK; ++k)
+			for(int j{0}; j<mesh.NJ; ++j)
+				for(int i{0}; i<mesh.NI; ++i)
 				{
 					ConservedVariablesScalars conservedVars;
 					PrimitiveVariablesScalars primitiveVars;
 					TransportPropertiesScalars transportProps;
 					reader.computeAllFlowVars(index1D, conservedVars, primitiveVars, transportProps);
-					setFlowVariablesAtNode( Vector3_u(i,j,k), conservedVars, primitiveVars, transportProps, mesh.flowVariableReferences);
+					setFlowVariablesAtNode( Vector3_i(i,j,k), conservedVars, primitiveVars, transportProps, mesh.flowVariableReferences);
 					++index1D;
 				}
 	}
@@ -136,7 +136,7 @@ double Solver::getInviscidTimeStepLimit()
 	const Array3D_d& w  {mesh.primitiveVariables.w};
 	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
 	// Loop through all mesh nodes, to find largest spectral radii:
-	for (size_t i{0}; i<mesh.nNodesTotal; ++i)
+	for (int i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    // <- Speed of sound at node i
 		maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
@@ -155,7 +155,7 @@ double Solver::getViscousTimeStepLimit()
 	const Array3D_d& rho{mesh.conservedVariables.rho};
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
 	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
-	for (size_t i{0}; i<mesh.nNodesTotal; ++i)
+	for (int i{0}; i<mesh.nNodesTotal; ++i)
 	{
 		double nu = mu(i) / (rho(i)+1) * viscosityModifier;
 		maxViscosityFactor = max( maxViscosityFactor, nu );
@@ -167,7 +167,7 @@ double Solver::getViscousTimeStepLimit()
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
 void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
-						   ulong& timeLevel)	// <- OUTPUT
+						   long& timeLevel)	// <- OUTPUT
 {
 	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params, timeLevel, t);
 	mesh.swapConservedVariables();	// Swap conserved variables and "old" arrays by move-semantics.
@@ -196,7 +196,7 @@ void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
-	Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 	Vector3_d gridSpacings(mesh.dx, mesh.dy, mesh.dz);
 	MeshDescriptor meshDescriptor(nMeshNodes,
 								  gridSpacings,
@@ -235,11 +235,11 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // <- Momentum 
 										 const Array3D_d& rho_w, // <- Momentum density
 										 Array3D_d& RK4_slope)	 // <- OUTPUT, slope to overwrite
 {
-	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-	for(size_t index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
 	{
-		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
-		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
+		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		double massFluxX = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx);
 		double massFluxY = - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy);
 		double massFluxZ = - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*mesh.dz);
@@ -268,12 +268,12 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // <- Momentum d
 	const Array3D_d& w {mesh.primitiveVariables.w};
 	const Array3D_d& mu{mesh.transportProperties.mu};
 
-	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
 	{
-		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
-		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
+		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		double convFluxX = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) );
 		double convFluxY = neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) );
 		double convFluxZ = neg_1_div_2dz   * ( rho_u(i,j,k+1) * w(i,j,k+1) - rho_u(i,j,k-1) * w(i,j,k-1) );
@@ -315,12 +315,12 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // <- Momentum d
 	const Array3D_d& w {mesh.primitiveVariables.w};
 	const Array3D_d& mu{mesh.transportProperties.mu};
 
-	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
 	{
-		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
-		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
+		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		double convFluxX = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) );
 		double convFluxY = neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) );
 		double convFluxZ = neg_1_div_2dz   * ( rho_v(i,j,k+1) * w(i,j,k+1) - rho_v(i,j,k-1) * w(i,j,k-1) );
@@ -362,12 +362,12 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // <- Momentum d
 	const Array3D_d& w {mesh.primitiveVariables.w};
 	const Array3D_d& mu{mesh.transportProperties.mu};
 
-	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
 	{
-		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
-		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
+		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
 
 		double convFluxX = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) );
 		double convFluxY = neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) );
@@ -419,12 +419,12 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E,	// <- Total specific en
 	const Array3D_d& mu   {mesh.transportProperties.mu};
 	const Array3D_d& kappa{mesh.transportProperties.kappa};
 
-	const Vector3_u nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
+	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 
-	for(size_t index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
 	{
-		Vector3_u indices3D = getIndices3D(index1D, nMeshNodes);
-		size_t i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
+		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
 		// To make the colossal expression below a bit more readable I define some subindices for neighbor nodes:
 		// P(actual point), W(West, i-1), E(East, i+1), S(South, j-1), N(North, j+1), D(Down, k-1), U(Up, k+1)
 		double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
@@ -489,7 +489,7 @@ void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, // <- Ol
 										 double timeIncrement,
 										 Array3D_d& intermSolution) // <- OUTPUT, new values
 {
-	for(size_t index1D : mesh.indexByType.fluidInterior)
+	for(int index1D : mesh.indexByType.fluidInterior)
 		intermSolution(index1D) = conservedVar(index1D) + timeIncrement * RK4_slope(index1D);
 }
 
@@ -514,19 +514,19 @@ void Solver::updatePrimitiveVariables()
 	Array3D_d& mu   {mesh.transportProperties.mu};
 	Array3D_d& kappa{mesh.transportProperties.kappa};
 
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		u(i) = rho_u(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		v(i) = rho_v(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		w(i) = rho_w(i) / ( rho(i) + 1 );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		p(i) = gammaMinusOne * ( rho_E(i) - (rho(i)+1)/2 * (u(i)*u(i) + v(i)*v(i) + w(i)*w(i)) );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re_0*( T(i) + ScPlusOne ) );
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 		kappa(i) = mu(i) * prandtlFactor;
 }
 
@@ -551,7 +551,7 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, // <- Slopes
 									Array3D_d& conservedVar_new) // <- OUTPUT, values at next time level
 {
 	double dtFactor{dt / 6};
-	for(size_t i : mesh.indexByType.fluidInterior)
+	for(int i : mesh.indexByType.fluidInterior)
 	{
 		double residualValue = dtFactor*( k1(i) + 2*k2(i) + 2*k3(i) + k4(i) );
 		conservedVar_new(i) = conservedVar_old(i) + residualValue;

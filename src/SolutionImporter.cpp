@@ -25,16 +25,16 @@ SolutionImporter::SolutionImporter(const ConfigSettings& params)
 // Search the output folder for solution files. Return the last in the time series.
 string SolutionImporter::findLatestSolutionFile()
 {
-	vector<size_t> solutionFileNumbers;
+	vector<int> solutionFileNumbers;
 	std::filesystem::path outputPath(StringLiterals::outputFolder);
 	// Loop through entries in folder "./output"
 	for(std::filesystem::directory_entry entry : std::filesystem::recursive_directory_iterator(outputPath))
 		if( entry.path().generic_string().find(StringLiterals::solutionFileNameBase) != string::npos ) // if entry path contains ".."
 			{
-				size_t lastDot = entry.path().generic_string().find_last_of('.');	// Get position of last dot
+				int lastDot = entry.path().generic_string().find_last_of('.');	// Get position of last dot
 				std::stringstream ss;
 				ss << entry.path().generic_string().substr(lastDot+1);	// Read the part after last dot (the no.) into stream
-				size_t fileNumber;
+				int fileNumber;
 				ss >> fileNumber;
 				solutionFileNumbers.push_back(fileNumber);
 			}
@@ -103,7 +103,7 @@ bool SolutionImporter::allFlowVarsDerivable()
 
 // Compute all conserved and primitive variables and transport properties in one node.
 // NB! 1D index in vtk, "i" must be ordered oppositely from the mesh arrays (first index increases most frequent, Fortran style).
-void SolutionImporter::computeAllFlowVars(size_t i,
+void SolutionImporter::computeAllFlowVars(int i,
 										  ConservedVariablesScalars& conservedVars,
 										  PrimitiveVariablesScalars& primitiveVars,
 										  TransportPropertiesScalars& transportProps)
@@ -171,7 +171,7 @@ void SolutionImporter::computeAllFlowVars(size_t i,
 	transportProps = deriveTransportProperties(primitiveVars, params);
 }
 
-void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory, ulong timeLevel)
+void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory, long timeLevel)
 {
 	vector<string> filenames = {StringLiterals::normRhoFile,
 								StringLiterals::normRhoUFile,
@@ -183,7 +183,7 @@ void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHi
 											&normHistory.rho_v,
 											&normHistory.rho_w,
 											&normHistory.rho_E };
-	for(size_t i{0}; i<filenames.size(); ++i)
+	for(int i{0}; i<filenames.size(); ++i)
 	{
 		std::filesystem::path filePath( StringLiterals::outputFolder + filenames.at(i) );
 		if( std::filesystem::exists(filePath) )
@@ -217,18 +217,18 @@ vector<double> SolutionImporter::getSolutionTimes()
 	return solutionTimes;
 }
 
-ulong SolutionImporter::getStartTimeLevel()
+long SolutionImporter::getStartTimeLevel()
 {
 	ifstream timeLevelFile( string(StringLiterals::outputFolder) + StringLiterals::timeLevelFile );
 	if(!timeLevelFile)
 		throw std::runtime_error("Could not open time level file.");
-	ulong timeLevel;
+	long timeLevel;
 	if(! (timeLevelFile >> timeLevel) )
 		throw std::runtime_error("Could not read time level from file.");
 	return timeLevel;
 }
 
-void SolutionImporter::importLiftDrag(vector<double> &lift, vector<double> &drag, ulong timeLevel)
+void SolutionImporter::importLiftDrag(vector<double> &lift, vector<double> &drag, long timeLevel)
 {
 	std::ifstream liftFile("./output/lift.dat");
 	if(!liftFile)

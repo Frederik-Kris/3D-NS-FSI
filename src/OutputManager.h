@@ -22,18 +22,18 @@ public:
 
 	OutputManager(const ConfigSettings& params);
 
-	void initialize(ulong timeLevelStart);
+	void initialize(long timeLevelStart);
 
-	void processInitialOutput(const Mesh& mesh, double t, ulong timeLevel);
+	void processInitialOutput(const Mesh& mesh, double t, long timeLevel);
 
 	void processIntermediateOutput(const Mesh& mesh,
 								   double t,
-								   ulong timeLevel,
+								   long timeLevel,
 								   double dt);
 
 	void processFinalOutput(const Mesh& mesh,
 							double t,
-							ulong timeLevel,
+							long timeLevel,
 							double dt,
 							const ConservedVariablesVectorGroup& convergenceHistory,
 							const vector<double>& lift,
@@ -42,7 +42,7 @@ public:
 
 private:
 
-	void storeCurrentSolution(const Mesh& mesh, double t, ulong timeLevel);
+	void storeCurrentSolution(const Mesh& mesh, double t, long timeLevel);
 
 	string getVtkHeader(const Mesh&, double t);
 
@@ -62,13 +62,13 @@ private:
 
 	void storeCurrentSolution_vtk(const Mesh& mesh, double t);
 
-	void writeStatusReport_toScreen(double t, ulong timeLevel, double dt);
+	void writeStatusReport_toScreen(double t, long timeLevel, double dt);
 
 	string getTimeString(double seconds);
 
 	void writeOutputTimes();
 
-	void writeTimeLevel(uint timeLevel);
+	void writeTimeLevel(int timeLevel);
 
 	void writeIntegralProperties(const vector<double>& liftHistory,
 								 const vector<double>& dragHistory,
@@ -77,9 +77,9 @@ private:
 	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 
 	const ConfigSettings params;	// Parameters and settings, imported from config file
-	uint savedSolutions;			// No. of times saved to disk
+	int savedSolutions;			// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
-	ulong timeLevelStart;			// Time level when the simulation started. Zero unless simulation continued from earlier result.
+	long timeLevelStart;			// Time level when the simulation started. Zero unless simulation continued from earlier result.
 	Clock wallClockTimer;			// Wall clock time for the entire simulation
 	Clock statusReportTimer;		// Wall clock time since last status report to screen
 	double previousProgression;		// Store progression between status reports, to estimate runtime

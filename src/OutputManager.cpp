@@ -19,7 +19,7 @@ previousProgression{0}
 }
 
 // Preparation before simulation start. Checking for output folder and deleting old results.
-void OutputManager::initialize(ulong _timeLevelStart)
+void OutputManager::initialize(long _timeLevelStart)
 {
 	timeLevelStart = _timeLevelStart;
 	bool outputFolderExists = false;
@@ -59,7 +59,7 @@ void OutputManager::initialize(ulong _timeLevelStart)
 }
 
 // Check if anything should be written before sim start.
-void OutputManager::processInitialOutput(const Mesh& mesh, double t, ulong timeLevel)
+void OutputManager::processInitialOutput(const Mesh& mesh, double t, long timeLevel)
 {
 	if ( params.saveIC )
 		storeCurrentSolution(mesh, t, timeLevel);
@@ -70,7 +70,7 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t, ulong timeL
 // Thus, in general it saves too early, but the deviation is dt at most.
 void OutputManager::processIntermediateOutput(const Mesh& mesh,
 											  double t, // <- time
-											  ulong timeLevel,
+											  long timeLevel,
 											  double dt) // <- timestep size
 {
 	// Save to disk:
@@ -99,7 +99,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh,
 // If appropriate, process output after simulation has reached its end.
 void OutputManager::processFinalOutput(const Mesh& mesh,
 									   double t, // <- time
-									   ulong timeLevel,
+									   long timeLevel,
 									   double dt, // <- timestep size
 									   const ConservedVariablesVectorGroup& convergenceHistory,
 									   const vector<double>& lift,
@@ -115,7 +115,7 @@ void OutputManager::processFinalOutput(const Mesh& mesh,
 }
 
 // Store selected variables from the solution at current time level, to disk, and remember the time.
-void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, ulong timeLevel)
+void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, long timeLevel)
 {
 	storeCurrentSolution_vtk(mesh, t);
 	++savedSolutions;
@@ -146,9 +146,9 @@ void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
 {
 	outputFile << "SCALARS Node_Flag int 1\n";
 	outputFile << "LOOKUP_TABLE default\n";
-	for (size_t k{0}; k<mesh.NK; ++k)
-		for (size_t j{0}; j<mesh.NJ; ++j)
-			for (size_t i{0}; i<mesh.NI; ++i)
+	for (int k{0}; k<mesh.NK; ++k)
+		for (int j{0}; j<mesh.NJ; ++j)
+			for (int i{0}; i<mesh.NI; ++i)
 			{
 				int flagValue = 0;
 				if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidInterior)
@@ -211,14 +211,14 @@ void OutputManager::writeVtkScalarData(const Mesh& mesh,
 {
 	vector<const Array3D_d*> scalarFlowVariables = getScalarVariablePointers(mesh);
 	vector<string> variableNames = getScalarVariableNames();
-	uint counter = 0;
+	int counter = 0;
 	for (const Array3D_d* flowVariable : scalarFlowVariables)
 	{
 		outputFile << "SCALARS " << variableNames.at(counter) << " double 1\n";
 		outputFile << "LOOKUP_TABLE default\n";
-		for (size_t k{0}; k<mesh.NK; ++k)
-			for (size_t j{0}; j<mesh.NJ; ++j)
-				for (size_t i{0}; i<mesh.NI; ++i)
+		for (int k{0}; k<mesh.NK; ++k)
+			for (int j{0}; j<mesh.NJ; ++j)
+				for (int i{0}; i<mesh.NI; ++i)
 					outputFile << flowVariable->at(i,j,k) << "\n";
 		++counter;
 	}
@@ -262,13 +262,13 @@ void OutputManager::writeVtkVectorData(const Mesh& mesh,
 	// The std::array with fixed size 3 represents the 3D vectors' three components:
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables = getVectorVariablePointers(mesh);
 	vector<string> variableNames = getVectorVariableNames();
-	uint counter = 0;
+	int counter = 0;
 	for (std::array<const Array3D_d*, 3> flowVariableVector : vectorFlowVariables)
 	{
 		outputFile << "VECTORS " << variableNames.at(counter) << " double\n";
-		for (size_t k{0}; k<mesh.NK; ++k)
-			for (size_t j{0}; j<mesh.NJ; ++j)
-				for (size_t i{0}; i<mesh.NI; ++i)
+		for (int k{0}; k<mesh.NK; ++k)
+			for (int j{0}; j<mesh.NJ; ++j)
+				for (int i{0}; i<mesh.NI; ++i)
 					outputFile << flowVariableVector[0]->at(i,j,k) << " "	// <- x-component
 							   << flowVariableVector[1]->at(i,j,k) << " "	// <- y-component
 							   << flowVariableVector[2]->at(i,j,k) << "\n";	// <- z-component
@@ -301,7 +301,7 @@ void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 // Progression is computed based on the stopping criterion (end time or time level).
 // 'setprecision' is used to control no. of significant digits, default is 6.
 void OutputManager::writeStatusReport_toScreen(double t,	// <- time
-											   ulong timeLevel,
+											   long timeLevel,
 											   double dt)	// <- timestep size
 {
 	cout << "Simulated time: t = " << t;
@@ -355,7 +355,7 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 {
 	vector<string> names = {"lift", "drag", "separation_angles"};
 	vector<vector<double>> dataSets = {liftHistory, dragHistory, separationAngles};
-	for (uint i : {0,1,2})
+	for (int i : {0,1,2})
 	{
 		ofstream outputFile;
 		string filename = StringLiterals::outputFolder + names.at(i) + ".dat";
@@ -372,7 +372,7 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 	}
 }
 
-void OutputManager::writeTimeLevel(uint timeLevel)
+void OutputManager::writeTimeLevel(int timeLevel)
 {
 	ofstream outputFile( string(StringLiterals::outputFolder) + StringLiterals::timeLevelFile );
 	if(!outputFile)
@@ -416,7 +416,7 @@ void OutputManager::writeConvergenceHistoryFiles(const ConservedVariablesVectorG
 		normHistoriesToSave.push_back(&convergenceHistory.rho_E);
 		fileNames.push_back(StringLiterals::normRhoEFile);
 	}
-	for(size_t varIndex{0}; varIndex<fileNames.size(); ++varIndex)
+	for(int varIndex{0}; varIndex<fileNames.size(); ++varIndex)
 	{
 		ofstream normFile;
 		normFile.open( StringLiterals::outputFolder + fileNames.at(varIndex) );

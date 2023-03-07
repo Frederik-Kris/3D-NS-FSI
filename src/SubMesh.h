@@ -22,7 +22,7 @@ class SubMesh
 
 public:
 
-	SubMesh(size_t NI, size_t NJ, size_t NK);
+	SubMesh(Vector3_i subMeshSize);
 
 	void categorizeNodes(const ConfigSettings& params);
 
@@ -32,8 +32,8 @@ public:
 
 	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
 
-	const size_t NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
-	const size_t nNodesTotal;	// Total number of nodes in the mesh
+	const int NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
+	const int nNodesTotal;	// Total number of nodes in the mesh
 	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.

@@ -68,7 +68,7 @@ struct ConservedVariablesArrayGroup
 	Array3D_d rho_w;	// Momentum density in z-direction
 	Array3D_d rho_E;	// Total specific energy per volume
 
-	ConservedVariablesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
+	ConservedVariablesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
 	rho  (gridSizeX, gridSizeY, gridSizeZ),
 	rho_u(gridSizeX, gridSizeY, gridSizeZ),
 	rho_v(gridSizeX, gridSizeY, gridSizeZ),
@@ -86,7 +86,7 @@ struct PrimitiveVariablesArrayGroup
 	Array3D_d p;	// Pressure
 	Array3D_d T;	// Temperature
 
-	PrimitiveVariablesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
+	PrimitiveVariablesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
 	u(gridSizeX, gridSizeY, gridSizeZ),
 	v(gridSizeX, gridSizeY, gridSizeZ),
 	w(gridSizeX, gridSizeY, gridSizeZ),
@@ -101,7 +101,7 @@ struct TransportPropertiesArrayGroup
 	Array3D_d mu;		// Dynamic viscosity
 	Array3D_d kappa;	// Thermal conductivity
 
-	TransportPropertiesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
+	TransportPropertiesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
 	mu   (gridSizeX, gridSizeY, gridSizeZ),
 	kappa(gridSizeX, gridSizeY, gridSizeZ)
 	{}
@@ -113,7 +113,7 @@ struct RK4slopesArrayGroup
 {
 	ConservedVariablesArrayGroup k1, k2, k3, k4; // 4 slopes per conserved variable
 
-	RK4slopesArrayGroup(size_t gridSizeX, size_t gridSizeY, size_t gridSizeZ) :
+	RK4slopesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
 	k1(gridSizeX, gridSizeY, gridSizeZ),
 	k2(gridSizeX, gridSizeY, gridSizeZ),
 	k3(gridSizeX, gridSizeY, gridSizeZ),
@@ -188,7 +188,7 @@ inline TransportPropertiesScalars deriveTransportProperties(const PrimitiveVaria
 }
 
 // Set all flow variables at the given mesh node index
-inline void setFlowVariablesAtNode(size_t index1D,
+inline void setFlowVariablesAtNode(int index1D,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,
 							const TransportPropertiesScalars& transportPropertyScalars,
@@ -209,7 +209,7 @@ inline void setFlowVariablesAtNode(size_t index1D,
 }
 
 // Set all flow variables at the given mesh node
-inline void setFlowVariablesAtNode(Vector3_u node,
+inline void setFlowVariablesAtNode(Vector3_i node,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,
 							const TransportPropertiesScalars& transportPropertyScalars,

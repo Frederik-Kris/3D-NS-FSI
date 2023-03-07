@@ -32,34 +32,34 @@ struct Vector3_d
 
 inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*factor; }
 
-// Simple 3D vector with size_t (unsigned) components
-struct Vector3_u
+// Simple 3D vector with integer components
+struct Vector3_i
 {
-	size_t i, j, k;
-	Vector3_u(size_t i, size_t j, size_t k) : i{i}, j{j}, k{k} {}
+	int i, j, k;
+	Vector3_i(int i, int j, int k) : i{i}, j{j}, k{k} {}
 };
 
 // Given the 1D index to a node, get the 3D indices
-inline Vector3_u getIndices3D(size_t index1D, const Vector3_u& nNodes)
+inline Vector3_i getIndices3D(int index1D, const Vector3_i& nNodes)
 {
-	size_t i = index1D / (nNodes.j * nNodes.k);
-	size_t j = index1D % (nNodes.j * nNodes.k) / nNodes.k;
-	size_t k = index1D % (nNodes.j * nNodes.k) % nNodes.k;
-	return Vector3_u(i,j,k);
+	int i = index1D / (nNodes.j * nNodes.k);
+	int j = index1D % (nNodes.j * nNodes.k) / nNodes.k;
+	int k = index1D % (nNodes.j * nNodes.k) % nNodes.k;
+	return Vector3_i(i,j,k);
 }
 
 // Given the 3D indices to a node, get the 1D index
-inline size_t getIndex1D(size_t i, size_t j, size_t k, const Vector3_u& nNodes)
+inline int getIndex1D(int i, int j, int k, const Vector3_i& nNodes)
 {
 	return i * nNodes.j * nNodes.k + j * nNodes.k + k;
 }
 
 // Given the 3D indices to a node, get the 1D index
-inline size_t getIndex1D(const Vector3_u& indices, const Vector3_u& nNodes)
+inline int getIndex1D(const Vector3_i& indices, const Vector3_i& nNodes)
 { return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
 
 // Get the position (coordinates) of the node with the given indices
-inline Vector3_d getNodePosition(size_t i, size_t j, size_t k,
+inline Vector3_d getNodePosition(int i, int j, int k,
 								 const Vector3_d& gridSpacings,
 								 const Vector3_d& meshOriginOffset)
 {
@@ -70,7 +70,7 @@ inline Vector3_d getNodePosition(size_t i, size_t j, size_t k,
 }
 
 // Get the position (coordinates) of the node with the given indices
-inline Vector3_d getNodePosition(const Vector3_u& indices,
+inline Vector3_d getNodePosition(const Vector3_i& indices,
 								 const Vector3_d& gridSpacings,
 								 const Vector3_d& meshOriginOffset)
 { return getNodePosition(indices.i, indices.j, indices.k, gridSpacings, meshOriginOffset); }
@@ -78,12 +78,12 @@ inline Vector3_d getNodePosition(const Vector3_u& indices,
 // Struct that represents a bounded region of the mesh, defined by lowest and highest indices
 struct IndexBoundingBox
 {
-	size_t iMin, iMax;	// Indices in x-direction
-	size_t jMin, jMax;	// Indices in y-direction
-	size_t kMin, kMax;	// Indices in z-direction
+	int iMin, iMax;	// Indices in x-direction
+	int jMin, jMax;	// Indices in y-direction
+	int kMin, kMax;	// Indices in z-direction
 
 	// Constructor. Takes in the upper index limits, and sets the lower limits to zero.
-	IndexBoundingBox(size_t iMax, size_t jMax, size_t kMax)
+	IndexBoundingBox(int iMax, int jMax, int kMax)
 	: iMin{0}, iMax{iMax},
 	  jMin{0}, jMax{jMax},
 	  kMin{0}, kMax{kMax}
@@ -94,7 +94,7 @@ struct IndexBoundingBox
 
 	// Get a simple fixed size array with the 1D indices to the 8 corner nodes in the box
 	// Ordering: z(k) changes most often, x(i) changes most seldom.
-	Array8_u asIndexList(const Vector3_u& nNodes) const
+	Array8_u asIndexList(const Vector3_i& nNodes) const
 	{
 		Array8_u indices = { getIndex1D(iMin, jMin, kMin, nNodes),
 							 getIndex1D(iMin, jMin, kMax, nNodes),
@@ -114,17 +114,17 @@ struct IndexBoundingBox
 inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point,
 											   const Vector3_d& gridSpacings,
 											   const Vector3_d& meshOriginOffset,
-											   const Vector3_u& nMeshNodes)
+											   const Vector3_i& nMeshNodes)
 {
-	size_t iNext = static_cast<size_t>( ceil( point.x / gridSpacings.x ) + meshOriginOffset.x );
-	size_t jNext = static_cast<size_t>( ceil( point.y / gridSpacings.y ) + meshOriginOffset.y );
-	size_t kNext = static_cast<size_t>( ceil( point.z / gridSpacings.z ) + meshOriginOffset.z );
-	iNext = max<size_t>( iNext, 1 ); // Make sure that none of these are less than 1,
-	jNext = max<size_t>( jNext, 1 ); // because that would make the lower index negative,
-	kNext = max<size_t>( kNext, 1 ); // e.g., outside the mesh
-	iNext = min<size_t>( iNext, nMeshNodes.i ); // Also make sure the box is not outside
-	jNext = min<size_t>( jNext, nMeshNodes.j ); // on the max side, which could happen due
-	kNext = min<size_t>( kNext, nMeshNodes.k ); // to machine precision on image point.
+	int iNext = static_cast<int>( ceil( point.x / gridSpacings.x ) + meshOriginOffset.x );
+	int jNext = static_cast<int>( ceil( point.y / gridSpacings.y ) + meshOriginOffset.y );
+	int kNext = static_cast<int>( ceil( point.z / gridSpacings.z ) + meshOriginOffset.z );
+	iNext = max<int>( iNext, 1 ); // Make sure that none of these are less than 1,
+	jNext = max<int>( jNext, 1 ); // because that would make the lower index negative,
+	kNext = max<int>( kNext, 1 ); // e.g., outside the mesh
+	iNext = min<int>( iNext, nMeshNodes.i ); // Also make sure the box is not outside
+	jNext = min<int>( jNext, nMeshNodes.j ); // on the max side, which could happen due
+	kNext = min<int>( kNext, nMeshNodes.k ); // to machine precision on image point.
 	IndexBoundingBox surroundingBox(iNext, jNext, kNext);
 	surroundingBox.iMin = iNext - 1;
 	surroundingBox.jMin = jNext - 1;

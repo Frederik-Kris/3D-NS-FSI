@@ -48,7 +48,7 @@ using libconfig::Config;
 using libconfig::Setting;
 
 
-typedef std::array<size_t, 8> Array8_u;
+typedef std::array<int, 8> Array8_u;
 typedef std::array<bool,   8> Array8_b;
 
 

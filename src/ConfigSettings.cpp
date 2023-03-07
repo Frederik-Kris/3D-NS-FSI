@@ -78,9 +78,9 @@ void ConfigSettings::readSettingValues(Config& cfg)
 {
 	continueSimulation = cfg.lookup("continueSimulation");
 
-	NI = (uint) cfg.lookup("NI");
-	NJ = (uint) cfg.lookup("NJ");
-	NK = (uint) cfg.lookup("NK");
+	NI = cfg.lookup("NI");
+	NJ = cfg.lookup("NJ");
+	NK = cfg.lookup("NK");
 
 	L_x	= cfg.lookup("L_x");
 	L_y	= cfg.lookup("L_y");
@@ -97,16 +97,16 @@ void ConfigSettings::readSettingValues(Config& cfg)
 		refineBoundZ.push_back( refineZSetting[i] );
 	Setting& refineLevelSetting = cfg.lookup("refineLevels");
 	for(int i=0; i<refineLevelSetting.getLength(); ++i)
-		specifiedRefinementLevels.push_back( RefinementSpecification{Vector3_u( (uint)refineLevelSetting[i].lookup("indices")[0],
-																				(uint)refineLevelSetting[i].lookup("indices")[1],
-																				(uint)refineLevelSetting[i].lookup("indices")[2] ),
-																	 refineLevelSetting[i].lookup("level")} );
+		specifiedRefinementLevels.push_back( RefinementSpecification{Vector3_i( refineLevelSetting[i].lookup("indices")[0],
+																				refineLevelSetting[i].lookup("indices")[1],
+																				refineLevelSetting[i].lookup("indices")[2] ),
+																	 	 	 	refineLevelSetting[i].lookup("level")} );
 
 	string stopCriterionString = cfg.lookup("stopCriterion").c_str();
 	if (stopCriterionString == "timesteps")
 	{
 		stopCriterion = StopCriterionEnum::timesteps;
-		stopTimeLevel = (uint) cfg.lookup("stopTimeLevel");
+		stopTimeLevel = cfg.lookup("stopTimeLevel");
 	}
 	else if (stopCriterionString == "end_time")
 	{
@@ -124,7 +124,7 @@ void ConfigSettings::readSettingValues(Config& cfg)
 
 	Setting& filterIntSetting = cfg.lookup("filterIntervals");
 	for(int i=0; i<filterIntSetting.getLength(); ++i)
-		filterIntervals.push_back( (uint) filterIntSetting[i] );
+		filterIntervals.push_back( filterIntSetting[i] );
 	Setting& filterIntTimesSetting = cfg.lookup("filterIntervalChangeTimes");
 	for(int i=0; i<filterIntTimesSetting.getLength(); ++i)
 		filterIntervalChangeTimes.push_back(filterIntTimesSetting[i]);

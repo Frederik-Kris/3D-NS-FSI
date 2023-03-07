@@ -25,18 +25,18 @@ public:
 
 	bool allFlowVarsDerivable();
 
-	void computeAllFlowVars(size_t i,
+	void computeAllFlowVars(int i,
 							ConservedVariablesScalars& conservedVars,
 							PrimitiveVariablesScalars& primitiveVars,
 							TransportPropertiesScalars& transportProps);
 
-	void importNormHistories(ConservedVariablesVectorGroup& normHistory, ulong timeLevel);
+	void importNormHistories(ConservedVariablesVectorGroup& normHistory, long timeLevel);
 
-	void importLiftDrag(vector<double>& lift, vector<double>& drag, ulong timeLevel);
+	void importLiftDrag(vector<double>& lift, vector<double>& drag, long timeLevel);
 
 	vector<double> getSolutionTimes();
 
-	ulong getStartTimeLevel();
+	long getStartTimeLevel();
 
 private:
 
