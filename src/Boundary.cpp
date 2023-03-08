@@ -455,6 +455,23 @@ void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_i& nM
 			}
 }
 
+// Constructor, taking in info about neighbor region.
+SubmeshInterfaceBoundary::SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis,
+											 	   EdgeIndexEnum planeIndex,
+												   AllFlowVariablesArrayGroup& neighborSubMesh)
+: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost),
+  neighborSubMesh(neighborSubMesh)
+{}
+
+// Borrow nodes from neighbor region as BC for this region.
+void SubmeshInterfaceBoundary::applyBoundaryCondition(double t,
+													  const Vector3_i& nMeshNodes,
+													  const ConfigSettings& params,
+													  AllFlowVariablesArrayGroup& flowVariables)
+{
+
+}
+
 // Constructor. Use derived classes instead.
 ImmersedBoundary::ImmersedBoundary()
 {

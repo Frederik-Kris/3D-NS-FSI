@@ -14,7 +14,44 @@
 #include "ConfigSettings.h"
 #include "SubMesh.h"
 
-// Class that keeps the actual arrays containing the flow variables, and the boundary conditions (BC)
+// Simple container of submeshes with indexing in three directions.
+// Could have used an std::vector<SubMesh> instead, but 3D indexing is handy for neighbor-finding.
+class SubMeshCollection
+{
+public:
+
+	SubMeshCollection(int nRegionsX, int nRegionsY, int nRegionsZ)
+	: nRegionsX{nRegionsX},
+	  nRegionsY{nRegionsY},
+	  nRegionsZ{nRegionsZ},
+	  subMeshes(nRegionsX * nRegionsY * nRegionsZ)
+	{}
+
+	SubMeshCollection() : SubMeshCollection(0,0,0) {}
+
+	void setNumberOfRegions(int _nRegionsX, int _nRegionsY, int _nRegionsZ)
+	{
+		nRegionsX = _nRegionsX;
+		nRegionsY = _nRegionsY;
+		nRegionsZ = _nRegionsZ;
+		subMeshes = vector<SubMesh>(nRegionsX * nRegionsY * nRegionsZ);
+	}
+
+	// Access submesh (lvalue)
+	SubMesh& operator()(int i, int j, int k)
+	{ return subMeshes.at( i*nRegionsY*nRegionsZ + j*nRegionsZ + k ); }
+
+	// Access submesh (rvalue)
+	const SubMesh& operator()(int i, int j, int k) const
+	{ return subMeshes.at( i*nRegionsY*nRegionsZ + j*nRegionsZ + k ); }
+
+	const int nRegionsX, nRegionsY, nRegionsZ; // No. of regions
+
+private:
+	vector<SubMesh> subMeshes; // 1D array with the actual submeshes.
+};
+
+// Class that represents the computational mesh. Also handles boundary conditions.
 class Mesh
 {
 public:
@@ -69,10 +106,12 @@ public:
 			cout << message << "T.\n";
 	}
 
-	vector<SubMesh> subMeshes;	// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
-	const int NI, NJ, NK;	// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
-	Vector3_d positionOffset;	// Offset of origin point, i.e., coordinates of node (0,0,0).
+	SubMeshCollection subMeshes;	// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
+	const int NI, NJ, NK;			// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
+	Vector3_d positionOffset;		// Offset of origin point, i.e., coordinates of node (0,0,0).
 private:
+	// Boundary conditions. These are just proxies to represent what BCs we want. The actual BCs are applied in the submeshes.
+	// TODO: consider making a separate class for these proxies, for clarity, so we don't try to applyBC() from these by accident.
 	EdgeBoundaryCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryCollection immersedBoundaries;	// Boundaries at immersed bodies
 };

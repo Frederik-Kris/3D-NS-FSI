@@ -17,12 +17,19 @@
 typedef vector<unique_ptr<MeshEdgeBoundary>> EdgeBoundaryCollection;
 typedef vector<unique_ptr<ImmersedBoundary>> ImmersedBoundaryCollection;
 
+// Class that keeps the actual arrays containing the flow variables, and the boundary conditions (BC)
 class SubMesh
 {
 
 public:
 
 	SubMesh(Vector3_i subMeshSize);
+
+	SubMesh() : SubMesh( Vector3_i(0,0,0) ) {}
+
+	void setSize(int NI, int NJ, int NK);
+
+	void setBoundaries(EdgeBoundaryCollection& edgeBoundaries, ImmersedBoundaryCollection& immersedBoundaries);
 
 	void categorizeNodes(const ConfigSettings& params);
 

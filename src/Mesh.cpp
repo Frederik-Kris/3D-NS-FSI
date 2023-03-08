@@ -26,6 +26,7 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 	int nRegionsX = xThresholds.size()-1;
 	int nRegionsY = yThresholds.size()-1;
 	int nRegionsZ = zThresholds.size()-1;
+	subMeshes.setNumberOfRegions(nRegionsX, nRegionsY, nRegionsZ);
 	vector<vector<vector<int>>> regionLevels;
 	for(int i=0; i<nRegionsX; ++i)
 	{
@@ -73,30 +74,53 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 				int kMax = round(zThresholds[k+1]/dzBase);
 				if(kMax-kMin < 2)
 					throw std::runtime_error("A submesh is too small in the z direction.");
-				Vector3_i subMeshSize(-1,-1,-1);
-				subMeshSize.i = (iMax-iMin) * pow(2, regionLevels[i][j][k]) + 1;
-				subMeshSize.j = (jMax-jMin) * pow(2, regionLevels[i][j][k]) + 1;
-				subMeshSize.k = (kMax-kMin) * pow(2, regionLevels[i][j][k]) + 1;
+				int subMeshSizeX = (iMax-iMin) * pow(2, regionLevels[i][j][k]) + 1;
+				int subMeshSizeY = (jMax-jMin) * pow(2, regionLevels[i][j][k]) + 1;
+				int subMeshSizeZ = (kMax-kMin) * pow(2, regionLevels[i][j][k]) + 1;
+				subMeshes(i,j,k).setSize(subMeshSizeX, subMeshSizeY, subMeshSizeZ);
 				EdgeBoundaryCollection subMeshEdgeBCs;
 				for(auto&& boundary : edgeBoundaries)
 				{
-					bool iMinExists=false, iMaxExists=false;
-					bool jMinExists=false, jMaxExists=false;
-					bool kMinExists=false, kMaxExists=false;
 					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::min && iMin == 0)
 					{
-						subMeshEdgeBCs.push_back( std::unique_ptr<MeshEdgeBoundary>() );
-						ØØ; // LAGE EN PURE VIRTUAL I BOUNDARY KLASSENE SOM RETURNERER UNIQUE_PTR MED KOPI AV SEG SELV
-						// RETURN TYPE BLIR BASE CLASS, MEN MAN TAR MAKE_UNIQE<DERIVED>
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeX += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					}
+					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::max && iMax == NI-1)
+					{
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeX += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					}
+					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::min && jMin == 0)
+					{
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeY += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					}
+					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::max && jMax == NJ-1)
+					{
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeY += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					}
+					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::min && kMin == 0)
+					{
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeZ += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					}
+					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::max && kMax == NK-1)
+					{
+						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
+						subMeshSizeZ += subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
 				}
-				subMeshes.emplace_back(subMeshSize);
+				if(iMin != 0)
+					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
+							AxisOrientationEnum::x,
+							EdgeIndexEnum::min,
+							subMeshes(i-1,j,k).flowVariableReferences ) );
+				// LAG DE ANDRE CASENE IMAX ETC. NB-NODES MÅ SETTES I FIND RELEVANT.
+				subMeshes(i,j,k).setBoundaries(edgeBoundaries, immersedBoundaries);
 			}
 		}
-	}
-	if(params.refineBoundX.size() > 0)
-	{
-
 	}
 }
 

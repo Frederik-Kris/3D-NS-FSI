@@ -19,8 +19,32 @@ SubMesh::SubMesh(Vector3_i subMeshSize)
   flowVariableReferences(conservedVariables, primitiveVariables, transportProperties),
   RK4slopes(NI, NJ, NK),
   nodeType(NI, NJ, NK)
-{
+{}
 
+// Set the number of mesh nodes and allocate space for this submesh.
+void SubMesh::setSize(int nNodesX, int nNodesY, int nNodesZ)
+{
+	NI = nNodesX;
+	NJ = nNodesY;
+	NK = nNodesZ;
+	nNodesTotal = NI*NJ*NK;
+	conservedVariables    = ConservedVariablesArrayGroup(NI, NJ, NK);
+	conservedVariablesOld = ConservedVariablesArrayGroup(NI, NJ, NK);
+	primitiveVariables = PrimitiveVariablesArrayGroup(NI, NJ, NK);
+	transportProperties = TransportPropertiesArrayGroup(NI, NJ, NK);
+	RK4slopes = RK4slopesArrayGroup(NI, NJ, NK);
+	nodeType = Array3D_nodeType(NI, NJ, NK);
+}
+
+// Set the BCs for this submesh
+void SubMesh::setBoundaries(EdgeBoundaryCollection& _edgeBoundaries, ImmersedBoundaryCollection& _immersedBoundaries)
+{
+	edgeBoundaries.clear();
+	for(auto&& boundary : _edgeBoundaries)
+		edgeBoundaries.push_back( boundary->getUniquePtrToCopy() );
+	immersedBoundaries.clear();
+	for(auto&& boundary : _immersedBoundaries)
+		immersedBoundaries.push_back( boundary->getUniquePtrToCopy() );
 }
 
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
