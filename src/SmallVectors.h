@@ -132,5 +132,13 @@ inline IndexBoundingBox getSurroundingNodesBox(const Vector3_d& point,
 	return surroundingBox;
 }
 
+// Struct that represents a bounded region in space
+struct SpaceBoundingBox
+{
+	double xMin, xMax;
+	double yMin, yMax;
+	double zMin, zMax;
+};
+
 
 #endif /* SRC_SMALLVECTORS_H_ */
