@@ -22,7 +22,7 @@ ScPlusOne = 1 + 110.4/300;
 formatString = "%s";
 formatFloat = '%f';
 formatInt = '%i';
-nFiles = 35;
+nFiles = 33;
 
 C_D_list = [];
 for vtkNum = 0 : nFiles - 1
@@ -225,15 +225,9 @@ fprintf("Result %i: C_D = %f\n", vtkNum, C_D);
 
 end % for
 
-set(groot,'defaultLineLineWidth',2.0);
 
 figure(1);
-plotTimes = linspace(100, nFiles*100, nFiles);
-plot(plotTimes, C_D_list);
-hold on;
-plot([plotTimes(1), plotTimes(end)], mean(C_D_list)*[1,1]);
-title("Drag coefficient");
-legend("Samples", "Average");
+plotTimes = linspace(0, (nFiles-1)*100, nFiles);
 % plot(BI_points(1,:), BI_points(2,:));
 % hold on;
 % quiver(BI_points(1,:), BI_points(2,:), traction_vecs(1,:), traction_vecs(2,:));

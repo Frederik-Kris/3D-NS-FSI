@@ -11,6 +11,8 @@
 
 int main()
 {
+	testVirtualFuncs();
+	return 0;
 	const ConfigSettings params("ConfigFile");	// Read parameters from config file.
 	if(params.errorOccurred)
 		return -1;
