@@ -104,6 +104,12 @@ public:
 	void setAll(const T& value)
 	{ data.assign(data.size(), value); }
 
+	// Const iterator to the element with 1D index 0:
+	std::vector::const_iterator begin() { return data.begin(); }
+
+	// Const iterator to the past-the-end-element of the underlying 1D vector:
+	std::vector::const_iterator end() { return data.end(); }
+
 	// Swap contents of the array with another array, using move-semantics (no copy).
 	void dataSwap(Array3D& other)
 	{ std::swap(data, other.data); }
