@@ -103,8 +103,13 @@ public:
 	virtual int nExtraNodeLayer() = 0;
 
 	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes,
-							const Vector3_i& nMeshNodes,
-							Array3D_nodeType& nodeTypeArray );
+									const Vector3_i& nMeshNodes,
+									Array3D_nodeType& nodeTypeArray );
+
+	// Find the nodes that we need to borrow from another SubMesh for this boundary.
+	// This does nothing for boundary types without borrowed nodes.
+	virtual void identifyBorrowedNodes()
+	{}
 
 	// Implementation of the actual BC. Overwrites its owned nodes.
 	virtual void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
@@ -219,8 +224,9 @@ public:
 								override;
 };
 
-// Class to define boundary condition for a submesh's co-boundary with another submesh.
-// Handles hanging nodes and fetching values from neighbor submesh etc.
+// Abstract class to define boundary condition for a submesh's co-boundary with another submesh.
+// Derived classes handle hanging nodes and fetching values from neighbor submesh etc.
+// Different derived classes based on the refinement levels of the submeshes.
 class SubmeshInterfaceBoundary : public MeshEdgeBoundary
 {
 public:
@@ -228,19 +234,80 @@ public:
 							 EdgeIndexEnum planeIndex,
 							 AllFlowVariablesArrayGroup& neighborSubMesh);
 
-	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
-	{ return std::make_unique<SubmeshInterfaceBoundary>(*this); }
+	virtual ~SubmeshInterfaceBoundary() = default;
 
-	int nExtraNodeLayer() override { return 0; }
+private:
+	AllFlowVariablesArrayGroup neighborSubMesh; // References to the flow variables in the adjacent region.
+	IndexBoundingBox borrowedNodes;				// Specifies what nodes in the neighbor region to borrow.
+};
+
+// Defines interface towards a region (submesh) with lower refinement level.
+// The adjacent submesh should have an InterfaceToFinerSubMesh towards this region.
+class InterfaceToCoarserSubMesh : public SubmeshInterfaceBoundary
+{
+	InterfaceToCoarserSubMesh(AxisOrientationEnum normalAxis,
+							  EdgeIndexEnum planeIndex,
+							  AllFlowVariablesArrayGroup& neighborSubMesh)
+	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+	{}
+
+	void identifyBorrowedNodes() override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
 								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 								override;
 
-private:
-	AllFlowVariablesArrayGroup neighborSubMesh; // References to the flow variables in the adjacent region.
-	IndexBoundingBox relevantNeighborNodes;		// Specifies what nodes in the neighbor region to borrow.
+	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
+	{ return std::make_unique<InterfaceToCoarserSubMesh>(*this); }
+
+	int nExtraNodeLayer() override { return 0; }
+};
+
+// Defines interface towards a region (submesh) with higher refinement level.
+// The adjacent submesh should have an InterfaceToCoarserSubMesh towards this region.
+class InterfaceToFinerSubMesh : public SubmeshInterfaceBoundary
+{
+	InterfaceToFinerSubMesh(AxisOrientationEnum normalAxis,
+							EdgeIndexEnum planeIndex,
+							AllFlowVariablesArrayGroup& neighborSubMesh)
+	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+	{}
+
+	void identifyBorrowedNodes() override;
+
+	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
+
+	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
+	{ return std::make_unique<InterfaceToFinerSubMesh>(*this); }
+
+	int nExtraNodeLayer() override { return 1; }
+};
+
+// Defines interface towards a region (submesh) with the same refinement level.
+// The adjacent submesh should also have an InterfaceToEqualLevelSubMesh towards this region.
+class InterfaceToEqualLevelSubMesh : public SubmeshInterfaceBoundary
+{
+	InterfaceToEqualLevelSubMesh(AxisOrientationEnum normalAxis,
+								 EdgeIndexEnum planeIndex,
+								 AllFlowVariablesArrayGroup& neighborSubMesh)
+	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+	{}
+
+	void identifyBorrowedNodes() override;
+
+	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
+								const ConfigSettings& params,				// <- Input
+								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+								override;
+
+	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
+	{ return std::make_unique<InterfaceToEqualLevelSubMesh>(*this); }
+
+	int nExtraNodeLayer() override { return planeIndex == EdgeIndexEnum::max ? 1 : 0 ; }
 };
 
 // Base class for immersed boundaries.
@@ -254,6 +321,9 @@ public:
 	virtual ~ImmersedBoundary() = default;
 
 	virtual std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() = 0;
+
+	// Check if the immersed body is inside the given bounding box:
+	virtual bool isInsideBox(const SpaceBoundingBox& box) = 0;
 
 	virtual void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
@@ -366,8 +436,10 @@ class CylinderBody : public ImmersedBoundary
 public:
 	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
 
-	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy()
+	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<CylinderBody>(*this); }
+
+	bool isInsideBox(const SpaceBoundingBox& box) override;
 
 	void identifyRelatedNodes(const ConfigSettings& params,
 	   	   	   	   	    	  const Vector3_d& gridSpacing,
@@ -406,8 +478,10 @@ class SphereBody : public ImmersedBoundary
 public:
 	SphereBody(Vector3_d centerPosition, double radius);
 
-	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy()
+	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<SphereBody>(*this); }
+
+	bool isInsideBox(const SpaceBoundingBox& box) override;
 
 	void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  const Vector3_d& gridSpacing,

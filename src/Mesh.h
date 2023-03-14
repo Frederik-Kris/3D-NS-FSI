@@ -106,9 +106,9 @@ public:
 			cout << message << "T.\n";
 	}
 
-	SubMeshCollection subMeshes;	// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
 	const int NI, NJ, NK;			// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
-	Vector3_d positionOffset;		// Offset of origin point, i.e., coordinates of node (0,0,0).
+	Array3D<SubMesh> subMeshes;		// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
+	Array3D<int> refinementLevels;	// Refinement levels of the submesh regions in the mesh
 private:
 	// Boundary conditions. These are just proxies to represent what BCs we want. The actual BCs are applied in the submeshes.
 	// TODO: consider making a separate class for these proxies, for clarity, so we don't try to applyBC() from these by accident.

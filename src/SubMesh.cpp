@@ -7,11 +7,11 @@
 
 #include "SubMesh.h"
 
-// Constructor. Taking in no. of nodes in each direction.
-SubMesh::SubMesh(Vector3_i subMeshSize)
-: NI{subMeshSize.i}, NJ{subMeshSize.j}, NK{subMeshSize.k},
+// Default constructor. Setting all sizes to zero. Initializes the reference members.
+SubMesh::SubMesh() :
+  NI{0}, NJ{0}, NK{0},
   nNodesTotal{NI*NJ*NK},
-  dx{-1}, dy{-1}, dz{-1},
+  dx{0}, dy{0}, dz{0},
   conservedVariables(NI, NJ, NK),
   conservedVariablesOld(NI, NJ, NK),
   primitiveVariables(NI, NJ, NK),
@@ -22,7 +22,9 @@ SubMesh::SubMesh(Vector3_i subMeshSize)
 {}
 
 // Set the number of mesh nodes and allocate space for this submesh.
-void SubMesh::setSize(int nNodesX, int nNodesY, int nNodesZ)
+void SubMesh::setSize(int nNodesX, int nNodesY, int nNodesZ,
+					  const IndexBoundingBox& indexDomain,
+					  const SpaceBoundingBox& spaceDomain)
 {
 	NI = nNodesX;
 	NJ = nNodesY;
@@ -41,10 +43,10 @@ void SubMesh::setBoundaries(EdgeBoundaryCollection& _edgeBoundaries, ImmersedBou
 {
 	edgeBoundaries.clear();
 	for(auto&& boundary : _edgeBoundaries)
-		edgeBoundaries.push_back( boundary->getUniquePtrToCopy() );
+		edgeBoundaries.push_back( boundary );
 	immersedBoundaries.clear();
 	for(auto&& boundary : _immersedBoundaries)
-		immersedBoundaries.push_back( boundary->getUniquePtrToCopy() );
+		immersedBoundaries.push_back( boundary );
 }
 
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.

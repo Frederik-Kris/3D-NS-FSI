@@ -23,11 +23,11 @@ class SubMesh
 
 public:
 
-	SubMesh(Vector3_i subMeshSize);
+	SubMesh();
 
-	SubMesh() : SubMesh( Vector3_i(0,0,0) ) {}
-
-	void setSize(int NI, int NJ, int NK);
+	void setSize(int NI, int NJ, int NK,
+			     const IndexBoundingBox& indexDomain,
+				 const SpaceBoundingBox& spaceDomain);
 
 	void setBoundaries(EdgeBoundaryCollection& edgeBoundaries, ImmersedBoundaryCollection& immersedBoundaries);
 
@@ -39,9 +39,13 @@ public:
 
 	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
 
-	const int NI, NJ, NK;	// Mesh size. Number of nodes in x,y,z directions
-	const int nNodesTotal;	// Total number of nodes in the mesh
-	double dx, dy, dz;	// Grid spacing in x-, y- and z-direction
+	ØØØ; // NEI! VI BYTTER TILBAKE NI ETC. TIL ANTALL NODER INNI REGIONEN. INDEX LIMITS BLIR HELLER ARRAY LIMITS.
+	// DA MÅ KANSKJE CUSTOM ARRAY LIMITS INN I ARRAY CLASSEN OGSÅ.
+	int NI, NJ, NK;					// Array size including ghost nodes. Number of nodes in x,y,z directions
+	int nNodesTotal;				// Total number of nodes in the submesh
+	IndexBoundingBox indexLimits;	// Index bounding box for the submesh region
+	SpaceBoundingBox boundingBox;	// Coordinates to the limits of the region. Boundary nodes may fall outside depending on BC.
+	double dx, dy, dz;				// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature
@@ -50,7 +54,6 @@ public:
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
 	IndexVectorGroup indexByType;	// 1D Indices to nodes of certain types.
 	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
-	Vector3_d positionOffset;		// Offset of origin point, due to mesh edge boundary conditions.
 
 private:
 

@@ -463,14 +463,23 @@ SubmeshInterfaceBoundary::SubmeshInterfaceBoundary(AxisOrientationEnum normalAxi
   neighborSubMesh(neighborSubMesh)
 {}
 
-// Borrow nodes from neighbor region as BC for this region.
-void SubmeshInterfaceBoundary::applyBoundaryCondition(double t,
-													  const Vector3_i& nMeshNodes,
-													  const ConfigSettings& params,
-													  AllFlowVariablesArrayGroup& flowVariables)
+void InterfaceToCoarserSubMesh::identifyBorrowedNodes()
 {
 
 }
+
+void InterfaceToCoarserSubMesh::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
+		   	   	   	   	   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
+													   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+{
+
+}
+
+//////////////////////////////////////
+// Mesh edge BCs above ↑
+//////////////////////////////////////
+// Immersed BCs below ↓
+//////////////////////////////////////
 
 // Constructor. Use derived classes instead.
 ImmersedBoundary::ImmersedBoundary()
@@ -950,6 +959,18 @@ axis{axis},
 radius{radius}
 {}
 
+// Check if cylinder centroid passes through box
+bool CylinderBody::isInsideBox(const SpaceBoundingBox& box)
+{
+	return
+			( axis == AxisOrientationEnum::x && centroidPosition.y < box.yMax && centroidPosition.y > box.yMin
+											 && centroidPosition.z < box.zMax && centroidPosition.z > box.zMin )
+		||	( axis == AxisOrientationEnum::y && centroidPosition.x < box.xMax && centroidPosition.x > box.xMin
+											 && centroidPosition.z < box.zMax && centroidPosition.z > box.zMin )
+		||	( axis == AxisOrientationEnum::z && centroidPosition.x < box.xMax && centroidPosition.x > box.xMin
+											 && centroidPosition.y < box.yMax && centroidPosition.y > box.yMin ) ;
+}
+
 // Mark solid nodes (ghost and inactive), find image points (IP) and closest fluid nodes (to filter).
 void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 		   	   	   	   	   	   	   	    const Vector3_d& gridSpacing,
@@ -958,7 +979,7 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 										Array3D_nodeType& nodeTypeArray	// <- Output
 										)
 {
-	int filterNodesLayerWidth = 2; // TODO: param
+	int filterNodesLayerWidth = 2; // TODO: Remove if it seems to be OK without this extra filtering. Otherwise: param?
 	IndexBoundingBox indicesToCheck = getCylinderBoundingBox(gridSpacing, nMeshNodes, filterNodesLayerWidth);
 	vector<int> solidNodeIndices;
 	getSolidAndFilterNodesInCylinder(params, indicesToCheck, gridSpacing, nMeshNodes,
@@ -1166,6 +1187,14 @@ SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
 centerPosition(centerPosition),
 radius{radius}
 {}
+
+// Check if sphere center point is inside the given box:
+bool SphereBody::isInsideBox(const SpaceBoundingBox& box)
+{
+	return	centerPosition.x < box.xMax && centerPosition.x > box.xMin
+		&&	centerPosition.y < box.yMax && centerPosition.y > box.yMin
+		&&	centerPosition.z < box.zMax && centerPosition.z > box.zMin ;
+}
 
 // Mark solid nodes (ghost and inactive), find image points (IP) and closest fluid nodes (to filter).
 void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
