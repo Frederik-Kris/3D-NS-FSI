@@ -68,12 +68,20 @@ struct ConservedVariablesArrayGroup
 	Array3D_d rho_w;	// Momentum density in z-direction
 	Array3D_d rho_E;	// Total specific energy per volume
 
+	ConservedVariablesArrayGroup(const IndexBoundingBox& indexLimits) :
+		rho  (indexLimits),
+		rho_u(indexLimits),
+		rho_v(indexLimits),
+		rho_w(indexLimits),
+		rho_E(indexLimits)
+	{}
+
 	ConservedVariablesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
-	rho  (gridSizeX, gridSizeY, gridSizeZ),
-	rho_u(gridSizeX, gridSizeY, gridSizeZ),
-	rho_v(gridSizeX, gridSizeY, gridSizeZ),
-	rho_w(gridSizeX, gridSizeY, gridSizeZ),
-	rho_E(gridSizeX, gridSizeY, gridSizeZ)
+		rho  (gridSizeX, gridSizeY, gridSizeZ),
+		rho_u(gridSizeX, gridSizeY, gridSizeZ),
+		rho_v(gridSizeX, gridSizeY, gridSizeZ),
+		rho_w(gridSizeX, gridSizeY, gridSizeZ),
+		rho_E(gridSizeX, gridSizeY, gridSizeZ)
 	{}
 };
 
@@ -86,12 +94,20 @@ struct PrimitiveVariablesArrayGroup
 	Array3D_d p;	// Pressure
 	Array3D_d T;	// Temperature
 
+	PrimitiveVariablesArrayGroup(const IndexBoundingBox& indexLimits) :
+		u(indexLimits),
+		v(indexLimits),
+		w(indexLimits),
+		p(indexLimits),
+		T(indexLimits)
+	{}
+
 	PrimitiveVariablesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
-	u(gridSizeX, gridSizeY, gridSizeZ),
-	v(gridSizeX, gridSizeY, gridSizeZ),
-	w(gridSizeX, gridSizeY, gridSizeZ),
-	p(gridSizeX, gridSizeY, gridSizeZ),
-	T(gridSizeX, gridSizeY, gridSizeZ)
+		u(gridSizeX, gridSizeY, gridSizeZ),
+		v(gridSizeX, gridSizeY, gridSizeZ),
+		w(gridSizeX, gridSizeY, gridSizeZ),
+		p(gridSizeX, gridSizeY, gridSizeZ),
+		T(gridSizeX, gridSizeY, gridSizeZ)
 	{}
 };
 
@@ -101,9 +117,14 @@ struct TransportPropertiesArrayGroup
 	Array3D_d mu;		// Dynamic viscosity
 	Array3D_d kappa;	// Thermal conductivity
 
+	TransportPropertiesArrayGroup(const IndexBoundingBox& indexLimits) :
+		mu   (indexLimits),
+		kappa(indexLimits)
+	{}
+
 	TransportPropertiesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
-	mu   (gridSizeX, gridSizeY, gridSizeZ),
-	kappa(gridSizeX, gridSizeY, gridSizeZ)
+		mu   (gridSizeX, gridSizeY, gridSizeZ),
+		kappa(gridSizeX, gridSizeY, gridSizeZ)
 	{}
 };
 
@@ -113,11 +134,18 @@ struct RK4slopesArrayGroup
 {
 	ConservedVariablesArrayGroup k1, k2, k3, k4; // 4 slopes per conserved variable
 
+	RK4slopesArrayGroup(const IndexBoundingBox& indexLimits) :
+		k1(indexLimits),
+		k2(indexLimits),
+		k3(indexLimits),
+		k4(indexLimits)
+	{}
+
 	RK4slopesArrayGroup(int gridSizeX, int gridSizeY, int gridSizeZ) :
-	k1(gridSizeX, gridSizeY, gridSizeZ),
-	k2(gridSizeX, gridSizeY, gridSizeZ),
-	k3(gridSizeX, gridSizeY, gridSizeZ),
-	k4(gridSizeX, gridSizeY, gridSizeZ)
+		k1(gridSizeX, gridSizeY, gridSizeZ),
+		k2(gridSizeX, gridSizeY, gridSizeZ),
+		k3(gridSizeX, gridSizeY, gridSizeZ),
+		k4(gridSizeX, gridSizeY, gridSizeZ)
 	{}
 };
 
