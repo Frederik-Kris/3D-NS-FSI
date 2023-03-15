@@ -23,22 +23,22 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 	double dxBase = NI>1 ? params.L_x/(NI-1) : 1;
 	double dyBase = NJ>1 ? params.L_y/(NJ-1) : 1;
 	double dzBase = NK>1 ? params.L_z/(NK-1) : 1;
-	int nRegionsX = xThresholds.size()-1;
-	int nRegionsY = yThresholds.size()-1;
-	int nRegionsZ = zThresholds.size()-1;
-	subMeshes.setSize(nRegionsX, nRegionsY, nRegionsZ);
-	refinementLevels = Array3D<int>(nRegionsX, nRegionsY, nRegionsZ, 0);
+	nRegions.i = xThresholds.size()-1;
+	nRegions.j = yThresholds.size()-1;
+	nRegions.k = zThresholds.size()-1;
+	subMeshes.setSize(nRegions.i, nRegions.j, nRegions.k);
+	refinementLevels = Array3D<int>(nRegions.i, nRegions.j, nRegions.k, 0);
 	for(const RefinementSpecification& refSpec : params.specifiedRefinementLevels)
 	{
 		Vector3_i region = refSpec.region;
 		for(int indexOffset=refSpec.level-1; indexOffset<=1; ++indexOffset)
 		{
 			int iMin=max(region.i-indexOffset, 0);
-			int iMax=min(region.i+indexOffset, nRegionsX-1);
+			int iMax=min(region.i+indexOffset, nRegions.i-1);
 			int jMin=max(region.j-indexOffset, 0);
-			int jMax=min(region.j+indexOffset, nRegionsY-1);
+			int jMax=min(region.j+indexOffset, nRegions.j-1);
 			int kMin=max(region.k-indexOffset, 0);
-			int kMax=min(region.k+indexOffset, nRegionsZ-1);
+			int kMax=min(region.k+indexOffset, nRegions.k-1);
 			for(int i=iMin; i<=iMax; ++i)
 				for(int j=jMin; j<=jMax; ++j)
 					for(int k=kMin; k<=kMax; ++k)
@@ -46,28 +46,28 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 		}
 		refinementLevels(region.i, region.j, region.k) = max( refinementLevels(region.i, region.j, region.k), refSpec.level );
 	}
-	for(int i=0; i<nRegionsX; ++i)
+	for(int i=0; i<nRegions.i; ++i)
 	{
-		int iMin = round(xThresholds[i  ]/dxBase);
-		int iMax = round(xThresholds[i+1]/dxBase);
-		if(iMax-iMin < 2)
+		int iPrev = round(xThresholds[i  ]/dxBase);
+		int iNext = round(xThresholds[i+1]/dxBase);
+		if(iNext-iPrev < 2)
 			throw std::runtime_error("A submesh is too small in the x direction.");
-		for(int j=0; j<nRegionsY; ++j)
+		for(int j=0; j<nRegions.j; ++j)
 		{
-			int jMin = round(yThresholds[j  ]/dyBase);
-			int jMax = round(yThresholds[j+1]/dyBase);
-			if(jMax-jMin < 2)
+			int jPrev = round(yThresholds[j  ]/dyBase);
+			int jNext = round(yThresholds[j+1]/dyBase);
+			if(jNext-jPrev < 2)
 				throw std::runtime_error("A submesh is too small in the y direction.");
-			for(int k=0; k<nRegionsZ; ++k)
+			for(int k=0; k<nRegions.k; ++k)
 			{
-				int kMin = round(zThresholds[k  ]/dzBase);
-				int kMax = round(zThresholds[k+1]/dzBase);
-				if(kMax-kMin < 2)
+				int kPrev = round(zThresholds[k  ]/dzBase);
+				int kNext = round(zThresholds[k+1]/dzBase);
+				if(kNext-kPrev < 2)
 					throw std::runtime_error("A submesh is too small in the z direction.");
-				int subMeshSizeX = (iMax-iMin) * pow(2, refinementLevels(i,j,k)) + 1;
-				int subMeshSizeY = (jMax-jMin) * pow(2, refinementLevels(i,j,k)) + 1;
-				int subMeshSizeZ = (kMax-kMin) * pow(2, refinementLevels(i,j,k)) + 1;
-				IndexBoundingBox subMeshIndexBox(subMeshSizeX-1, subMeshSizeY-1, subMeshSizeZ-1);
+				int subMeshSizeX = (iNext-iPrev) * pow(2, refinementLevels(i,j,k)) + 1;
+				int subMeshSizeY = (jNext-jPrev) * pow(2, refinementLevels(i,j,k)) + 1;
+				int subMeshSizeZ = (kNext-kPrev) * pow(2, refinementLevels(i,j,k)) + 1;
+				IndexBoundingBox subMeshArrayLimits(subMeshSizeX-1, subMeshSizeY-1, subMeshSizeZ-1);
 				SpaceBoundingBox subMeshVolume;
 				subMeshVolume.xMin = xThresholds[i];
 				subMeshVolume.xMax = xThresholds[i+1];
@@ -75,45 +75,41 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 				subMeshVolume.yMax = yThresholds[j+1];
 				subMeshVolume.zMin = zThresholds[k];
 				subMeshVolume.zMax = zThresholds[k+1];
-				subMeshes(i,j,k).dx = subMeshSizeX>1 ? (subMeshVolume.xMax - subMeshVolume.xMin)/(subMeshSizeX - 1) : 1;
-				subMeshes(i,j,k).dy = subMeshSizeY>1 ? (subMeshVolume.yMax - subMeshVolume.yMin)/(subMeshSizeY - 1) : 1;
-				subMeshes(i,j,k).dz = subMeshSizeZ>1 ? (subMeshVolume.zMax - subMeshVolume.zMin)/(subMeshSizeZ - 1) : 1;
-				int subMeshNI=subMeshSizeX,subMeshNJ=subMeshSizeY, subMeshNK=subMeshSizeZ;
 				EdgeBoundaryCollection subMeshEdgeBCs;
 				for(auto&& boundary : edgeBoundaries)
 				{
-					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::min && iMin == 0)
+					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::min && iPrev == 0)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNI += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
-					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::max && iMax == NI-1)
+					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::max && iNext == NI-1)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNI += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
-					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::min && jMin == 0)
+					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::min && jPrev == 0)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNJ += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
-					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::max && jMax == NJ-1)
+					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::max && jNext == NJ-1)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNJ += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
-					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::min && kMin == 0)
+					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::min && kPrev == 0)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNK += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
-					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::max && kMax == NK-1)
+					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::max && kNext == NK-1)
 					{
 						subMeshEdgeBCs.push_back( boundary->getUniquePtrToCopy() );
-						subMeshNK += subMeshEdgeBCs.back()->nExtraNodeLayer();
+						subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 					}
 				}
-				if(iMin > 0)
+				if(iPrev > 0)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i-1,j,k) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -130,9 +126,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::x,
 								EdgeIndexEnum::min,
 								subMeshes(i-1,j,k).flowVariableReferences ) );
-					subMeshNI += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
-				if(iMax < NI-1)
+				if(iNext < NI-1)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i+1,j,k) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -149,9 +145,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::x,
 								EdgeIndexEnum::max,
 								subMeshes(i+1,j,k).flowVariableReferences ) );
-					subMeshNI += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
-				if(jMin > 0)
+				if(jPrev > 0)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i,j-1,k) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -168,9 +164,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::y,
 								EdgeIndexEnum::min,
 								subMeshes(i,j-1,k).flowVariableReferences ) );
-					subMeshNJ += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
-				if(jMax < NJ-1)
+				if(jNext < NJ-1)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i,j+1,k) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -187,9 +183,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::y,
 								EdgeIndexEnum::max,
 								subMeshes(i,j+1,k).flowVariableReferences ) );
-					subMeshNJ += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
-				if(kMin > 0)
+				if(kPrev > 0)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i,j,k-1) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -206,9 +202,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::z,
 								EdgeIndexEnum::min,
 								subMeshes(i,j,k-1).flowVariableReferences ) );
-					subMeshNK += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
-				if(kMax < NK-1)
+				if(kNext < NK-1)
 				{
 					if( refinementLevels(i,j,k) > refinementLevels(i,j,k+1) )
 						subMeshEdgeBCs.push_back( std::make_unique<InterfaceToCoarserSubMesh>(
@@ -225,7 +221,7 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 								AxisOrientationEnum::z,
 								EdgeIndexEnum::max,
 								subMeshes(i,j,k+1).flowVariableReferences ) );
-					subMeshNK += subMeshEdgeBCs.back()->nExtraNodeLayer();
+					subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
 				}
 				ImmersedBoundaryCollection subMeshImmersedBCs;
 				for(auto&& surface : immersedBoundaries)
@@ -233,7 +229,8 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 					if( surface->isInsideBox(subMeshVolume) )
 						subMeshImmersedBCs.push_back( surface->getUniquePtrToCopy() );
 				}
-				subMeshes(i,j,k).setSize(subMeshSizeX, subMeshSizeY, subMeshSizeZ);
+				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
+				subMeshes(i,j,k).setSize(subMeshSizeX, subMeshSizeY, subMeshSizeZ, subMeshArrayLimits, subMeshVolume);
 				subMeshes(i,j,k).setBoundaries(subMeshEdgeBCs, subMeshImmersedBCs);
 			}
 		}
@@ -263,6 +260,32 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 																AxisOrientationEnum::z, 1./2));
 //	Vector3_d sphereCenterPoint(params.L_x/4, params.L_y/2, params.L_z/2);
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
+}
+
+// Get references to the flow variables in the sub-meshes given by the given indices.
+Array3D<AllFlowVariablesArrayGroup> Mesh::getNeighborSubMeshVariables(const IndexBoundingBox& neighborSubMeshIndices)
+{
+	Array3D<AllFlowVariablesArrayGroup> neighborVariables(neighborSubMeshIndices);
+	for(int i=max(neighborSubMeshIndices.iMin, 0); i<=min(neighborSubMeshIndices.iMax, nRegions.i-1); ++i)
+		for(int j=neighborSubMeshIndices.jMin; j<=neighborSubMeshIndices.jMax; ++j)
+			for(int k=neighborSubMeshIndices.kMin; k<=neighborSubMeshIndices.kMax; ++k)
+			{
+				neighborVariables(i,j,k) = subMeshes(i,j,k).flowVariableReferences;
+			}
+	return neighborVariables;
+}
+
+void Mesh::categorizeNodes()
+{
+	for(int i=0; i<nRegions.i; ++i)
+		for(int j=0; j<nRegions.j; ++j)
+			for(int k=0; k<nRegions.k; ++k)
+			{
+				IndexBoundingBox neighborSubMeshIndices = IndexBoundingBox::boxAroundNode(Vector3_i(i,j,k), 1);
+				neighborSubMeshIndices = neighborSubMeshIndices.intersection( IndexBoundingBox(nRegions.i, nRegions.j, nRegions.k) );
+				Array3D<AllFlowVariablesArrayGroup> neighborSubMeshVariableReferences = getNeighborSubMeshVariables(neighborSubMeshIndices);
+				Array3D<SubMesh> neighborSubMeshes = subMeshes.subArray(neighborSubMeshIndices);
+			}
 }
 
 // Check if the 2nd order filter should be applied at the current time

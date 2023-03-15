@@ -10,7 +10,7 @@
 // Default constructor. Setting all sizes to zero. Initializes the reference members.
 SubMesh::SubMesh() :
   NI{0}, NJ{0}, NK{0},
-  nNodesTotal{NI*NJ*NK},
+  nNodesTotal{0},
   dx{0}, dy{0}, dz{0},
   conservedVariables(NI, NJ, NK),
   conservedVariablesOld(NI, NJ, NK),
@@ -23,19 +23,24 @@ SubMesh::SubMesh() :
 
 // Set the number of mesh nodes and allocate space for this submesh.
 void SubMesh::setSize(int nNodesX, int nNodesY, int nNodesZ,
-					  const IndexBoundingBox& indexDomain,
+					  const IndexBoundingBox& newArrayLimits,
 					  const SpaceBoundingBox& spaceDomain)
 {
 	NI = nNodesX;
 	NJ = nNodesY;
 	NK = nNodesZ;
-	nNodesTotal = NI*NJ*NK;
-	conservedVariables    = ConservedVariablesArrayGroup(NI, NJ, NK);
-	conservedVariablesOld = ConservedVariablesArrayGroup(NI, NJ, NK);
-	primitiveVariables = PrimitiveVariablesArrayGroup(NI, NJ, NK);
-	transportProperties = TransportPropertiesArrayGroup(NI, NJ, NK);
-	RK4slopes = RK4slopesArrayGroup(NI, NJ, NK);
-	nodeType = Array3D_nodeType(NI, NJ, NK);
+	arrayLimits = newArrayLimits;
+	nNodesTotal = arrayLimits.nNodesTotal();
+	boundingBox = spaceDomain;
+	dx = NI>1 ? (boundingBox.xMax - boundingBox.xMin)/(NI - 1) : 1;
+	dy = NJ>1 ? (boundingBox.yMax - boundingBox.yMin)/(NJ - 1) : 1;
+	dz = NK>1 ? (boundingBox.zMax - boundingBox.zMin)/(NK - 1) : 1;
+	conservedVariables    = ConservedVariablesArrayGroup(arrayLimits);
+	conservedVariablesOld = ConservedVariablesArrayGroup(arrayLimits);
+	primitiveVariables    = PrimitiveVariablesArrayGroup(arrayLimits);
+	transportProperties = TransportPropertiesArrayGroup(arrayLimits);
+	RK4slopes = RK4slopesArrayGroup(arrayLimits);
+	nodeType = Array3D<NodeTypeEnum>(arrayLimits);
 }
 
 // Set the BCs for this submesh

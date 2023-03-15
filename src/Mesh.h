@@ -60,6 +60,10 @@ public:
 
 	void setupBoundaries(const ConfigSettings& params);
 
+	Array3D<AllFlowVariablesArrayGroup> getNeighborSubMeshVariables(const IndexBoundingBox& neighborSubMeshIndices);
+
+	void categorizeNodes();
+
 	bool checkFilterCondition(const ConfigSettings& params, long timeLevel, double t);
 
 	void applyFilter_ifAppropriate(Array3D_d& variable_old, // <- To filter
@@ -107,6 +111,7 @@ public:
 	}
 
 	const int NI, NJ, NK;			// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
+	Vector3_i nRegions;				// Number of sub-meshes in each direction.
 	Array3D<SubMesh> subMeshes;		// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
 	Array3D<int> refinementLevels;	// Refinement levels of the submesh regions in the mesh
 private:

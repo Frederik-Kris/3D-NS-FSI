@@ -39,11 +39,10 @@ public:
 
 	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
 
-	ØØØ; // NEI! VI BYTTER TILBAKE NI ETC. TIL ANTALL NODER INNI REGIONEN. INDEX LIMITS BLIR HELLER ARRAY LIMITS.
-	// DA MÅ KANSKJE CUSTOM ARRAY LIMITS INN I ARRAY CLASSEN OGSÅ.
-	int NI, NJ, NK;					// Array size including ghost nodes. Number of nodes in x,y,z directions
-	int nNodesTotal;				// Total number of nodes in the submesh
-	IndexBoundingBox indexLimits;	// Index bounding box for the submesh region
+	Vector3_i regionID;				// Indices to this sub-mesh in a 3D array of sub-meshes.
+	int NI, NJ, NK;					// Number of nodes in x,y,z directions in the submesh, not including overlap nodes OUTSIDE of the region.
+	IndexBoundingBox arrayLimits;	// Index limits for the submesh array
+	int nNodesTotal;				// Total number of nodes in the submesh array
 	SpaceBoundingBox boundingBox;	// Coordinates to the limits of the region. Boundary nodes may fall outside depending on BC.
 	double dx, dy, dz;				// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
@@ -53,7 +52,7 @@ public:
 	AllFlowVariablesArrayGroup flowVariableReferences;	// References to all flow variables
 	RK4slopesArrayGroup RK4slopes;						// 4 slopes for each conserved variable
 	IndexVectorGroup indexByType;	// 1D Indices to nodes of certain types.
-	Array3D_nodeType nodeType;		// Type/category of each node (ghost, fluid, etc.)
+	Array3D<NodeTypeEnum> nodeType;	// Type/category of each node (ghost, fluid, etc.)
 
 private:
 
