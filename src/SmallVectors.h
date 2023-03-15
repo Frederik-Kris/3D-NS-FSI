@@ -89,6 +89,13 @@ struct IndexBoundingBox
 	  kMin{0}, kMax{kMax}
 	{}
 
+	// Constructor. Takes in all index limits.
+	IndexBoundingBox(int iMin, int iMax, int jMin, int jMax, int kMin, int kMax)
+	: iMin{iMin}, iMax{iMax},
+	  jMin{jMin}, jMax{jMax},
+	  kMin{kMin}, kMax{kMax}
+	{}
+
 	// Default constructor. Leaves data uninitialized.
 	IndexBoundingBox() = default;
 
@@ -106,6 +113,33 @@ struct IndexBoundingBox
 							 getIndex1D(iMax, jMax, kMax, nNodes)
 		};
 		return indices;
+	}
+
+	// Get number of nodes in the box including the nodes on the borders.
+	int nNodesTotal() const
+	{ return (iMax-iMin+1)*(jMax-jMin+1)*(kMax-kMin+1); }
+
+	// Get the intersection between this box and another. Can be a "flat box" (plane).
+	// If the boxes don't intersect, a box with only zeros is returned.
+	IndexBoundingBox intersection(const IndexBoundingBox& other) const
+	{
+		IndexBoundingBox _intersection(max(this->iMin, other.iMin), min(this->iMax, other.iMax),
+									   max(this->jMin, other.jMin), min(this->jMax, other.jMax),
+									   max(this->kMin, other.kMin), min(this->kMax, other.kMax) );
+		if (_intersection.iMax >= _intersection.iMin
+		&&	_intersection.jMax >= _intersection.jMin
+		&&	_intersection.kMax >= _intersection.kMin )
+			return _intersection;
+		else
+			return IndexBoundingBox(0, 0, 0);
+	}
+
+	// Get box that's centered on the given node, and stretches 'radius' nodes in each direction.
+	static IndexBoundingBox boxAroundNode(const Vector3_i& centerNode, int radius)
+	{
+		return IndexBoundingBox(centerNode.i-radius, centerNode.i+radius,
+								centerNode.j-radius, centerNode.j+radius,
+								centerNode.k-radius, centerNode.k+radius);
 	}
 };
 
