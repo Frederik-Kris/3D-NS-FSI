@@ -104,11 +104,11 @@ public:
 
 	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes,
 									const Vector3_i& nMeshNodes,
-									Array3D_nodeType& nodeTypeArray );
+									Array3D<NodeTypeEnum>& nodeTypeArray );
 
 	// Find the nodes that we need to borrow from another SubMesh for this boundary.
 	// This does nothing for boundary types without borrowed nodes.
-	virtual void identifyBorrowedNodes()
+	virtual void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
 	{}
 
 	// Implementation of the actual BC. Overwrites its owned nodes.
@@ -251,7 +251,9 @@ class InterfaceToCoarserSubMesh : public SubmeshInterfaceBoundary
 	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
 	{}
 
-	void identifyBorrowedNodes() override;
+	void identifyBorrowedNodes(const Vector3_i& regionID,
+							   Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
+							   override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
@@ -274,7 +276,7 @@ class InterfaceToFinerSubMesh : public SubmeshInterfaceBoundary
 	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
 	{}
 
-	void identifyBorrowedNodes() override;
+	void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences) override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
@@ -297,7 +299,7 @@ class InterfaceToEqualLevelSubMesh : public SubmeshInterfaceBoundary
 	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
 	{}
 
-	void identifyBorrowedNodes() override;
+	void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences) override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input

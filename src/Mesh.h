@@ -62,7 +62,7 @@ public:
 
 	Array3D<AllFlowVariablesArrayGroup> getNeighborSubMeshVariables(const IndexBoundingBox& neighborSubMeshIndices);
 
-	void categorizeNodes();
+	void categorizeNodes(const ConfigSettings& params);
 
 	bool checkFilterCondition(const ConfigSettings& params, long timeLevel, double t);
 

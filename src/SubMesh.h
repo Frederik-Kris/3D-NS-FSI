@@ -31,7 +31,7 @@ public:
 
 	void setBoundaries(EdgeBoundaryCollection& edgeBoundaries, ImmersedBoundaryCollection& immersedBoundaries);
 
-	void categorizeNodes(const ConfigSettings& params);
+	void categorizeNodes(const ConfigSettings& params, Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences);
 
 	void swapConservedVariables();
 

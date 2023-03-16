@@ -17,7 +17,7 @@ MeshEdgeBoundary::MeshEdgeBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 // Claim all unclaimed nodes in the boundary plane, and assign them the appropriate type.
 void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
 											const Vector3_i& nMeshNodes,
-											Array3D_nodeType& nodeTypeArray )
+											Array3D<NodeTypeEnum>& nodeTypeArray )
 {
 	ownedNodes = unclaimedNodes;
 	switch (normalAxis)
@@ -463,16 +463,37 @@ SubmeshInterfaceBoundary::SubmeshInterfaceBoundary(AxisOrientationEnum normalAxi
   neighborSubMesh(neighborSubMesh)
 {}
 
-void InterfaceToCoarserSubMesh::identifyBorrowedNodes()
+void InterfaceToCoarserSubMesh::identifyBorrowedNodes(const Vector3_i& regionID,
+													  const Vector3_i& subMeshSize,
+													  const IndexBoundingBox& arrayLimits,
+													  Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
 {
-
+	if(normalAxis == AxisOrientationEnum::x)
+		if(planeIndex == EdgeIndexEnum::min)
+		{
+			for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+				for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+					if()
+		}
 }
-
+ØØØ;
+// ENDRE OWNED TIL VECTOR AV INDEXBOXER
+// MÅ ENDRE IDENTYFY_OWNED FOR SUBMESH INTERFACE (GJØR VIRTUAL)
+// ENDRE APPLY BC FOR DE GAMLE BC-ER
+// VURDER Å FINNE BORROWED I OVERRIDE AV IDENTIFY_OWNED
+// BORROWED BLIR OGSÅ VECTOR
+// FLOW VAR REFERENCES MÅ OGSÅ LIGGE I VECTOR
+// DA KAN MAN HA YTRE LOOP OVER ALLE DISSE VECTORER
 void InterfaceToCoarserSubMesh::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 		   	   	   	   	   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
 													   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
+	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
+		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+			{
 
+			}
 }
 
 //////////////////////////////////////

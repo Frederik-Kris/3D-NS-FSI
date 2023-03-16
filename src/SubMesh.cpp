@@ -55,15 +55,17 @@ void SubMesh::setBoundaries(EdgeBoundaryCollection& _edgeBoundaries, ImmersedBou
 }
 
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
-void SubMesh::categorizeNodes(const ConfigSettings& params)
+void SubMesh::categorizeNodes(const ConfigSettings& params, Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
 {
-	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
 	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
-	IndexBoundingBox unclaimedNodes(NI-1, NJ-1, NK-1);						// At first, all nodes are unclaimed.
+	IndexBoundingBox unclaimedNodes = arrayLimits;						// At first, all nodes are unclaimed.
 	for(auto&& boundary : edgeBoundaries)									// Loop through mesh edge boundaries.
-		boundary->identifyOwnedNodes(unclaimedNodes, nMeshNodes, nodeType);	// Each boundary flags and claims nodes.
+	{
+		boundary->identifyOwnedNodes(unclaimedNodes, arrayLimits, nodeType);	// Each boundary flags and claims nodes.
+		boundary->identifyBorrowedNodes(neighborSubMeshReferences);			// Find nodes we need in neighbor submeshes
+	}
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );			// Reverse order, so last added is first applied.
 
 	// Then each immersed boundary finds its solid and ghost nodes, and body intercept and image points:

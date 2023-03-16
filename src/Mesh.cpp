@@ -275,7 +275,7 @@ Array3D<AllFlowVariablesArrayGroup> Mesh::getNeighborSubMeshVariables(const Inde
 	return neighborVariables;
 }
 
-void Mesh::categorizeNodes()
+void Mesh::categorizeNodes(const ConfigSettings& params)
 {
 	for(int i=0; i<nRegions.i; ++i)
 		for(int j=0; j<nRegions.j; ++j)
@@ -284,7 +284,7 @@ void Mesh::categorizeNodes()
 				IndexBoundingBox neighborSubMeshIndices = IndexBoundingBox::boxAroundNode(Vector3_i(i,j,k), 1);
 				neighborSubMeshIndices = neighborSubMeshIndices.intersection( IndexBoundingBox(nRegions.i, nRegions.j, nRegions.k) );
 				Array3D<AllFlowVariablesArrayGroup> neighborSubMeshVariableReferences = getNeighborSubMeshVariables(neighborSubMeshIndices);
-				Array3D<SubMesh> neighborSubMeshes = subMeshes.subArray(neighborSubMeshIndices);
+				subMeshes(i,j,k).categorizeNodes(params, neighborSubMeshVariableReferences);
 			}
 }
 
