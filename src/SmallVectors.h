@@ -37,7 +37,15 @@ struct Vector3_i
 {
 	int i, j, k;
 	Vector3_i(int i, int j, int k) : i{i}, j{j}, k{k} {}
+
+	inline Vector3_i operator+(Vector3_i other) const { return Vector3_i(i+other.i, j+other.j, k+other.k); }
+	inline Vector3_i operator+(int scalar)		const { return Vector3_i(i+scalar, j+scalar, k+scalar); }
+	inline Vector3_i operator-(Vector3_i other) const { return Vector3_i(i-other.i, j-other.j, k-other.k); }
+	inline Vector3_i operator-(int scalar)		const { return Vector3_i(i-scalar, j-scalar, k-scalar); }
+	inline Vector3_i operator*(int factor) 		const { return Vector3_i(i*factor, j*factor, k*factor); }
 };
+
+inline Vector3_i operator*(int factor, Vector3_i vector) { return vector*factor; }
 
 // Given the 1D index to a node, get the 3D indices
 inline Vector3_i getIndices3D(int index1D, const Vector3_i& nNodes)
