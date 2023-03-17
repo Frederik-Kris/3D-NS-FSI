@@ -8,6 +8,7 @@ The N-S eqs are solved numerically using a 2nd order Finite Difference Method (F
 - libconfig++	- For reading config files
 - SFML		    - Was meant to be used for output. Now only used for timing. Will probably remove this dependency.
 - Eigen		    - For solving 8x8 linear system for trilinear interpolation.
+- libvtk7     - For parsing and writing output
 
 ## Input
 All input is given via the ConfigFile. All variables from this file are imported using libconfig++, into a class named ConfigSettings. 
