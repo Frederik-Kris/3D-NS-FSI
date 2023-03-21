@@ -9,16 +9,17 @@
 
 // Default constructor. Setting all sizes to zero. Initializes the reference members.
 SubMesh::SubMesh() :
-  NI{0}, NJ{0}, NK{0},
+  nNodes(0,0,0),
+  arrayLimits(0,0,0),
   nNodesTotal{0},
-  dx{0}, dy{0}, dz{0},
-  conservedVariables(NI, NJ, NK),
-  conservedVariablesOld(NI, NJ, NK),
-  primitiveVariables(NI, NJ, NK),
-  transportProperties(NI, NJ, NK),
+  gridSpacings(0,0,0),
+  conservedVariables(arrayLimits),
+  conservedVariablesOld(arrayLimits),
+  primitiveVariables(arrayLimits),
+  transportProperties(arrayLimits),
   flowVariableReferences(conservedVariables, primitiveVariables, transportProperties),
-  RK4slopes(NI, NJ, NK),
-  nodeType(NI, NJ, NK)
+  RK4slopes(arrayLimits),
+  nodeType(arrayLimits)
 {}
 
 // Set the number of mesh nodes and allocate space for this submesh.
@@ -26,15 +27,15 @@ void SubMesh::setSize(int nNodesX, int nNodesY, int nNodesZ,
 					  const IndexBoundingBox& newArrayLimits,
 					  const SpaceBoundingBox& spaceDomain)
 {
-	NI = nNodesX;
-	NJ = nNodesY;
-	NK = nNodesZ;
+	nNodes.i = nNodesX;
+	nNodes.j = nNodesY;
+	nNodes.k = nNodesZ;
 	arrayLimits = newArrayLimits;
 	nNodesTotal = arrayLimits.nNodesTotal();
 	boundingBox = spaceDomain;
-	dx = NI>1 ? (boundingBox.xMax - boundingBox.xMin)/(NI - 1) : 1;
-	dy = NJ>1 ? (boundingBox.yMax - boundingBox.yMin)/(NJ - 1) : 1;
-	dz = NK>1 ? (boundingBox.zMax - boundingBox.zMin)/(NK - 1) : 1;
+	gridSpacings.x = nNodes.i>1 ? (boundingBox.xMax - boundingBox.xMin)/(nNodes.i - 1) : 1;
+	gridSpacings.y = nNodes.j>1 ? (boundingBox.yMax - boundingBox.yMin)/(nNodes.j - 1) : 1;
+	gridSpacings.z = nNodes.k>1 ? (boundingBox.zMax - boundingBox.zMin)/(nNodes.k - 1) : 1;
 	conservedVariables    = ConservedVariablesArrayGroup(arrayLimits);
 	conservedVariablesOld = ConservedVariablesArrayGroup(arrayLimits);
 	primitiveVariables    = PrimitiveVariablesArrayGroup(arrayLimits);
@@ -55,22 +56,22 @@ void SubMesh::setBoundaries(EdgeBoundaryCollection& _edgeBoundaries, ImmersedBou
 }
 
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
-void SubMesh::categorizeNodes(const ConfigSettings& params, Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
+void SubMesh::categorizeNodes(const ConfigSettings& params,
+							  const Array3D<SubMeshDescriptor>& neighborSubMeshes)
 {
-	const Vector3_d gridSpacing(dx, dy, dz);
 	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
 	IndexBoundingBox unclaimedNodes = arrayLimits;						// At first, all nodes are unclaimed.
 	for(auto&& boundary : edgeBoundaries)									// Loop through mesh edge boundaries.
 	{
-		boundary->identifyOwnedNodes(unclaimedNodes, arrayLimits, nodeType);	// Each boundary flags and claims nodes.
+		boundary->identifyRelatedNodes(unclaimedNodes, nNodes, nodeType);	// Each boundary flags and claims nodes.
 		boundary->identifyBorrowedNodes(neighborSubMeshReferences);			// Find nodes we need in neighbor submeshes
 	}
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );			// Reverse order, so last added is first applied.
 
 	// Then each immersed boundary finds its solid and ghost nodes, and body intercept and image points:
 	for(auto&& boundary : immersedBoundaries)
-		boundary->identifyRelatedNodes(params, gridSpacing, nMeshNodes, positionOffset, nodeType);
+		boundary->identifyRelatedNodes(params, gridSpacings, nMeshNodes, positionOffset, nodeType);
 
 	// Finally we note the indices of interior fluid nodes and solid ghost nodes, so we can loop through only those:
 	for(int index1D{0}; index1D<nNodesTotal; ++index1D)
@@ -97,7 +98,7 @@ void SubMesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
-	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
+	SubMeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
 	for(auto&& boundary : edgeBoundaries)
 		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);

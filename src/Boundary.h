@@ -32,27 +32,32 @@ enum class EdgeIndexEnum
 typedef Eigen::Array<double, 8, 1> Vector8_d;
 typedef Eigen::Matrix<double, 8, 8> Matrix8x8_d;
 
-// Package struct with data from the mesh.
+// Package struct with data from a sub-mesh.
 // Shortens argument lists, and lets Boundary not depend on Mesh
-struct MeshDescriptor
+struct SubMeshDescriptor
 {
 	const Vector3_i& nNodes;
 	const Vector3_d& spacings;
-	const Vector3_d& originOffset;
-	const Array3D_nodeType& nodeType;
+	const IndexBoundingBox& arrayLimits;
+	const Array3D<NodeTypeEnum>& nodeType;
 	AllFlowVariablesArrayGroup& flowVariables;
+	const int refinementLevel;
 
-	MeshDescriptor(const Vector3_i& nNodes,
-				   const Vector3_d& gridSpacings,
-				   const Vector3_d& originOffset,
-				   Array3D_nodeType& nodeTypeArray,
-				   AllFlowVariablesArrayGroup& flowVariables)
+	SubMeshDescriptor(const Vector3_i& nNodes,
+				   	  const IndexBoundingBox& arrayLimits,
+					  const Vector3_d& gridSpacings,
+					  Array3D<NodeTypeEnum>& nodeTypeArray,
+					  AllFlowVariablesArrayGroup& flowVariables,
+					  int refinementLevel)
 	: nNodes{nNodes},
 	  spacings{gridSpacings},
-	  originOffset{originOffset},
+	  arrayLimits(arrayLimits),
 	  nodeType{nodeTypeArray},
-	  flowVariables{flowVariables}
+	  flowVariables{flowVariables},
+	  refinementLevel{refinementLevel}
 	{}
+
+	SubMeshDescriptor() = default;
 };
 
 // Package struct with benchmark integral sizes, for cylinder and sphere test cases.
@@ -83,6 +88,23 @@ struct InterpolationPositions
 	Vector8_d z;
 };
 
+struct SpecialTreatmentNodeInfo
+{
+	SpecialTreatmentNodeInfo(int ownNode, const AllFlowVariablesArrayGroup& subMeshToBorrow) :
+		ownedNode{ownNode},
+		borrowedSubMesh(subMeshToBorrow)
+	{}
+
+	int ownedNode;
+	vector<int> borrowedNode;
+	const AllFlowVariablesArrayGroup& borrowedSubMesh;
+};
+
+struct RelatedNodesCollection
+{
+	IndexBoundingBox regular;
+	vector<SpecialTreatmentNodeInfo> specialTreatment;
+};
 
 // Base class for boundaries at the the edge of the Cartesian computational mesh.
 // Suggested derived types: Inlet, outlet, walls, periodic, symmetry...
@@ -102,14 +124,10 @@ public:
 	// Get the number of extra node layers (zero or one) required by this BC.
 	virtual int nExtraNodeLayer() = 0;
 
-	void identifyOwnedNodes(IndexBoundingBox& unclaimedNodes,
-									const Vector3_i& nMeshNodes,
-									Array3D<NodeTypeEnum>& nodeTypeArray );
-
-	// Find the nodes that we need to borrow from another SubMesh for this boundary.
-	// This does nothing for boundary types without borrowed nodes.
-	virtual void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
-	{}
+	virtual void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
+									  Array3D<NodeTypeEnum>& nodeTypeArray,
+									  const Vector3_i& regionID,
+									  const Array3D<SubMeshDescriptor>& neighborSubMeshes);
 
 	// Implementation of the actual BC. Overwrites its owned nodes.
 	virtual void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
@@ -120,8 +138,12 @@ public:
 	const AxisOrientationEnum normalAxis;	// The axis that is normal to the boundary plane
 	const EdgeIndexEnum planeIndex;			// Denotes if the plane is at lowest or highest index side
 	const NodeTypeEnum ownedNodesType;		// The node type that is assigned to the owned nodes
-	IndexBoundingBox ownedNodes;			// The nodes that the BC at this boundary can affect
+	RelatedNodesCollection ownedNodes;	// The nodes that the BC at this boundary can affect
 protected:
+
+	IndexBoundingBox peelOffBoundaryPlane(IndexBoundingBox&,
+										  AxisOrientationEnum normalAxis,
+										  EdgeIndexEnum planeIndex);
 
 	void getAdjacentIndices(int index1D, const Vector3_i& nMeshNodes,	// <- Input
 			  	  	  	  	int& boundaryAdjacentIndex, 				// <- Output
@@ -230,15 +252,17 @@ public:
 class SubmeshInterfaceBoundary : public MeshEdgeBoundary
 {
 public:
-	SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis,
-							 EdgeIndexEnum planeIndex,
-							 AllFlowVariablesArrayGroup& neighborSubMesh);
 
 	virtual ~SubmeshInterfaceBoundary() = default;
 
+	void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
+							  Array3D<NodeTypeEnum>& nodeTypeArray,
+							  const Vector3_i& regionID,
+							  const Array3D<SubMeshDescriptor>& neighborSubMeshes) override;
+
 private:
-	AllFlowVariablesArrayGroup neighborSubMesh; // References to the flow variables in the adjacent region.
-	IndexBoundingBox borrowedNodes;				// Specifies what nodes in the neighbor region to borrow.
+	vector<AllFlowVariablesArrayGroup> neighborSubMesh; // References to the flow variables in the adjacent region.
+	vector<IndexBoundingBox> borrowedNodes;				// Specifies what nodes in the neighbor region to borrow.
 };
 
 // Defines interface towards a region (submesh) with lower refinement level.
@@ -246,14 +270,9 @@ private:
 class InterfaceToCoarserSubMesh : public SubmeshInterfaceBoundary
 {
 	InterfaceToCoarserSubMesh(AxisOrientationEnum normalAxis,
-							  EdgeIndexEnum planeIndex,
-							  AllFlowVariablesArrayGroup& neighborSubMesh)
-	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+							  EdgeIndexEnum planeIndex)
+	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
 	{}
-
-	void identifyBorrowedNodes(const Vector3_i& regionID,
-							   Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
-							   override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
@@ -273,10 +292,8 @@ class InterfaceToFinerSubMesh : public SubmeshInterfaceBoundary
 	InterfaceToFinerSubMesh(AxisOrientationEnum normalAxis,
 							EdgeIndexEnum planeIndex,
 							AllFlowVariablesArrayGroup& neighborSubMesh)
-	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
 	{}
-
-	void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences) override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
@@ -296,10 +313,8 @@ class InterfaceToEqualLevelSubMesh : public SubmeshInterfaceBoundary
 	InterfaceToEqualLevelSubMesh(AxisOrientationEnum normalAxis,
 								 EdgeIndexEnum planeIndex,
 								 AllFlowVariablesArrayGroup& neighborSubMesh)
-	: SubmeshInterfaceBoundary(normalAxis, planeIndex, neighborSubMesh)
+	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
 	{}
-
-	void identifyBorrowedNodes(Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences) override;
 
 	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 								const ConfigSettings& params,				// <- Input
@@ -335,10 +350,10 @@ public:
 			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
 
 	void applyBoundaryCondition(const ConfigSettings& params,
-								MeshDescriptor& mesh // <- In/Output
+								SubMeshDescriptor& mesh // <- In/Output
 			  	  	  	  	    );
 
-	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) = 0;
+	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) = 0;
 
 protected:
 
@@ -372,7 +387,7 @@ protected:
 
 	void setInterpolationValues(
 			const IndexBoundingBox& surroundingNodes,
-			const MeshDescriptor& mesh,
+			const SubMeshDescriptor& mesh,
 			InterpolationValues& interpolationValues,		// <-
 			InterpolationPositions& interpolationPositions,	// <-
 			Array8_b& ghostFlag,							// <- Output
@@ -410,7 +425,7 @@ private:
 														const Matrix8x8_d& vandermondeNeumann);
 
 	void setInterpolationValuesFluidNode(int counter, int surroundingNodeIndex1D,
-			   	   	   	   	   	   	     const MeshDescriptor& mesh,
+			   	   	   	   	   	   	     const SubMeshDescriptor& mesh,
 										 InterpolationValues& interpolationValues,			// <- OUTPUT
 										 InterpolationPositions& interpolationPositions);	// <- OUTPUT
 
@@ -429,7 +444,7 @@ private:
 			const GhostNode& ghostNode,
 			const IndexBoundingBox& surroundingNodes,
 			const vector<Vector3_d>& unitNormals,
-			const MeshDescriptor& mesh);
+			const SubMeshDescriptor& mesh);
 };
 
 // Class to define boundary conditions at an immersed cylinder:
@@ -450,7 +465,7 @@ public:
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 							  ) override;
 
-	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) override;
+	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
 
 private:
 	Vector3_d centroidPosition;	// Only 2 coordinates used, depending on axis orientation
@@ -492,7 +507,7 @@ public:
 							  Array3D_nodeType& nodeTypeArray	// <- Output
 			  	  	  	  	  ) override;
 
-	IntegralProperties getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh) override;
+	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
 
 private:
 	Vector3_d centerPosition;

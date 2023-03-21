@@ -31,7 +31,8 @@ public:
 
 	void setBoundaries(EdgeBoundaryCollection& edgeBoundaries, ImmersedBoundaryCollection& immersedBoundaries);
 
-	void categorizeNodes(const ConfigSettings& params, Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences);
+	void categorizeNodes(const ConfigSettings& params,
+			  	  	  	 const Array3D<SubMeshDescriptor>& neighborSubMeshes);
 
 	void swapConservedVariables();
 
@@ -40,11 +41,11 @@ public:
 	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
 
 	Vector3_i regionID;				// Indices to this sub-mesh in a 3D array of sub-meshes.
-	int NI, NJ, NK;					// Number of nodes in x,y,z directions in the submesh, not including overlap nodes OUTSIDE of the region.
-	IndexBoundingBox arrayLimits;	// Index limits for the submesh array
+	Vector3_i nNodes;				// Number of nodes in x,y,z directions in the submesh, not including overlap nodes OUTSIDE of the region.
+	IndexBoundingBox arrayLimits;	// Index limits for the submesh array. Can be bigger than grid size because of overlap.
 	int nNodesTotal;				// Total number of nodes in the submesh array
-	SpaceBoundingBox boundingBox;	// Coordinates to the limits of the region. Boundary nodes may fall outside depending on BC.
-	double dx, dy, dz;				// Grid spacing in x-, y- and z-direction
+	SpaceBoundingBox boundingBox;	// Spatial domain. Coordinates to the limits of the region. Boundary nodes may fall outside depending on BC.
+	Vector3_d gridSpacings;			// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.
 	PrimitiveVariablesArrayGroup primitiveVariables;	// Velocity, pressure & Temperature

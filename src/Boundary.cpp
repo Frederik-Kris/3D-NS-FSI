@@ -14,59 +14,70 @@ MeshEdgeBoundary::MeshEdgeBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
   ownedNodesType{ownedNodesType}
 {}
 
-// Claim all unclaimed nodes in the boundary plane, and assign them the appropriate type.
-void MeshEdgeBoundary::identifyOwnedNodes(	IndexBoundingBox& unclaimedNodes,
-											const Vector3_i& nMeshNodes,
-											Array3D<NodeTypeEnum>& nodeTypeArray )
+// Take an index bounding-box and peel off the specified outer (boundary) plane.
+// Returns the off-peeled plane as a "flat" IndexBoundingBox.
+IndexBoundingBox MeshEdgeBoundary::peelOffBoundaryPlane(IndexBoundingBox& inputBox,
+														AxisOrientationEnum normalAxis,
+														EdgeIndexEnum planeIndex)
 {
-	ownedNodes = unclaimedNodes;
+	IndexBoundingBox boundaryPlane = inputBox;
 	switch (normalAxis)
 	{
 	case AxisOrientationEnum::x:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			ownedNodes.iMax = ownedNodes.iMin;
-			unclaimedNodes.iMin++;
+			boundaryPlane.iMax = boundaryPlane.iMin;
+			inputBox.iMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			ownedNodes.iMin = ownedNodes.iMax;
-			unclaimedNodes.iMax--;
+			boundaryPlane.iMin = boundaryPlane.iMax;
+			inputBox.iMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
 		break;
 	case AxisOrientationEnum::y:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			ownedNodes.jMax = ownedNodes.jMin;
-			unclaimedNodes.jMin++;
+			boundaryPlane.jMax = boundaryPlane.jMin;
+			inputBox.jMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			ownedNodes.jMin = ownedNodes.jMax;
-			unclaimedNodes.jMax--;
+			boundaryPlane.jMin = boundaryPlane.jMax;
+			inputBox.jMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
 		break;
 	case AxisOrientationEnum::z:
 		if(planeIndex == EdgeIndexEnum::min)
 		{
-			ownedNodes.kMax = ownedNodes.kMin;
-			unclaimedNodes.kMin++;
+			boundaryPlane.kMax = boundaryPlane.kMin;
+			inputBox.kMin++;
 		}
 		else if(planeIndex == EdgeIndexEnum::max)
 		{
-			ownedNodes.kMin = ownedNodes.kMax;
-			unclaimedNodes.kMax--;
+			boundaryPlane.kMin = boundaryPlane.kMax;
+			inputBox.kMax--;
 		}
 		else throw std::logic_error("Unexpected enum value");
 		break;
 	default:
 		throw std::logic_error("Unexpected enum value");
 	}
-	for(int i{ownedNodes.iMin}; i<=ownedNodes.iMax; ++i)
-		for(int j{ownedNodes.jMin}; j<=ownedNodes.jMax; ++j)
-			for(int k{ownedNodes.kMin}; k<=ownedNodes.kMax; ++k)
+	return boundaryPlane;
+}
+
+// Claim all unclaimed nodes in the boundary plane, and assign them the appropriate type.
+void MeshEdgeBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
+											Array3D<NodeTypeEnum>& nodeTypeArray,
+											const Vector3_i& regionID,
+											const Array3D<SubMeshDescriptor>& neighborSubMeshes)
+{
+	ownedNodes.regular = peelOffBoundaryPlane(unclaimedNodes, normalAxis, planeIndex);
+	for(int i{ownedNodes.regular.iMin}; i<=ownedNodes.regular.iMax; ++i)
+		for(int j{ownedNodes.regular.jMin}; j<=ownedNodes.regular.jMax; ++j)
+			for(int k{ownedNodes.regular.kMin}; k<=ownedNodes.regular.kMax; ++k)
 				nodeTypeArray(i,j,k) = ownedNodesType;
 }
 
@@ -146,97 +157,97 @@ void InletBoundary::filterInletDensity(const Vector3_i& nMeshNodes,					// <- In
 	vector<double> rhoFilteredVector;
 	vector<int> filteredNodes;
 	if(normalAxis == AxisOrientationEnum::x)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				double rhoFiltered = 0;
 				int nNeighbors = 0;
-				if(j<ownedNodes.jMax)
+				if(j<ownedNodes.regular.jMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j+1, k);
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.regular.iMin, j+1, k);
 					++nNeighbors;
 				}
-				if(j>ownedNodes.jMin)
+				if(j>ownedNodes.regular.jMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j-1, k);
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.regular.iMin, j-1, k);
 					++nNeighbors;
 				}
-				if(k<ownedNodes.kMax)
+				if(k<ownedNodes.regular.kMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k+1);
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.regular.iMin, j, k+1);
 					++nNeighbors;
 				}
-				if(k>ownedNodes.kMin)
+				if(k>ownedNodes.regular.kMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k-1);
+					rhoFiltered += flowVariables.conservedVariables.rho(ownedNodes.regular.iMin, j, k-1);
 					++nNeighbors;
 				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(ownedNodes.iMin, j, k);
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(ownedNodes.regular.iMin, j, k);
 				rhoFiltered /= 2 * nNeighbors;
 				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(ownedNodes.iMin, j, k, nMeshNodes));
+				filteredNodes.push_back(getIndex1D(ownedNodes.regular.iMin, j, k, nMeshNodes));
 			}
 	else if(normalAxis == AxisOrientationEnum::y)
-		for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+		for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				double rhoFiltered = 0;
 				int nNeighbors = 0;
-				if(i<ownedNodes.iMax)
+				if(i<ownedNodes.regular.iMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i+1, ownedNodes.jMin, k);
+					rhoFiltered += flowVariables.conservedVariables.rho(i+1, ownedNodes.regular.jMin, k);
 					++nNeighbors;
 				}
-				if(i>ownedNodes.iMin)
+				if(i>ownedNodes.regular.iMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i-1, ownedNodes.jMin, k);
+					rhoFiltered += flowVariables.conservedVariables.rho(i-1, ownedNodes.regular.jMin, k);
 					++nNeighbors;
 				}
-				if(k<ownedNodes.kMax)
+				if(k<ownedNodes.regular.kMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k+1);
+					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.regular.jMin, k+1);
 					++nNeighbors;
 				}
-				if(k>ownedNodes.kMin)
+				if(k>ownedNodes.regular.kMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k-1);
+					rhoFiltered += flowVariables.conservedVariables.rho(i, ownedNodes.regular.jMin, k-1);
 					++nNeighbors;
 				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, ownedNodes.jMin, k);
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, ownedNodes.regular.jMin, k);
 				rhoFiltered /= 2 * nNeighbors;
 				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(i, ownedNodes.jMin, k, nMeshNodes));
+				filteredNodes.push_back(getIndex1D(i, ownedNodes.regular.jMin, k, nMeshNodes));
 			}
 	else if(normalAxis == AxisOrientationEnum::z)
-		for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-			for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
+		for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+			for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
 			{
 				double rhoFiltered = 0;
 				int nNeighbors = 0;
-				if(i<ownedNodes.iMax)
+				if(i<ownedNodes.regular.iMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i+1, j, ownedNodes.kMin);
+					rhoFiltered += flowVariables.conservedVariables.rho(i+1, j, ownedNodes.regular.kMin);
 					++nNeighbors;
 				}
-				if(i>ownedNodes.iMin)
+				if(i>ownedNodes.regular.iMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i-1, j, ownedNodes.kMin);
+					rhoFiltered += flowVariables.conservedVariables.rho(i-1, j, ownedNodes.regular.kMin);
 					++nNeighbors;
 				}
-				if(j<ownedNodes.jMax)
+				if(j<ownedNodes.regular.jMax)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, j+1, ownedNodes.kMin);
+					rhoFiltered += flowVariables.conservedVariables.rho(i, j+1, ownedNodes.regular.kMin);
 					++nNeighbors;
 				}
-				if(j>ownedNodes.jMin)
+				if(j>ownedNodes.regular.jMin)
 				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, j-1, ownedNodes.kMin);
+					rhoFiltered += flowVariables.conservedVariables.rho(i, j-1, ownedNodes.regular.kMin);
 					++nNeighbors;
 				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, j, ownedNodes.kMin);
+				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, j, ownedNodes.regular.kMin);
 				rhoFiltered /= 2 * nNeighbors;
 				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(i, j, ownedNodes.kMin, nMeshNodes));
+				filteredNodes.push_back(getIndex1D(i, j, ownedNodes.regular.kMin, nMeshNodes));
 			}
 	else
 		throw std::logic_error("Unexpected enum value");
@@ -251,9 +262,9 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes
 										   const ConfigSettings& params,				// <- Input
 										   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
@@ -278,9 +289,9 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes
 	else
 		throw std::logic_error("Unexpected enum value");
 
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
@@ -310,9 +321,9 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNode
 		   	   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
 										   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
@@ -350,9 +361,9 @@ void PeriodicBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNo
 	   	   	   	   	   	   	   	   	   	   	  const ConfigSettings& params,					// <- Input
 											  AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int oppositeSideIndex = getPeriodicIndex(index1D, nMeshNodes);
@@ -383,9 +394,9 @@ void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNo
 	   	   	   	   	   	  	  	  	  	  	  const ConfigSettings& params,					// <- Input
 											  AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
@@ -431,9 +442,9 @@ void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_i& nM
 												   const ConfigSettings& params,				// <- Input
 												   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
 {
-	for(int i=ownedNodes.iMin; i<=ownedNodes.iMax; ++i)
-		for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-			for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
+	for(int i=ownedNodes.regular.iMin; i<=ownedNodes.regular.iMax; ++i)
+		for(int j=ownedNodes.regular.jMin; j<=ownedNodes.regular.jMax; ++j)
+			for(int k=ownedNodes.regular.kMin; k<=ownedNodes.regular.kMax; ++k)
 			{
 				int index1D = getIndex1D(i, j, k, nMeshNodes);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
@@ -455,35 +466,85 @@ void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_i& nM
 			}
 }
 
-// Constructor, taking in info about neighbor region.
-SubmeshInterfaceBoundary::SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis,
-											 	   EdgeIndexEnum planeIndex,
-												   AllFlowVariablesArrayGroup& neighborSubMesh)
-: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost),
-  neighborSubMesh(neighborSubMesh)
-{}
-
-void InterfaceToCoarserSubMesh::identifyBorrowedNodes(const Vector3_i& regionID,
-													  const Vector3_i& subMeshSize,
-													  const IndexBoundingBox& arrayLimits,
-													  Array3D<AllFlowVariablesArrayGroup>& neighborSubMeshReferences)
+// Get an index vector that tells which of the neighbor submeshes own a specified node.
+// "Owning" here means computing the Navier-Stokes eq, i.e., applying the stencil, instead of copying from neighbor submesh.
+// "node" indices should be with respect to the submesh that has the boundary that is calling this func.
+// Returned vector: [0,0,0] means "this" region, [-1,0,0] is left neighbor submesh, etc..
+Vector3_i SubmeshInterfaceBoundary::whoOwnsThisNode(const Vector3_i& node,
+													const Vector3_i& regionID,
+													const Array3D<SubMeshDescriptor>& subMeshes)
 {
-	if(normalAxis == AxisOrientationEnum::x)
-		if(planeIndex == EdgeIndexEnum::min)
+	const SubMeshDescriptor& thisSubMesh = subMeshes(regionID);
+	if( node.i > thisSubMesh.arrayLimits.iMin
+	&&	node.i < thisSubMesh.arrayLimits.iMax
+	&&	node.j > thisSubMesh.arrayLimits.jMin
+	&&	node.j < thisSubMesh.arrayLimits.jMax
+	&&	node.k > thisSubMesh.arrayLimits.kMin
+	&&	node.k < thisSubMesh.arrayLimits.kMax )
+		return Vector3_i(0,0,0);
+	bool nodeFoundOwner = false;
+	if(node.i == thisSubMesh.arrayLimits.iMin && regionID.i -1 >= subMeshes.getIndexLimits().iMin)
+	{
+		// If on the west side of region, first check neighbor directly west:
+		const SubMeshDescriptor& westNeighbor = subMeshes( regionID + Vector3_i(-1,0,0) );
+		if(node.j <= westNeighbor.arrayLimits.jMin ) // LAVERE INDEX KAN SJEKKE ALLE I NABO HVIS LEVEL ER LIK ELLER LAVERE
 		{
-			for(int j=ownedNodes.jMin; j<=ownedNodes.jMax; ++j)
-				for(int k=ownedNodes.kMin; k<=ownedNodes.kMax; ++k)
-					if()
+
 		}
+	}
 }
-ØØØ;
-// ENDRE OWNED TIL VECTOR AV INDEXBOXER
-// MÅ ENDRE IDENTYFY_OWNED FOR SUBMESH INTERFACE (GJØR VIRTUAL)
-// ENDRE APPLY BC FOR DE GAMLE BC-ER
-// VURDER Å FINNE BORROWED I OVERRIDE AV IDENTIFY_OWNED
-// BORROWED BLIR OGSÅ VECTOR
-// FLOW VAR REFERENCES MÅ OGSÅ LIGGE I VECTOR
-// DA KAN MAN HA YTRE LOOP OVER ALLE DISSE VECTORER
+
+void SubmeshInterfaceBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
+													Array3D<NodeTypeEnum>& nodeTypeArray,
+													const Vector3_i& regionID,
+													const Array3D<SubMeshDescriptor>& subMeshes)
+{
+	const SubMeshDescriptor& thisSubMesh = subMeshes(regionID);
+	IndexBoundingBox allOwnedNodes = peelOffBoundaryPlane(unclaimedNodes, normalAxis, planeIndex);
+	for(int i{allOwnedNodes.iMin}; i<=allOwnedNodes.iMax; ++i)
+		for(int j{allOwnedNodes.jMin}; j<=allOwnedNodes.jMax; ++j)
+			for(int k{allOwnedNodes.kMin}; k<=allOwnedNodes.kMax; ++k)
+				nodeTypeArray(i,j,k) = ownedNodesType;
+	IndexBoundingBox regularNodes = allOwnedNodes;
+	if(normalAxis != AxisOrientationEnum::x)
+	{
+		regularNodes.iMin = 1;
+		regularNodes.iMax = thisSubMesh.nNodes.i - 2;
+	}
+	if(normalAxis != AxisOrientationEnum::y)
+	{
+		regularNodes.jMin = 1;
+		regularNodes.jMax = thisSubMesh.nNodes.j - 2;
+	}
+	if(normalAxis != AxisOrientationEnum::z)
+	{
+		regularNodes.kMin = 1;
+		regularNodes.kMax = thisSubMesh.nNodes.k - 2;
+	}
+	ownedNodes.regular = regularNodes;
+
+	if(normalAxis == AxisOrientationEnum::x)
+	{
+		int i = allOwnedNodes.iMin;
+		for(int j=allOwnedNodes.jMin; j <=0; ++j)
+			for(int k=allOwnedNodes.kMin; k<=allOwnedNodes.kMax; ++k)
+			{
+				Vector3_i owningSubMeshInices = whoOwnsThisNode( Vector3_i(i,j,k) );
+			}
+		if(allOwnedNodes.jMin == -1)
+		{
+			if(allOwnedNodes.kMin == -1)
+			{
+
+			}
+			if(allOwnedNodes.kMin == 0)
+			{
+
+			}
+		}
+	}
+}
+
 void InterfaceToCoarserSubMesh::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
 		   	   	   	   	   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
 													   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
@@ -511,7 +572,7 @@ ImmersedBoundary::ImmersedBoundary()
 // Get interpolation values, to compute values in image points, and then the ghost nodes.
 // Also filters density and energy in the closest fluid nodes.
 void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
-											  MeshDescriptor& mesh // <- In/Output
+											  SubMeshDescriptor& mesh // <- In/Output
   	  	    								  )
 {
 	for(GhostNode ghostNode : ghostNodes)
@@ -744,7 +805,7 @@ void ImmersedBoundary::filterClosestFluidNodes(const Vector3_i& nMeshNodes,
 // Set interpolation values for one of the 8 nodes surrounding an image point (IP). Surrounding node must be fluid.
 void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// <- Which of the 8 surrounding nodes [0-7]
 													   int surroundingNodeIndex1D,
-													   const MeshDescriptor& mesh,
+													   const SubMeshDescriptor& mesh,
 													   InterpolationValues& interpolationValues,		// <- OUTPUT
 													   InterpolationPositions& interpolationPositions)	// <- OUTPUT
 {
@@ -786,7 +847,7 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 // Also check if any of the 8 nodes are ghost. If so, note which ones and their normal vectors.
 void ImmersedBoundary::setInterpolationValues(
 		const IndexBoundingBox& surroundingNodes,
-		const MeshDescriptor& mesh,
+		const SubMeshDescriptor& mesh,
 		InterpolationValues& interpolationValues,		// <-
 		InterpolationPositions& interpolationPositions,	// <-
 		Array8_b& ghostFlag,							// <- Output
@@ -948,7 +1009,7 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		const GhostNode& ghostNode,
 		const IndexBoundingBox& surroundingNodes,
 		const vector<Vector3_d>& unitNormals,
-		const MeshDescriptor& mesh )
+		const SubMeshDescriptor& mesh )
 {
 	PrimitiveVariablesScalars imagePointBCVars;
 	if (allSurroundingAreFluid)
@@ -1019,7 +1080,7 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 }
 
 // Compute integral properties as lift, drag, separation angle.
-IntegralProperties CylinderBody::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
+IntegralProperties CylinderBody::getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh)
 {
 	struct BI_info
 	{
@@ -1242,7 +1303,7 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 }
 
 // Compute integral properties as lift, drag, separation angle.
-IntegralProperties SphereBody::getIntegralProperties(const ConfigSettings& params, const MeshDescriptor& mesh)
+IntegralProperties SphereBody::getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh)
 {
 	struct BI_info
 	{

@@ -60,7 +60,7 @@ public:
 
 	void setupBoundaries(const ConfigSettings& params);
 
-	Array3D<AllFlowVariablesArrayGroup> getNeighborSubMeshVariables(const IndexBoundingBox& neighborSubMeshIndices);
+	Array3D<SubMeshDescriptor> getSubMeshDescriptors(const IndexBoundingBox& subMeshIndices);
 
 	void categorizeNodes(const ConfigSettings& params);
 

@@ -149,6 +149,9 @@ public:
 		return allFinite;
 	}
 
+	const IndexBoundingBox& getIndexLimits() const
+	{ return indexLimits; }
+
 	int getLength() const
 	{ return length; }
 

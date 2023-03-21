@@ -198,7 +198,7 @@ void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 
 	Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 	Vector3_d gridSpacings(mesh.dx, mesh.dy, mesh.dz);
-	MeshDescriptor meshDescriptor(nMeshNodes,
+	SubMeshDescriptor meshDescriptor(nMeshNodes,
 								  gridSpacings,
 								  mesh.positionOffset,
 								  mesh.nodeType,

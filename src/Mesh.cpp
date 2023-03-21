@@ -262,17 +262,23 @@ void Mesh::setupBoundaries(const ConfigSettings &params)
 //	immersedBoundaries.push_back(std::make_unique<SphereBody>(sphereCenterPoint, params.L_y/8.1));
 }
 
-// Get references to the flow variables in the sub-meshes given by the given indices.
-Array3D<AllFlowVariablesArrayGroup> Mesh::getNeighborSubMeshVariables(const IndexBoundingBox& neighborSubMeshIndices)
+// Get SubMeshDescriptors about the sub-meshes given by the given indices.
+Array3D<SubMeshDescriptor> Mesh::getSubMeshDescriptors(const IndexBoundingBox& subMeshIndices)
 {
-	Array3D<AllFlowVariablesArrayGroup> neighborVariables(neighborSubMeshIndices);
-	for(int i=max(neighborSubMeshIndices.iMin, 0); i<=min(neighborSubMeshIndices.iMax, nRegions.i-1); ++i)
-		for(int j=neighborSubMeshIndices.jMin; j<=neighborSubMeshIndices.jMax; ++j)
-			for(int k=neighborSubMeshIndices.kMin; k<=neighborSubMeshIndices.kMax; ++k)
+	Array3D<SubMeshDescriptor> neighborRegions(subMeshIndices);
+	for(int i=subMeshIndices.iMin; i<=subMeshIndices.iMax; ++i)
+		for(int j=subMeshIndices.jMin; j<=subMeshIndices.jMax; ++j)
+			for(int k=subMeshIndices.kMin; k<=subMeshIndices.kMax; ++k)
 			{
-				neighborVariables(i,j,k) = subMeshes(i,j,k).flowVariableReferences;
+				neighborRegions(i,j,k) = SubMeshDescriptor(subMeshes(i,j,k).nNodes,
+														   subMeshes(i,j,k).arrayLimits,
+														   subMeshes(i,j,k).gridSpacings,
+														   subMeshes(i,j,k).nodeType,
+														   subMeshes(i,j,k).flowVariableReferences,
+														   refinementLevels(i,j,k)
+														   );
 			}
-	return neighborVariables;
+	return neighborRegions;
 }
 
 void Mesh::categorizeNodes(const ConfigSettings& params)
@@ -283,8 +289,8 @@ void Mesh::categorizeNodes(const ConfigSettings& params)
 			{
 				IndexBoundingBox neighborSubMeshIndices = IndexBoundingBox::boxAroundNode(Vector3_i(i,j,k), 1);
 				neighborSubMeshIndices = neighborSubMeshIndices.intersection( IndexBoundingBox(nRegions.i, nRegions.j, nRegions.k) );
-				Array3D<AllFlowVariablesArrayGroup> neighborSubMeshVariableReferences = getNeighborSubMeshVariables(neighborSubMeshIndices);
-				subMeshes(i,j,k).categorizeNodes(params, neighborSubMeshVariableReferences);
+				Array3D<SubMeshDescriptor> neighborSubmeshes = getSubMeshDescriptors(neighborSubMeshIndices);
+				subMeshes(i,j,k).categorizeNodes(params, neighborSubMeshVariableReferences, neighborSubMeshRefinementLevels);
 			}
 }
 
@@ -350,7 +356,7 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	const Vector3_i nMeshNodes(NI, NJ, NK);
 	const Vector3_d gridSpacing(dx, dy, dz);
-	MeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
+	SubMeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
 	for(auto&& boundary : edgeBoundaries)
 		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
