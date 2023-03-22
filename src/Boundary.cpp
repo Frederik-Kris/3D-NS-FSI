@@ -466,13 +466,53 @@ void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_i& nM
 			}
 }
 
+// Check if "otherRegion" applies its boundary conditions before "thisRegion". If so, all nodes in otherRegion are safe to copy.
+// Otherwise only its interior nodes are safe.
+bool SubmeshInterfaceBoundary::subMeshHasAppliedBC(const Vector3_i& otherRegionID, const Vector3_i& thisRegionID) const
+{
+	return  otherRegionID.i <  thisRegionID.i
+		|| (otherRegionID.i == thisRegionID.i && otherRegionID.j <  thisRegionID.j)
+		|| (otherRegionID.i == thisRegionID.i && otherRegionID.j == thisRegionID.j && otherRegionID.k < thisRegionID.k);
+}
+
+Vector3_d SubmeshInterfaceBoundary::indexInOtherSubMesh(const Vector3_i& node,
+														const SubMeshDescriptor& otherSubMesh,
+														const SubMeshDescriptor& thisSubMesh) const
+{
+	Vector3_i neighborDirection = otherSubMesh.regionID - thisSubMesh.regionID;
+	Vector3_d indexInOther(0,0,0);
+	double levelFactor = pow(2, otherSubMesh.refinementLevel - thisSubMesh.refinementLevel);
+	if(otherSubMesh.regionID.i < thisSubMesh.regionID.i)
+		indexInOther.x = otherSubMesh.nNodes.i-1 + node.i * levelFactor;
+	else if(otherSubMesh.regionID.i > thisSubMesh.regionID.i)
+		indexInOther.x = (-thisSubMesh.nNodes.i-1 + node.i) * levelFactor;
+	else
+		indexInOther.x = node.i;
+
+	if(otherSubMesh.regionID.j < thisSubMesh.regionID.j)
+		indexInOther.y = otherSubMesh.nNodes.j-1 + node.j * levelFactor;
+	else if(otherSubMesh.regionID.j > thisSubMesh.regionID.j)
+		indexInOther.y = (-thisSubMesh.nNodes.j-1 + node.j) * levelFactor;
+	else
+		indexInOther.y = node.j;
+
+	if(otherSubMesh.regionID.k < thisSubMesh.regionID.k)
+		indexInOther.z = otherSubMesh.nNodes.k-1 + node.k * levelFactor;
+	else if(otherSubMesh.regionID.k > thisSubMesh.regionID.k)
+		indexInOther.z = (-thisSubMesh.nNodes.k-1 + node.k) * levelFactor;
+	else
+		indexInOther.z = node.k;
+
+	return indexInOther;
+}
+
 // Get an index vector that tells which of the neighbor submeshes own a specified node.
 // "Owning" here means computing the Navier-Stokes eq, i.e., applying the stencil, instead of copying from neighbor submesh.
 // "node" indices should be with respect to the submesh that has the boundary that is calling this func.
 // Returned vector: [0,0,0] means "this" region, [-1,0,0] is left neighbor submesh, etc..
 Vector3_i SubmeshInterfaceBoundary::whoOwnsThisNode(const Vector3_i& node,
 													const Vector3_i& regionID,
-													const Array3D<SubMeshDescriptor>& subMeshes)
+													const Array3D<SubMeshDescriptor>& subMeshes) const
 {
 	const SubMeshDescriptor& thisSubMesh = subMeshes(regionID);
 	if( node.i > thisSubMesh.arrayLimits.iMin
@@ -482,16 +522,44 @@ Vector3_i SubmeshInterfaceBoundary::whoOwnsThisNode(const Vector3_i& node,
 	&&	node.k > thisSubMesh.arrayLimits.kMin
 	&&	node.k < thisSubMesh.arrayLimits.kMax )
 		return Vector3_i(0,0,0);
-	bool nodeFoundOwner = false;
-	if(node.i == thisSubMesh.arrayLimits.iMin && regionID.i -1 >= subMeshes.getIndexLimits().iMin)
-	{
-		// If on the west side of region, first check neighbor directly west:
-		const SubMeshDescriptor& westNeighbor = subMeshes( regionID + Vector3_i(-1,0,0) );
-		if(node.j <= westNeighbor.arrayLimits.jMin ) // LAVERE INDEX KAN SJEKKE ALLE I NABO HVIS LEVEL ER LIK ELLER LAVERE
-		{
 
+	for(const SubMeshDescriptor& loopSubMesh : subMeshes)
+	{
+		Vector3_d indexInOther = indexInOtherSubMesh(node, loopSubMesh, thisSubMesh);
+		if( subMeshHasAppliedBC(loopSubMesh.regionID, thisSubMesh.regionID) )
+		{
+			if(		indexInOther.x >= loopSubMesh.arrayLimits.iMin
+				&&	indexInOther.x <= loopSubMesh.arrayLimits.iMax
+				&&	indexInOther.y >= loopSubMesh.arrayLimits.jMin
+				&&	indexInOther.y <= loopSubMesh.arrayLimits.jMax
+				&&	indexInOther.z >= loopSubMesh.arrayLimits.kMin
+				&&	indexInOther.z <= loopSubMesh.arrayLimits.kMax )
+				return loopSubMesh.regionID;
+		}
+		else
+		{
+			if(		indexInOther.x > loopSubMesh.arrayLimits.iMin
+				&&	indexInOther.x < loopSubMesh.arrayLimits.iMax
+				&&	indexInOther.y > loopSubMesh.arrayLimits.jMin
+				&&	indexInOther.y < loopSubMesh.arrayLimits.jMax
+				&&	indexInOther.z > loopSubMesh.arrayLimits.kMin
+				&&	indexInOther.z < loopSubMesh.arrayLimits.kMax )
+				return loopSubMesh.regionID;
 		}
 	}
+	std::stringstream ss;
+	ss 		<< "Could not find any submesh with a valid value for node "
+			<< node.i << "," << node.j << "," << node.k
+			<< " in mesh "
+			<< regionID.i << "," << regionID.j << "," << regionID.k
+			<< endl;
+	throw std::logic_error( ss.str() );
+	return Vector3_i(-1,-1,-1);
+}
+
+vector<int> SubmeshInterfaceBoundary::getNodesAroundPoint(const Vector3_d& point)
+{
+	IndexBoundingBox
 }
 
 void SubmeshInterfaceBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
@@ -505,6 +573,7 @@ void SubmeshInterfaceBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedN
 		for(int j{allOwnedNodes.jMin}; j<=allOwnedNodes.jMax; ++j)
 			for(int k{allOwnedNodes.kMin}; k<=allOwnedNodes.kMax; ++k)
 				nodeTypeArray(i,j,k) = ownedNodesType;
+
 	IndexBoundingBox regularNodes = allOwnedNodes;
 	if(normalAxis != AxisOrientationEnum::x)
 	{
@@ -523,25 +592,12 @@ void SubmeshInterfaceBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedN
 	}
 	ownedNodes.regular = regularNodes;
 
-	if(normalAxis == AxisOrientationEnum::x)
+	for( int index1D : allOwnedNodes.asIndexListExcept(regularNodes, thisSubMesh.arrayLimits) )
 	{
-		int i = allOwnedNodes.iMin;
-		for(int j=allOwnedNodes.jMin; j <=0; ++j)
-			for(int k=allOwnedNodes.kMin; k<=allOwnedNodes.kMax; ++k)
-			{
-				Vector3_i owningSubMeshInices = whoOwnsThisNode( Vector3_i(i,j,k) );
-			}
-		if(allOwnedNodes.jMin == -1)
-		{
-			if(allOwnedNodes.kMin == -1)
-			{
+		Vector3_i node = getIndices3D(index1D, thisSubMesh.arrayLimits);
+		Vector3_i borrowMeshID = whoOwnsThisNode(node, regionID, subMeshes);
+		Vector3_d indicesInOther = indexInOtherSubMesh(node, subMeshes(borrowMeshID), thisSubMesh);
 
-			}
-			if(allOwnedNodes.kMin == 0)
-			{
-
-			}
-		}
 	}
 }
 
@@ -740,12 +796,12 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterat
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
 		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
-		for( int surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
+		for( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(IndexBoundingBox()) )
 			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 											 newGhostNodes, nodeTypeArray );
 		// Because of the way that lift/drag etc is computed we need also BI to be only surrounded by ghost or fluid:
 		surroundingNodes = getSurroundingNodesBox(ghostNode.bodyInterceptPoint, gridSpacing, meshOriginOffset, nMeshNodes);
-		for( int surroundingNodeIndex1D : surroundingNodes.asIndexList(nMeshNodes) )
+		for( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(nMeshNodes) )
 			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
 											 newGhostNodes, nodeTypeArray );
 	}
@@ -855,7 +911,7 @@ void ImmersedBoundary::setInterpolationValues(
 		vector<Vector3_d>& unitNormals)					// <-
 {
 	int counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
-	for (int surroundingNodeIndex1D : surroundingNodes.asIndexList(mesh.nNodes))
+	for (int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(mesh.nNodes))
 	{
 		if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
 		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge

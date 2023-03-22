@@ -42,19 +42,22 @@ struct SubMeshDescriptor
 	const Array3D<NodeTypeEnum>& nodeType;
 	AllFlowVariablesArrayGroup& flowVariables;
 	const int refinementLevel;
+	const Vector3_i& regionID;
 
 	SubMeshDescriptor(const Vector3_i& nNodes,
 				   	  const IndexBoundingBox& arrayLimits,
 					  const Vector3_d& gridSpacings,
 					  Array3D<NodeTypeEnum>& nodeTypeArray,
 					  AllFlowVariablesArrayGroup& flowVariables,
-					  int refinementLevel)
+					  int refinementLevel,
+					  const Vector3_i& regionID)
 	: nNodes{nNodes},
 	  spacings{gridSpacings},
 	  arrayLimits(arrayLimits),
 	  nodeType{nodeTypeArray},
 	  flowVariables{flowVariables},
-	  refinementLevel{refinementLevel}
+	  refinementLevel{refinementLevel},
+	  regionID{regionID}
 	{}
 
 	SubMeshDescriptor() = default;
@@ -254,6 +257,16 @@ class SubmeshInterfaceBoundary : public MeshEdgeBoundary
 public:
 
 	virtual ~SubmeshInterfaceBoundary() = default;
+
+	bool subMeshHasAppliedBC(const Vector3_i& thisRegionID, const Vector3_i& otherRegionID) const;
+
+	Vector3_d indexInOtherSubMesh(const Vector3_i& node,
+								  const SubMeshDescriptor& otherSubMesh,
+								  const SubMeshDescriptor& thisSubMesh) const;
+
+	Vector3_i whoOwnsThisNode(const Vector3_i& node,
+							  const Vector3_i& regionID,
+							  const Array3D<SubMeshDescriptor>& subMeshes) const;
 
 	void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
 							  Array3D<NodeTypeEnum>& nodeTypeArray,

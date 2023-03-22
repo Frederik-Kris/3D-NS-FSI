@@ -12,26 +12,6 @@
 #include "includes_and_names.h"
 
 
-// Simple 3D vector with double precision components. Supports basic arithmetic operators.
-struct Vector3_d
-{
-	double x, y, z;
-
-	Vector3_d(double x, double y, double z) : x{x}, y{y}, z{z} {}
-
-	Vector3_d() = default;
-
-	// A.k.a norm, by 3D Pythagoras, squareroot of the sum of squared components
-	double length() { return sqrt(pow(x,2)+pow(y,2)+pow(z,2)); }
-
-	inline Vector3_d operator+(Vector3_d other) const { return Vector3_d(x+other.x, y+other.y, z+other.z); }
-	inline Vector3_d operator-(Vector3_d other) const { return Vector3_d(x-other.x, y-other.y, z-other.z); }
-	inline Vector3_d operator*(double factor) const { return Vector3_d(x*factor, y*factor, z*factor); }
-	inline Vector3_d operator/(double divisor) const { return Vector3_d(x/divisor, y/divisor, z/divisor); }
-};
-
-inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*factor; }
-
 // Simple 3D vector with integer components
 struct Vector3_i
 {
@@ -47,41 +27,27 @@ struct Vector3_i
 
 inline Vector3_i operator*(int factor, Vector3_i vector) { return vector*factor; }
 
-// Given the 1D index to a node, get the 3D indices
-inline Vector3_i getIndices3D(int index1D, const Vector3_i& nNodes)
+// Simple 3D vector with double precision components. Supports basic arithmetic operators.
+struct Vector3_d
 {
-	int i = index1D / (nNodes.j * nNodes.k);
-	int j = index1D % (nNodes.j * nNodes.k) / nNodes.k;
-	int k = index1D % (nNodes.j * nNodes.k) % nNodes.k;
-	return Vector3_i(i,j,k);
-}
+	double x, y, z;
 
-// Given the 3D indices to a node, get the 1D index
-inline int getIndex1D(int i, int j, int k, const Vector3_i& nNodes)
-{
-	return i * nNodes.j * nNodes.k + j * nNodes.k + k;
-}
+	Vector3_d(double x, double y, double z) : x{x}, y{y}, z{z} {}
 
-// Given the 3D indices to a node, get the 1D index
-inline int getIndex1D(const Vector3_i& indices, const Vector3_i& nNodes)
-{ return getIndex1D(indices.i, indices.j, indices.k, nNodes); }
+	Vector3_d(const Vector3_i& intVector) : x{intVector.i}, y{intVector.j}, z{intVector.k} {}
 
-// Get the position (coordinates) of the node with the given indices
-inline Vector3_d getNodePosition(int i, int j, int k,
-								 const Vector3_d& gridSpacings,
-								 const Vector3_d& meshOriginOffset)
-{
-	double x = ( static_cast<int>(i) - meshOriginOffset.x ) * gridSpacings.x ;
-	double y = ( static_cast<int>(j) - meshOriginOffset.y ) * gridSpacings.y ;
-	double z = ( static_cast<int>(k) - meshOriginOffset.z ) * gridSpacings.z ;
-	return Vector3_d(x, y, z);
-}
+	Vector3_d() = default;
 
-// Get the position (coordinates) of the node with the given indices
-inline Vector3_d getNodePosition(const Vector3_i& indices,
-								 const Vector3_d& gridSpacings,
-								 const Vector3_d& meshOriginOffset)
-{ return getNodePosition(indices.i, indices.j, indices.k, gridSpacings, meshOriginOffset); }
+	// A.k.a norm, by 3D Pythagoras, squareroot of the sum of squared components
+	double length() { return sqrt(pow(x,2)+pow(y,2)+pow(z,2)); }
+
+	inline Vector3_d operator+(Vector3_d other) const { return Vector3_d(x+other.x, y+other.y, z+other.z); }
+	inline Vector3_d operator-(Vector3_d other) const { return Vector3_d(x-other.x, y-other.y, z-other.z); }
+	inline Vector3_d operator*(double factor) const { return Vector3_d(x*factor, y*factor, z*factor); }
+	inline Vector3_d operator/(double divisor) const { return Vector3_d(x/divisor, y/divisor, z/divisor); }
+};
+
+inline Vector3_d operator*(double factor, Vector3_d vector) { return vector*factor; }
 
 // Struct that represents a bounded region of the mesh, defined by lowest and highest indices
 struct IndexBoundingBox
@@ -109,19 +75,11 @@ struct IndexBoundingBox
 
 	// Get a simple fixed size array with the 1D indices to the 8 corner nodes in the box
 	// Ordering: z(k) changes most often, x(i) changes most seldom.
-	Array8_u asIndexList(const Vector3_i& nNodes) const
-	{
-		Array8_u indices = { getIndex1D(iMin, jMin, kMin, nNodes),
-							 getIndex1D(iMin, jMin, kMax, nNodes),
-							 getIndex1D(iMin, jMax, kMin, nNodes),
-							 getIndex1D(iMin, jMax, kMax, nNodes),
-							 getIndex1D(iMax, jMin, kMin, nNodes),
-							 getIndex1D(iMax, jMin, kMax, nNodes),
-							 getIndex1D(iMax, jMax, kMin, nNodes),
-							 getIndex1D(iMax, jMax, kMax, nNodes)
-		};
-		return indices;
-	}
+	Array8_u cornersAsIndexList(const IndexBoundingBox& arrayLimits) const;
+
+	// Get a vector to the 1D indices to all nodes, except those who are also entailed by another given box.
+	// The 1D indices are with respect to an array bounded by "arrayLimits".
+	vector<int> asIndexListExcept(const IndexBoundingBox& other, const IndexBoundingBox& arrayLimits) const;
 
 	// Get number of nodes in the box including the nodes on the borders.
 	int nNodesTotal() const
@@ -182,5 +140,82 @@ struct SpaceBoundingBox
 	double zMin, zMax;
 };
 
+// Given the 1D index to a node, get the 3D indices
+inline Vector3_i getIndices3D(int index1D, const IndexBoundingBox& arrayLimits)
+{
+	int nNodesJ = arrayLimits.jMax - arrayLimits.jMin + 1;
+	int nNodesK = arrayLimits.kMax - arrayLimits.kMin + 1;
+	int i = index1D / (nNodesJ * nNodesK) + arrayLimits.iMin;
+	int j = index1D % (nNodesJ * nNodesK) / nNodesK + arrayLimits.jMin;
+	int k = index1D % (nNodesJ * nNodesK) % nNodesK + arrayLimits.kMin;
+	return Vector3_i(i,j,k);
+}
+
+// Given the 3D indices to a node, get the 1D index
+inline int getIndex1D(int i, int j, int k, const IndexBoundingBox& arrayLimits)
+{
+	int nNodesJ = arrayLimits.jMax - arrayLimits.jMin + 1;
+	int nNodesK = arrayLimits.kMax - arrayLimits.kMin + 1;
+	return (i-arrayLimits.iMin)*nNodesJ*nNodesK + (j-arrayLimits.jMin)*nNodesK + (k-arrayLimits.kMin);
+}
+
+// Given the 3D indices to a node, get the 1D index
+inline int getIndex1D(const Vector3_i& indices, const IndexBoundingBox& arrayLimits)
+{ return getIndex1D(indices.i, indices.j, indices.k, arrayLimits); }
+
+// Get the position (coordinates) of the node with the given indices
+inline Vector3_d getNodePosition(int i, int j, int k,
+								 const Vector3_d& gridSpacings,
+								 const Vector3_d& meshOriginOffset)
+{
+	double x = ( static_cast<int>(i) - meshOriginOffset.x ) * gridSpacings.x ;
+	double y = ( static_cast<int>(j) - meshOriginOffset.y ) * gridSpacings.y ;
+	double z = ( static_cast<int>(k) - meshOriginOffset.z ) * gridSpacings.z ;
+	return Vector3_d(x, y, z);
+}
+
+// Get the position (coordinates) of the node with the given indices
+inline Vector3_d getNodePosition(const Vector3_i& indices,
+								 const Vector3_d& gridSpacings,
+								 const Vector3_d& meshOriginOffset)
+{ return getNodePosition(indices.i, indices.j, indices.k, gridSpacings, meshOriginOffset); }
+
+// Get a simple fixed size array with the 1D indices to the 8 corner nodes in the box
+// Ordering: z(k) changes most often, x(i) changes most seldom.
+Array8_u IndexBoundingBox::cornersAsIndexList(const IndexBoundingBox& arrayLimits) const
+{
+	Array8_u indices = { getIndex1D(iMin, jMin, kMin, arrayLimits),
+						 getIndex1D(iMin, jMin, kMax, arrayLimits),
+						 getIndex1D(iMin, jMax, kMin, arrayLimits),
+						 getIndex1D(iMin, jMax, kMax, arrayLimits),
+						 getIndex1D(iMax, jMin, kMin, arrayLimits),
+						 getIndex1D(iMax, jMin, kMax, arrayLimits),
+						 getIndex1D(iMax, jMax, kMin, arrayLimits),
+						 getIndex1D(iMax, jMax, kMax, arrayLimits)
+	};
+	return indices;
+}
+
+// Get a vector to the 1D indices to all nodes, except those who are also entailed by another given box.
+// The 1D indices are with respect to an array bounded by "arrayLimits".
+vector<int> IndexBoundingBox::asIndexListExcept(const IndexBoundingBox& other, const IndexBoundingBox& arrayLimits) const
+{
+	vector<int> indexList;
+	for(int i=iMin; i<=iMax; ++i)
+		for(int j=jMin; j<=jMax; ++j)
+			for(int k=kMin; k<=kMax; ++k)
+				if( 	i < other.iMin || i > other.iMax
+					||	j < other.jMin || j > other.jMax
+					||	k < other.kMin || k > other.kMax )
+					indexList.push_back( getIndex1D(i, j, k, arrayLimits) );
+	return indexList;
+}
+
 
 #endif /* SRC_SMALLVECTORS_H_ */
+
+
+
+
+
+
