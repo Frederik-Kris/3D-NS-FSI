@@ -77,6 +77,10 @@ struct IndexBoundingBox
 	// Ordering: z(k) changes most often, x(i) changes most seldom.
 	Array8_u cornersAsIndexList(const IndexBoundingBox& arrayLimits) const;
 
+	// Get a vector to the 1D indices to all nodes.
+	// The 1D indices are with respect to an array bounded by "arrayLimits".
+	vector<int> allNodesAsIndexList(const IndexBoundingBox& arrayLimits) const;
+
 	// Get a vector to the 1D indices to all nodes, except those who are also entailed by another given box.
 	// The 1D indices are with respect to an array bounded by "arrayLimits".
 	vector<int> asIndexListExcept(const IndexBoundingBox& other, const IndexBoundingBox& arrayLimits) const;
@@ -194,6 +198,18 @@ Array8_u IndexBoundingBox::cornersAsIndexList(const IndexBoundingBox& arrayLimit
 						 getIndex1D(iMax, jMax, kMax, arrayLimits)
 	};
 	return indices;
+}
+
+// Get a vector to the 1D indices to all nodes.
+// The 1D indices are with respect to an array bounded by "arrayLimits".
+vector<int> IndexBoundingBox::allNodesAsIndexList(const IndexBoundingBox& arrayLimits) const
+{
+	vector<int> indexList;
+	for(int i=iMin; i<=iMax; ++i)
+		for(int j=jMin; j<=jMax; ++j)
+			for(int k=kMin; k<=kMax; ++k)
+				indexList.push_back( getIndex1D(i, j, k, arrayLimits) );
+	return indexList;
 }
 
 // Get a vector to the 1D indices to all nodes, except those who are also entailed by another given box.

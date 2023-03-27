@@ -92,6 +92,13 @@ void SubMesh::swapConservedVariables()
 	conservedVariables.rho_E.dataSwap(conservedVariablesOld.rho_E);
 }
 
+
+// Get info and flow variables for this sub-mesh region:
+SubMeshDescriptor SubMesh::getSubMeshDescriptor() const
+{
+	return SubMeshDescriptor( nNodes, arrayLimits, gridSpacings, nodeType, flowVariableReferences, refinementLevel, regionID);
+}
+
 // Loop through boundaries, who are derived classes of MeshEdgeBoundary and ImmersedBoundary,
 // and apply their boundary conditions.
 void SubMesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)

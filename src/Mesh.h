@@ -111,6 +111,7 @@ public:
 	}
 
 	const int NI, NJ, NK;			// Base mesh size. Number of nodes in x,y,z directions, if refinement level is zero.
+	Vector3_d smallestGridSpacings;	// Smallest dx, dy, dz, in all the sub-mesh regions.
 	Vector3_i nRegions;				// Number of sub-meshes in each direction.
 	Array3D<SubMesh> subMeshes;		// Regions in the mesh, containing the actual node data. Sub-meshes can have different refinement levels.
 	Array3D<int> refinementLevels;	// Refinement levels of the submesh regions in the mesh

@@ -46,6 +46,8 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 		}
 		refinementLevels(region.i, region.j, region.k) = max( refinementLevels(region.i, region.j, region.k), refSpec.level );
 	}
+	double BIGG = std::numeric_limits<double>::max();
+	smallestGridSpacings = Vector3_d( BIGG, BIGG, BIGG );
 	for(int i=0; i<nRegions.i; ++i)
 	{
 		int iPrev = round(xThresholds[i  ]/dxBase);
@@ -232,6 +234,9 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
 				subMeshes(i,j,k).setSize(subMeshSizeX, subMeshSizeY, subMeshSizeZ, subMeshArrayLimits, subMeshVolume);
 				subMeshes(i,j,k).setBoundaries(subMeshEdgeBCs, subMeshImmersedBCs);
+				smallestGridSpacings.x = min(smallestGridSpacings.x, subMeshes(i,j,k).gridSpacings.x);
+				smallestGridSpacings.y = min(smallestGridSpacings.y, subMeshes(i,j,k).gridSpacings.y);
+				smallestGridSpacings.z = min(smallestGridSpacings.z, subMeshes(i,j,k).gridSpacings.z);
 			}
 		}
 	}
@@ -318,27 +323,30 @@ bool Mesh::checkFilterCondition(const ConfigSettings& params, long timeLevel, do
 // Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
 // result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
 // Only filters if conditions set in config file are met.
-void Mesh::applyFilter_ifAppropriate(Array3D_d& filterVariable, Array3D_d& variableTemporaryStorage,
-									const ConfigSettings& params, long timeLevel, double t)
+void Mesh::applyFilter_ifAppropriate(const ConfigSettings& params, long timeLevel, double t)
 {
 	if( checkFilterCondition(params, timeLevel, t) )
 	{
-		// Apply filter to interior nodes:
-		Vector3_i nNodes(NI, NJ, NK);
-		for (int index1D : indexByType.fluidInterior)
+		for(SubMesh& subMesh : subMeshes)
 		{
-			Vector3_i indices = getIndices3D(index1D, nNodes);
-			variableTemporaryStorage(index1D) = (6*filterVariable(indices)
-												 + filterVariable(indices.i+1, indices.j, indices.k)
-												 + filterVariable(indices.i-1, indices.j, indices.k)
-												 + filterVariable(indices.i, indices.j+1, indices.k)
-												 + filterVariable(indices.i, indices.j-1, indices.k)
-												 + filterVariable(indices.i, indices.j, indices.k+1)
-												 + filterVariable(indices.i, indices.j, indices.k-1)
-												 ) / 12;
+			Array3D<double>& rhoTemporary = subMesh.conservedVariablesOld.rho;
+			Array3D<double>& rho = subMesh.conservedVariables.rho;
+			// Apply filter to interior nodes:
+			for (int index1D : subMesh.indexByType.fluidInterior)
+			{
+				Vector3_i indices = getIndices3D(index1D, subMesh.arrayLimits);
+				rhoTemporary(index1D) = (6*rho(indices)
+							 	 	 	 + rho(indices.i+1, indices.j, indices.k)
+										 + rho(indices.i-1, indices.j, indices.k)
+										 + rho(indices.i, indices.j+1, indices.k)
+										 + rho(indices.i, indices.j-1, indices.k)
+										 + rho(indices.i, indices.j, indices.k+1)
+										 + rho(indices.i, indices.j, indices.k-1)
+										 ) / 12;
+			}
+			rho.dataSwap(rhoTemporary);	// Swap the arrays using move-sematics (super-fast)
+			applyAllBoundaryConditions(t, params);
 		}
-		filterVariable.dataSwap(variableTemporaryStorage);	// Swap the arrays using move-sematics (super-fast)
-		applyAllBoundaryConditions(t, params);
 	}
 }
 
@@ -354,15 +362,16 @@ void Mesh::swapConservedVariables()
 // and apply their boundary conditions.
 void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
-	const Vector3_i nMeshNodes(NI, NJ, NK);
-	const Vector3_d gridSpacing(dx, dy, dz);
-	SubMeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
+	for(SubMesh& subMesh : subMeshes)
+	{
+		SubMeshDescriptor subMeshData = subMesh.getSubMeshDescriptor();
 
-	for(auto&& boundary : edgeBoundaries)
-		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
+		for(auto&& boundary : edgeBoundaries)
+			boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
 
-	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(params, meshData);
+		for(auto&& boundary : immersedBoundaries)
+			boundary->applyBoundaryCondition(params, meshData);
+	}
 }
 
 // Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels,

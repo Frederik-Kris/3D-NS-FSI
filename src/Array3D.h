@@ -56,48 +56,56 @@ public:
 	{}
 
 	// Get reference to a node using 3D indices
-	inline T& operator()(int i, int j, int k)
+	T& operator()(int i, int j, int k)
 	{ return data[ (i-indexLimits.iMin)*width*height + (j-indexLimits.jMin)*height + (k-indexLimits.kMin) ]; }
 
 	// Get value of a node using 3D indices
-	inline T operator()(int i, int j, int k) const
+	T operator()(int i, int j, int k) const
 	{ return data[ (i-indexLimits.iMin)*width*height + (j-indexLimits.jMin)*height + (k-indexLimits.kMin) ]; }
 
 	// Get reference to a node using 3D indices in Vector3_u
-	inline T& operator()(const Vector3_i& indices)
+	 T& operator()(const Vector3_i& indices)
 	{ return data[ (indices.i-indexLimits.iMin)*width*height + (indices.j-indexLimits.jMin)*height + (indices.k-indexLimits.kMin) ]; }
 
 	// Get value of a node using 3D indices in Vector3_u
-	inline T operator()(const Vector3_i& indices) const
+	T operator()(const Vector3_i& indices) const
 	{ return data[ (indices.i-indexLimits.iMin)*width*height + (indices.j-indexLimits.jMin)*height + (indices.k-indexLimits.kMin) ]; }
 
 	// Get reference to a node using one index
-	inline T& operator()(int i)
+	T& operator()(int i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
-	inline T operator()(int i) const
+	T operator()(int i) const
 	{ return data[i]; }
 
 	// Get reference to a node using 3D indices
 	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
-	inline T& at(int i, int j, int k)
+	T& at(int i, int j, int k)
 	{ return data[ (i-indexLimits.iMin)*width*height + (j-indexLimits.jMin)*height + (k-indexLimits.kMin) ]; }
 
 	// Get value of a node using 3D indices
 	// ->at(i,j,k) is more readable than ->operator()(i,j,k), or (*array)(i,j,k)
-	inline T at(int i, int j, int k) const
+	T at(int i, int j, int k) const
 	{ return data[ (i-indexLimits.iMin)*width*height + (j-indexLimits.jMin)*height + (k-indexLimits.kMin) ]; }
 
 	// Get reference to a node using one index
 	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
-	inline T& at(int i)
+	T& at(int i)
 	{ return data[i]; }
 
 	// Get value of a node using one index
 	// ->at(i) is more readable than ->operator()(i), or (*array)(i)
-	inline T at(int i) const
+	T at(int i) const
 	{ return data[i]; }
+
+	// Get values of multiple nodes using vector of 1D indices
+	vector<T> operator()(vector<int> nodes) const
+	{
+		vector<T> nodeValues( nodes.size() );
+		for(int node : nodes)
+			nodeValues.push_back( data[node] );
+	}
 
 	// Get portion of the array as new array. Index limits are relative to old array.
 	Array3D<T> subArray(const IndexBoundingBox& subDomain) const

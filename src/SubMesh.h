@@ -36,6 +36,8 @@ public:
 
 	void swapConservedVariables();
 
+	SubMeshDescriptor getSubMeshDescriptor() const;
+
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
 	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
@@ -45,6 +47,7 @@ public:
 	IndexBoundingBox arrayLimits;	// Index limits for the submesh array. Can be bigger than grid size because of overlap.
 	int nNodesTotal;				// Total number of nodes in the submesh array
 	SpaceBoundingBox boundingBox;	// Spatial domain. Coordinates to the limits of the region. Boundary nodes may fall outside depending on BC.
+	int refinementLevel;			// How refined the region is compared to the base grid size.
 	Vector3_d gridSpacings;			// Grid spacing in x-, y- and z-direction
 	ConservedVariablesArrayGroup conservedVariables;	// Mass density, momentum & total energy
 	ConservedVariablesArrayGroup conservedVariablesOld;	// Previous time level. Or temporary storage, when needed.

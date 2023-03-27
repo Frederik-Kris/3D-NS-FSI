@@ -43,18 +43,21 @@ void Solver::applyStagnation_IC()
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC); // and derive the others
 	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
 	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
-	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
-	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
-	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
-	mesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
-	mesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
-	mesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
-	mesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
-	mesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
-	mesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
-	mesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
-	mesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
-	mesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		subMesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
+		subMesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
+		subMesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
+		subMesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
+		subMesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
+		subMesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
+		subMesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
+		subMesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
+		subMesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
+		subMesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
+		subMesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
+		subMesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
+	}
 	cout << "Done" << endl << endl;
 }
 
@@ -67,18 +70,21 @@ void Solver::applyUniformFlow_IC()
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC);// and derive the others
 	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
 	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
-	mesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
-	mesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
-	mesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
-	mesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
-	mesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
-	mesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
-	mesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
-	mesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
-	mesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
-	mesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
-	mesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
-	mesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		subMesh.primitiveVariables.u.setAll(decidedPrimitiveVariables.u);
+		subMesh.primitiveVariables.v.setAll(decidedPrimitiveVariables.v);
+		subMesh.primitiveVariables.w.setAll(decidedPrimitiveVariables.w);
+		subMesh.primitiveVariables.p.setAll(decidedPrimitiveVariables.p);
+		subMesh.primitiveVariables.T.setAll(decidedPrimitiveVariables.T);
+		subMesh.conservedVariables.rho  .setAll(derivedConservedVariables.rho);
+		subMesh.conservedVariables.rho_u.setAll(derivedConservedVariables.rho_u);
+		subMesh.conservedVariables.rho_v.setAll(derivedConservedVariables.rho_v);
+		subMesh.conservedVariables.rho_w.setAll(derivedConservedVariables.rho_w);
+		subMesh.conservedVariables.rho_E.setAll(derivedConservedVariables.rho_E);
+		subMesh.transportProperties.mu   .setAll(derivedTransportProperties.mu);
+		subMesh.transportProperties.kappa.setAll(derivedTransportProperties.kappa);
+	}
 	cout << "Done" << endl << endl;
 }
 
@@ -129,39 +135,47 @@ void Solver::updateTimeStepSize(double t)
 // Find the inviscid time step limit (CFL condition):
 double Solver::getInviscidTimeStepLimit()
 {
-	const Array3D_d& rho{mesh.conservedVariables.rho};
-	const Array3D_d& p  {mesh.primitiveVariables.p};
-	const Array3D_d& u  {mesh.primitiveVariables.u};
-	const Array3D_d& v  {mesh.primitiveVariables.v};
-	const Array3D_d& w  {mesh.primitiveVariables.w};
 	double maxSpectralRadiusX{0}, maxSpectralRadiusY{0}, maxSpectralRadiusZ{0};
 	// Loop through all mesh nodes, to find largest spectral radii:
-	for (int i{0}; i<mesh.nNodesTotal; ++i)
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    // <- Speed of sound at node i
-		maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
-		maxSpectralRadiusY = max( maxSpectralRadiusY, c_i + fabs(v(i)) );
-		maxSpectralRadiusZ = max( maxSpectralRadiusZ, c_i + fabs(w(i)) );
+		const Array3D_d& rho{subMesh.conservedVariables.rho};
+		const Array3D_d& p  {subMesh.primitiveVariables.p};
+		const Array3D_d& u  {subMesh.primitiveVariables.u};
+		const Array3D_d& v  {subMesh.primitiveVariables.v};
+		const Array3D_d& w  {subMesh.primitiveVariables.w};
+		for (int i{0}; i<subMesh.nNodesTotal; ++i)
+		{
+			double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    // <- Speed of sound at node i
+			maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
+			maxSpectralRadiusY = max( maxSpectralRadiusY, c_i + fabs(v(i)) );
+			maxSpectralRadiusZ = max( maxSpectralRadiusZ, c_i + fabs(w(i)) );
+		}
 	}
-	return fabs(params.convStabilityLimit) / ( maxSpectralRadiusX / mesh.dx
-			                                 + maxSpectralRadiusY / mesh.dy
-											 + maxSpectralRadiusZ / mesh.dz );
+	return fabs(params.convStabilityLimit) / ( maxSpectralRadiusX / mesh.smallestGridSpacings.x
+			                                 + maxSpectralRadiusY / mesh.smallestGridSpacings.y
+											 + maxSpectralRadiusZ / mesh.smallestGridSpacings.z );
 }
 
 // Find the viscous time step size limit (von Neumann condition):
 double Solver::getViscousTimeStepLimit()
 {
-	const Array3D_d& mu {mesh.transportProperties.mu};
-	const Array3D_d& rho{mesh.conservedVariables.rho};
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
 	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
-	for (int i{0}; i<mesh.nNodesTotal; ++i)
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		double nu = mu(i) / (rho(i)+1) * viscosityModifier;
-		maxViscosityFactor = max( maxViscosityFactor, nu );
+		const Array3D_d& mu {subMesh.transportProperties.mu};
+		const Array3D_d& rho{subMesh.conservedVariables.rho};
+		for (int i{0}; i<subMesh.nNodesTotal; ++i)
+		{
+			double nu = mu(i) / (rho(i)+1) * viscosityModifier;
+			maxViscosityFactor = max( maxViscosityFactor, nu );
+		}
 	}
-	double dx_2{mesh.dx*mesh.dx}, dy_2{mesh.dy*mesh.dy}, dz_2{mesh.dz*mesh.dz};
-	return fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/dx_2 + 1/dy_2 + 1/dz_2) );
+	double dx = mesh.smallestGridSpacings.x;
+	double dy = mesh.smallestGridSpacings.y;
+	double dz = mesh.smallestGridSpacings.z;
+	return fabs(params.viscStabilityLimit) / ( maxViscosityFactor * (1/(dx*dx) + 1/(dy*dy) + 1/(dz*dz) ) );
 }
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
