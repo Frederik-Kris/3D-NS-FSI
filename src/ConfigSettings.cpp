@@ -17,7 +17,7 @@ ConfigSettings::ConfigSettings(string filename)
 // If something goes wrong, the 'error' member is assigned true. Caller should check this.
 void ConfigSettings::loadSettings(string filename)
 {
-	errorOccurred = false;	// <- until the opposite is proven
+	errorOccurred = false;	// ← until the opposite is proven
 	Config cfg;
 	tryOpenConfigFile(cfg, filename);
 

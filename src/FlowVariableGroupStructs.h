@@ -220,7 +220,7 @@ inline void setFlowVariablesAtNode(int index1D,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,
 							const TransportPropertiesScalars& transportPropertyScalars,
-							AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+							AllFlowVariablesArrayGroup& flowVariables)	// ← Output
 {
 	flowVariables.conservedVariables.rho  (index1D) = conservedVariableScalars.rho;
 	flowVariables.conservedVariables.rho_u(index1D) = conservedVariableScalars.rho_u;
@@ -241,7 +241,7 @@ inline void setFlowVariablesAtNode(Vector3_i node,
 							const ConservedVariablesScalars&  conservedVariableScalars,
 							const PrimitiveVariablesScalars&  primitiveVariableScalars,
 							const TransportPropertiesScalars& transportPropertyScalars,
-							AllFlowVariablesArrayGroup& flowVariables)	// <- Output
+							AllFlowVariablesArrayGroup& flowVariables)	// ← Output
 {
 	flowVariables.conservedVariables.rho  (node) = conservedVariableScalars.rho;
 	flowVariables.conservedVariables.rho_u(node) = conservedVariableScalars.rho_u;

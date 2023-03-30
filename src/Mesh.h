@@ -66,9 +66,7 @@ public:
 
 	bool checkFilterCondition(const ConfigSettings& params, long timeLevel, double t);
 
-	void applyFilter_ifAppropriate(Array3D_d& variable_old, // <- To filter
-								   Array3D_d& variable_tmp, // <- Temporary storage
-								   const ConfigSettings& params,
+	void applyFilter_ifAppropriate(const ConfigSettings& params,
 								   long timeLevel,
 								   double t);
 

@@ -320,8 +320,8 @@ bool Mesh::checkFilterCondition(const ConfigSettings& params, long timeLevel, do
 	return filterNow;
 }
 
-// Filters one variable field, i.e., one solution array, 'filterVariable' and stores the filtered
-// result in 'variableTemporaryStorage'. Then, the arrays are swapped by move-semantics.
+// Filters density, ρ, and stores the filtered result in 'conservedVariablesOld.rho'.
+// Then, the arrays are swapped by move-semantics.
 // Only filters if conditions set in config file are met.
 void Mesh::applyFilter_ifAppropriate(const ConfigSettings& params, long timeLevel, double t)
 {
@@ -364,11 +364,11 @@ void Mesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
 	for(SubMesh& subMesh : subMeshes)
 	{
-		SubMeshDescriptor subMeshData = subMesh.getSubMeshDescriptor();
 
 		for(auto&& boundary : edgeBoundaries)
-			boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
+			boundary->applyBoundaryCondition(t, params);
 
+		SubMeshDescriptor subMeshData = subMesh.getSubMeshDescriptor();
 		for(auto&& boundary : immersedBoundaries)
 			boundary->applyBoundaryCondition(params, meshData);
 	}

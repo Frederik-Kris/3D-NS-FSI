@@ -13,6 +13,16 @@
 #include "Mesh.h"
 #include "ConfigSettings.h"
 
+enum class ChooseSolutionStage
+{
+	old, intermediate
+};
+
+enum class ChooseSlopeStage
+{
+	k1, k2, k3, k4
+};
+
 // Numerical solver class, which contains mesh with flow variables and methods needed to march in time.
 class Solver
 {
@@ -46,8 +56,8 @@ private:
 
 	double getViscousTimeStepLimit();
 
-	void computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables,
-						  ConservedVariablesArrayGroup& RK4slopes);
+	void computeRK4slopes(ChooseSolutionStage solutionStage,
+						  ChooseSlopeStage slopeStage);
 
 	void compute_RK4_step_continuity(const Array3D_d& rho_u,
 									 const Array3D_d& rho_v,
@@ -62,11 +72,12 @@ private:
 
 	void compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope);
 
-	void computeAllIntermediateSolutions(const ConservedVariablesArrayGroup& RK4slopes, double timeIncrement);
+	void computeAllIntermediateSolutions(ChooseSlopeStage slopeStage, double timeIncrement);
 
 	void computeIntermediateSolution(const Array3D_d& conservedVar,
 									 const Array3D_d& RK4_slope,
 									 double timeIncrement,
+									 const vector<int>& interiorNodes,
 									 Array3D_d& intermSolution);
 
 	void updatePrimitiveVariables();

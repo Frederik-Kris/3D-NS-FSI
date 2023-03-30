@@ -39,7 +39,7 @@ void Solver::initialize(long timeLevel)
 void Solver::applyStagnation_IC()
 {
 	cout << "Applying stagnation initial condition... ";
-	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  	// <- Decide primitive variables
+	double u_IC{0}, v_IC{0}, w_IC{0}, p_IC{0}, T_IC{0};                  	// ← Decide primitive variables
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC); // and derive the others
 	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
 	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
@@ -66,7 +66,7 @@ void Solver::applyUniformFlow_IC()
 {
 	cout << "Applying oblique uniform flow initial condition... ";
 	double velocity = params.M_0 / sqrt(3);
-	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // <- Decide primitive variables
+	double u_IC{velocity}, v_IC{velocity}, w_IC{velocity}, p_IC{0}, T_IC{0}; // ← Decide primitive variables
 	PrimitiveVariablesScalars  decidedPrimitiveVariables(u_IC, v_IC, w_IC, p_IC, T_IC);// and derive the others
 	ConservedVariablesScalars  derivedConservedVariables  = deriveConservedVariables(decidedPrimitiveVariables, params);
 	TransportPropertiesScalars derivedTransportProperties = deriveTransportProperties(decidedPrimitiveVariables, params);
@@ -146,7 +146,7 @@ double Solver::getInviscidTimeStepLimit()
 		const Array3D_d& w  {subMesh.primitiveVariables.w};
 		for (int i{0}; i<subMesh.nNodesTotal; ++i)
 		{
-			double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    // <- Speed of sound at node i
+			double c_i = sqrt( (1 + params.Gamma * p(i)) / (1 + rho(i)) );    // ← Speed of sound at node i
 			maxSpectralRadiusX = max( maxSpectralRadiusX, c_i + fabs(u(i)) );
 			maxSpectralRadiusY = max( maxSpectralRadiusY, c_i + fabs(v(i)) );
 			maxSpectralRadiusZ = max( maxSpectralRadiusZ, c_i + fabs(w(i)) );
@@ -161,7 +161,7 @@ double Solver::getInviscidTimeStepLimit()
 double Solver::getViscousTimeStepLimit()
 {
 	double viscosityModifier = max( 4./3, params.Gamma / params.Pr );
-	double maxViscosityFactor{0};   //<- Modified viscosity 'nu' used in the stability criterion
+	double maxViscosityFactor{0};   //← Modified viscosity 'nu' used in the stability criterion
 	for(SubMesh& subMesh : mesh.subMeshes)
 	{
 		const Array3D_d& mu {subMesh.transportProperties.mu};
@@ -180,18 +180,17 @@ double Solver::getViscousTimeStepLimit()
 
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
-void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
-						   long& timeLevel)	// <- OUTPUT
+void Solver::marchTimeStep(double& t, 			// ← IN-/OUTPUT, time
+						   long& timeLevel)	// ← OUTPUT
 {
-	mesh.applyFilter_ifAppropriate(mesh.conservedVariables.rho, mesh.conservedVariablesOld.rho, params, timeLevel, t);
+	mesh.applyFilter_ifAppropriate(params, timeLevel, t);
 	mesh.swapConservedVariables();	// Swap conserved variables and "old" arrays by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
 	// We will use the "main" conserved variable arrays (mesh.conservedVariables) for the intermediate solutions
 	// between RK4 steps, and eventually for the new solution at the end of this function.
-	ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
 
-	computeRK4slopes(mesh.conservedVariablesOld, k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
-	computeAllIntermediateSolutions(k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
+	computeRK4slopes(ChooseSolutionStage::old, ChooseSlopeStage::k1);	// Compute step 1 (k1), i.e. the slopes at time t, using Euler's method
+	computeAllIntermediateSolutions(ChooseSlopeStage::k1, dt/2);		// Compute intermediate solutions at time t + dt/2, using the slopes k1
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
@@ -233,21 +232,44 @@ void Solver::marchTimeStep(double& t, 			// <- IN-/OUTPUT, time
 }
 
 // Compute RK4 slopes for all the conserved variables, using specified solution.
-void Solver::computeRK4slopes(const ConservedVariablesArrayGroup& conservedVariables, // <- Current or intermediate solution
-							  ConservedVariablesArrayGroup& RK4slopes)				  // <- OUTPUT, slopes to overwrite
+void Solver::computeRK4slopes(ChooseSolutionStage solutionStage, 	// ← Current(old) or intermediate solution
+							  ChooseSlopeStage slopeStage)			// ← Slopes to overwrite
 {
-	compute_RK4_step_continuity(conservedVariables.rho_u, conservedVariables.rho_v, conservedVariables.rho_w, RK4slopes.rho  );
-	compute_RK4_step_xMomentum (conservedVariables.rho_u,               									  RK4slopes.rho_u);
-	compute_RK4_step_yMomentum (conservedVariables.rho_v,               									  RK4slopes.rho_v);
-	compute_RK4_step_zMomentum (conservedVariables.rho_w,               									  RK4slopes.rho_w);
-	compute_RK4_step_energy    (conservedVariables.rho_E,                   								  RK4slopes.rho_E);
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		ConservedVariablesArrayGroup* conservedVars = nullptr;
+		ConservedVariablesArrayGroup* RK4Slopes 	= nullptr;
+		if	   (solutionStage == ChooseSolutionStage::old)
+			conservedVars = &subMesh.conservedVariablesOld;
+		else if(solutionStage == ChooseSolutionStage::intermediate)
+			conservedVars = &subMesh.conservedVariables;
+		else throw std::logic_error("Unexpected enum value for 'ChooseSolutionStage' when computing RK4 slopes");
+		switch(slopeStage)
+		{
+		case ChooseSlopeStage::k1:
+			RK4Slopes = &subMesh.RK4slopes.k1;	break;
+		case ChooseSlopeStage::k2:
+			RK4Slopes = &subMesh.RK4slopes.k2;	break;
+		case ChooseSlopeStage::k3:
+			RK4Slopes = &subMesh.RK4slopes.k3;	break;
+		case ChooseSlopeStage::k4:
+			RK4Slopes = &subMesh.RK4slopes.k4;	break;
+		default:
+			throw std::logic_error("Unexpected enum value for 'ChooseSlopeStage' when computing RK4 slopes");
+		}
+		compute_RK4_step_continuity(conservedVars->rho_u, conservedVars->rho_v, conservedVars->rho_w, RK4Slopes->rho  );
+		compute_RK4_step_xMomentum (conservedVars->rho_u,               							  RK4Slopes->rho_u);
+		compute_RK4_step_yMomentum (conservedVars->rho_v,               							  RK4Slopes->rho_v);
+		compute_RK4_step_zMomentum (conservedVars->rho_w,               							  RK4Slopes->rho_w);
+		compute_RK4_step_energy    (conservedVars->rho_E,                   						  RK4Slopes->rho_E);
+	}
 }
 
 // Computes one RK4 step (slope: k1, ..., k4) for the mass density. Result is stored in argument 'RK4_slope'.
-void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // <- Momentum density
-										 const Array3D_d& rho_v, // <- Momentum density
-										 const Array3D_d& rho_w, // <- Momentum density
-										 Array3D_d& RK4_slope)	 // <- OUTPUT, slope to overwrite
+void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // ← Momentum density
+										 const Array3D_d& rho_v, // ← Momentum density
+										 const Array3D_d& rho_w, // ← Momentum density
+										 Array3D_d& RK4_slope)	 // ← OUTPUT, slope to overwrite
 {
 	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
 	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
@@ -262,10 +284,10 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // <- Momentum 
 }
 
 // Computes an RK4 step (slope: k1, ..., k4) for the x-momentum density. Result is stored in argument 'RK4_slope'.
-void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // <- Momentum density
-										Array3D_d& RK4_slope)	// <- OUTPUT, slope to overwrite
+void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // ← Momentum density
+										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
 	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node.
 	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
 	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
@@ -309,10 +331,10 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // <- Momentum d
 }
 
 // Computes an RK4 step (slope: k1, ..., k4) for the y-momentum density. Result is stored in argument 'RK4_slope'.
-void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // <- Momentum density
-										Array3D_d& RK4_slope)	// <- OUTPUT, slope to overwrite
+void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // ← Momentum density
+										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
 	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
 	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
 	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
@@ -356,10 +378,10 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // <- Momentum d
 }
 
 // Computes an RK4 step (slope: k1, ..., k4) for the z-momentum density. Result is stored in argument 'RK4_slope'.
-void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // <- Momentum density
-										Array3D_d& RK4_slope)	// <- OUTPUT, slope to overwrite
+void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // ← Momentum density
+										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
 	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
 	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
 	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
@@ -405,10 +427,10 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // <- Momentum d
 }
 
 // Computes an RK4 step (slope: k1, ..., k4) for the total specific energy. Result is stored in argument 'RK4_slope'.
-void Solver::compute_RK4_step_energy(const Array3D_d& E,	// <- Total specific energy per volume
-									 Array3D_d& RK4_slope)	// <- OUTPUT, slope to overwrite
+void Solver::compute_RK4_step_energy(const Array3D_d& E,	// ← Total specific energy per volume
+									 Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // <- The parts of the flux/residual evaluation
+	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
 	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
 	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
 	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
@@ -423,7 +445,7 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E,	// <- Total specific en
 	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
 	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
 	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
-	double rho_H_0 = 1. / ( params.Gamma - 1 );     // <- Dimensionless reference enthalpy
+	double rho_H_0 = 1. / ( params.Gamma - 1 );     // ← Dimensionless reference enthalpy
 
 	const Array3D_d& p{mesh.primitiveVariables.p}; // For readability in math expression below.
 	const Array3D_d& u{mesh.primitiveVariables.u};
@@ -485,25 +507,46 @@ void Solver::compute_RK4_step_energy(const Array3D_d& E,	// <- Total specific en
 
 // Compute intermediate solutions for all conserved variables, at given time increment after current time,
 // using the given set of slopes.
-void Solver::computeAllIntermediateSolutions(const ConservedVariablesArrayGroup& RK4slopes, // <- Slopes to use
-											 double timeIncrement) // <- How long after current time to evaluate
+void Solver::computeAllIntermediateSolutions(ChooseSlopeStage slopeStage, // ← Slopes to use
+											 double timeIncrement) // ← How long after current time to evaluate
 {
-	computeIntermediateSolution(mesh.conservedVariablesOld.rho,   RK4slopes.rho,   timeIncrement, mesh.conservedVariables.rho);
-	computeIntermediateSolution(mesh.conservedVariablesOld.rho_u, RK4slopes.rho_u, timeIncrement, mesh.conservedVariables.rho_u);
-	computeIntermediateSolution(mesh.conservedVariablesOld.rho_v, RK4slopes.rho_v, timeIncrement, mesh.conservedVariables.rho_v);
-	computeIntermediateSolution(mesh.conservedVariablesOld.rho_w, RK4slopes.rho_w, timeIncrement, mesh.conservedVariables.rho_w);
-	computeIntermediateSolution(mesh.conservedVariablesOld.rho_E, RK4slopes.rho_E, timeIncrement, mesh.conservedVariables.rho_E);
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		const ConservedVariablesArrayGroup* RK4Slopes = nullptr;
+		switch(slopeStage)
+		{
+		case ChooseSlopeStage::k1:
+			RK4Slopes = &subMesh.RK4slopes.k1;	break;
+		case ChooseSlopeStage::k2:
+			RK4Slopes = &subMesh.RK4slopes.k2;	break;
+		case ChooseSlopeStage::k3:
+			RK4Slopes = &subMesh.RK4slopes.k3;	break;
+		case ChooseSlopeStage::k4:
+			RK4Slopes = &subMesh.RK4slopes.k4;	break;
+		default:
+			throw std::logic_error("Unexpected enum value for 'ChooseSlopeStage' when computing intermediate solutions.");
+		}
+		const vector<int>& interiorNodes = subMesh.indexByType.fluidInterior;
+		const ConservedVariablesArrayGroup& previousLevel = subMesh.conservedVariablesOld;
+		ConservedVariablesArrayGroup& intermediateSolution = subMesh.conservedVariables;
+		computeIntermediateSolution(previousLevel.rho,   RK4Slopes->rho,   timeIncrement, interiorNodes, intermediateSolution.rho);
+		computeIntermediateSolution(previousLevel.rho_u, RK4Slopes->rho_u, timeIncrement, interiorNodes, intermediateSolution.rho_u);
+		computeIntermediateSolution(previousLevel.rho_v, RK4Slopes->rho_v, timeIncrement, interiorNodes, intermediateSolution.rho_v);
+		computeIntermediateSolution(previousLevel.rho_w, RK4Slopes->rho_w, timeIncrement, interiorNodes, intermediateSolution.rho_w);
+		computeIntermediateSolution(previousLevel.rho_E, RK4Slopes->rho_E, timeIncrement, interiorNodes, intermediateSolution.rho_E);
+	}
 }
 
 // Evaluates an intermediate solution of the given conserved variable, using the given RK4 step (slope)
 // and the appropriate time increment (dt/2 if k1 or k2 is given, dt if k3 is given).
 // Result is stored in 'intermSolution'. Only writes interior fluid nodes.
-void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, // <- Old values
+void Solver::computeIntermediateSolution(const Array3D_d& conservedVar, // ← Old values
 										 const Array3D_d& RK4_slope,
 										 double timeIncrement,
-										 Array3D_d& intermSolution) // <- OUTPUT, new values
+										 const vector<int>& interiorNodes,
+										 Array3D_d& intermSolution) // ← OUTPUT, new values
 {
-	for(int index1D : mesh.indexByType.fluidInterior)
+	for(int index1D : interiorNodes)
 		intermSolution(index1D) = conservedVar(index1D) + timeIncrement * RK4_slope(index1D);
 }
 
@@ -515,33 +558,36 @@ void Solver::updatePrimitiveVariables()
 	double sutherlands_Sc = params.sutherlands_C2 / params.T_0;
 	double ScPlusOne = 1 + sutherlands_Sc;
 	double prandtlFactor = 1 / ( gammaMinusOne * params.Pr );
-	const Array3D_d& rho_u{mesh.conservedVariables.rho_u};
-	const Array3D_d& rho_v{mesh.conservedVariables.rho_v};
-	const Array3D_d& rho_w{mesh.conservedVariables.rho_w};
-	const Array3D_d& rho  {mesh.conservedVariables.rho};
-	const Array3D_d& rho_E{mesh.conservedVariables.rho_E};
-	Array3D_d& u{mesh.primitiveVariables.u};
-	Array3D_d& v{mesh.primitiveVariables.v};
-	Array3D_d& w{mesh.primitiveVariables.w};
-	Array3D_d& p{mesh.primitiveVariables.p};
-	Array3D_d& T{mesh.primitiveVariables.T};
-	Array3D_d& mu   {mesh.transportProperties.mu};
-	Array3D_d& kappa{mesh.transportProperties.kappa};
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		const Array3D_d& rho_u{subMesh.conservedVariables.rho_u};
+		const Array3D_d& rho_v{subMesh.conservedVariables.rho_v};
+		const Array3D_d& rho_w{subMesh.conservedVariables.rho_w};
+		const Array3D_d& rho  {subMesh.conservedVariables.rho  };
+		const Array3D_d& rho_E{subMesh.conservedVariables.rho_E};
+		Array3D_d& u{subMesh.primitiveVariables.u};
+		Array3D_d& v{subMesh.primitiveVariables.v};
+		Array3D_d& w{subMesh.primitiveVariables.w};
+		Array3D_d& p{subMesh.primitiveVariables.p};
+		Array3D_d& T{subMesh.primitiveVariables.T};
+		Array3D_d& mu   {subMesh.transportProperties.mu};
+		Array3D_d& kappa{subMesh.transportProperties.kappa};
 
-	for(int i : mesh.indexByType.fluidInterior)
-		u(i) = rho_u(i) / ( rho(i) + 1 );
-	for(int i : mesh.indexByType.fluidInterior)
-		v(i) = rho_v(i) / ( rho(i) + 1 );
-	for(int i : mesh.indexByType.fluidInterior)
-		w(i) = rho_w(i) / ( rho(i) + 1 );
-	for(int i : mesh.indexByType.fluidInterior)
-		p(i) = gammaMinusOne * ( rho_E(i) - (rho(i)+1)/2 * (u(i)*u(i) + v(i)*v(i) + w(i)*w(i)) );
-	for(int i : mesh.indexByType.fluidInterior)
-		T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
-	for(int i : mesh.indexByType.fluidInterior)
-		mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re_0*( T(i) + ScPlusOne ) );
-	for(int i : mesh.indexByType.fluidInterior)
-		kappa(i) = mu(i) * prandtlFactor;
+		for(int i : subMesh.indexByType.fluidInterior)
+			u(i) = rho_u(i) / ( rho(i) + 1 );
+		for(int i : subMesh.indexByType.fluidInterior)
+			v(i) = rho_v(i) / ( rho(i) + 1 );
+		for(int i : subMesh.indexByType.fluidInterior)
+			w(i) = rho_w(i) / ( rho(i) + 1 );
+		for(int i : subMesh.indexByType.fluidInterior)
+			p(i) = gammaMinusOne * ( rho_E(i) - (rho(i)+1)/2 * (u(i)*u(i) + v(i)*v(i) + w(i)*w(i)) );
+		for(int i : subMesh.indexByType.fluidInterior)
+			T(i) = ( params.Gamma * p(i) - rho(i) ) / ( 1+rho(i) );
+		for(int i : subMesh.indexByType.fluidInterior)
+			mu(i) = pow( 1+T(i), 1.5 ) * ScPlusOne / ( params.Re_0*( T(i) + ScPlusOne ) );
+		for(int i : subMesh.indexByType.fluidInterior)
+			kappa(i) = mu(i) * prandtlFactor;
+	}
 }
 
 // Do the final step of the RK4 method for all conserved variables.
@@ -557,12 +603,12 @@ void Solver::computeRK4finalStepAllVariables()
 }
 
 // Uses all the intermediate RK4 slopes k1,2,3,4, for a variable, to advance the variable from t to t+dt
-void Solver::compute_RK4_final_step(const Array3D_d& k1, // <- Slopes
+void Solver::compute_RK4_final_step(const Array3D_d& k1, // ← Slopes
 									const Array3D_d& k2,
 									const Array3D_d& k3,
 									const Array3D_d& k4,
-									const Array3D_d& conservedVar_old, // <- Values at current time
-									Array3D_d& conservedVar_new) // <- OUTPUT, values at next time level
+									const Array3D_d& conservedVar_old, // ← Values at current time
+									Array3D_d& conservedVar_new) // ← OUTPUT, values at next time level
 {
 	double dtFactor{dt / 6};
 	for(int i : mesh.indexByType.fluidInterior)

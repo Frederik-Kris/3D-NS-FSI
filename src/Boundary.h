@@ -39,14 +39,16 @@ struct SubMeshDescriptor
 	const Vector3_i& nNodes;
 	const Vector3_d& spacings;
 	const IndexBoundingBox& arrayLimits;
+	const SpaceBoundingBox& boundingBox;
 	const Array3D<NodeTypeEnum>& nodeType;
 	AllFlowVariablesArrayGroup& flowVariables;
 	const int refinementLevel;
 	const Vector3_i& regionID;
 
 	SubMeshDescriptor(const Vector3_i& nNodes,
-				   	  const IndexBoundingBox& arrayLimits,
 					  const Vector3_d& gridSpacings,
+				   	  const IndexBoundingBox& arrayLimits,
+					  const SpaceBoundingBox& boundingBox,
 					  Array3D<NodeTypeEnum>& nodeTypeArray,
 					  AllFlowVariablesArrayGroup& flowVariables,
 					  int refinementLevel,
@@ -54,6 +56,7 @@ struct SubMeshDescriptor
 	: nNodes{nNodes},
 	  spacings{gridSpacings},
 	  arrayLimits(arrayLimits),
+	  boundingBox{boundingBox},
 	  nodeType{nodeTypeArray},
 	  flowVariables{flowVariables},
 	  refinementLevel{refinementLevel},
@@ -129,7 +132,7 @@ public:
 	virtual std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() = 0;
 
 	// Get the number of extra node layers (zero or one) required by this BC.
-	virtual int nExtraNodeLayer() = 0;
+	virtual int nExtraNodeLayer() = 0; // ← PURE virtual
 
 	virtual void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
 									  Array3D<NodeTypeEnum>& nodeTypeArray,
@@ -137,9 +140,7 @@ public:
 									  const Array3D<SubMeshDescriptor>& neighborSubMeshes);
 
 	// Implementation of the actual BC. Overwrites its owned nodes.
-	virtual void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-										const ConfigSettings& params)				// <- Input
-										= 0; // <- PURE virtual
+	virtual void applyBoundaryCondition(double t, const ConfigSettings& params)	= 0; // ← PURE virtual
 
 	Vector3_i getOutwardNormal() const;
 
@@ -149,11 +150,11 @@ protected:
 										  AxisOrientationEnum normalAxis,
 										  EdgeIndexEnum planeIndex);
 
-	void getAdjacentIndices(int index1D, const Vector3_i& nMeshNodes,	// <- Input
-			  	  	  	  	int& boundaryAdjacentIndex, 				// <- Output
-							int& nextToAdjacentIndex);					// <- Output
+	void getAdjacentIndices(const Vector3_i& boundaryNode, 			// ← Input
+			  	  	  	  	int& boundaryAdjacentIndex, 			// ← Output
+							int& nextToAdjacentIndex);				// ← Output
 
-	int getPeriodicIndex(int index1D, const Vector3_i& nMeshNodes);
+	Vector3_i getPeriodicIndex(const Vector3_i& boundaryNode);
 
 	AxisOrientationEnum normalAxis;			// The axis that is normal to the boundary plane
 	EdgeIndexEnum planeIndex;				// Denotes if the plane is at lowest or highest index side
@@ -176,13 +177,11 @@ public:
 
 	int nExtraNodeLayer() override { return 0; }
 
-	void filterInletDensity(const Vector3_i& nMeshNodes,				// <- Input
-	   	   	   	   	   	    const ConfigSettings& params,				// <- Input
-							AllFlowVariablesArrayGroup& flowVariables);	// <- Output
+	void filterInletDensity(const Vector3_i& nMeshNodes,				// ← Input
+	   	   	   	   	   	    const ConfigSettings& params,				// ← Input
+							AllFlowVariablesArrayGroup& flowVariables);	// ← Output
 
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params)	override;
 
 private:
 	double velocity;	// The prescribed inlet velocity, that we reach after initial ramp-up.
@@ -199,9 +198,7 @@ public:
 
 	int nExtraNodeLayer() override { return 0; }
 
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params) override;
 };
 
 // Class to define a periodic boundary condition:
@@ -215,9 +212,7 @@ public:
 
 	int nExtraNodeLayer() override { return 1; }
 
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params) override;
 };
 
 // Class to define a symmetry boundary condition:
@@ -231,9 +226,7 @@ public:
 
 	int nExtraNodeLayer() override { return 1; }
 
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params)	override;
 };
 
 // Class to define a boundary condition where all variables are extrapolated:
@@ -247,24 +240,30 @@ public:
 
 	int nExtraNodeLayer() override { return 1; }
 
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
+	void applyBoundaryCondition(double t, const ConfigSettings& params)	override;
 };
 
-// Abstract class to define boundary condition for a submesh's co-boundary with another submesh.
-// Derived classes handle hanging nodes and fetching values from neighbor submesh etc.
-// Different derived classes based on the refinement levels of the submeshes.
+// Class to define boundary condition for a submesh's co-boundary with another submesh.
+// Handles hanging nodes and fetching values from neighbor submesh etc.
 class SubmeshInterfaceBoundary : public MeshEdgeBoundary
 {
 public:
+	
+	SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, const SubMeshDescriptor& subMeshData) :
+		MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost, subMeshData)
+	{}
 
-	virtual ~SubmeshInterfaceBoundary() = default;
+	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
+	{ return std::make_unique<SubmeshInterfaceBoundary>(*this); }
+
+	int nExtraNodeLayer() override;
 
 	void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
 							  Array3D<NodeTypeEnum>& nodeTypeArray,
 							  const Vector3_i& regionID,
 							  const Array3D<SubMeshDescriptor>& neighborSubMeshes) override;
+
+	void applyBoundaryCondition(double t, const ConfigSettings& params)	override;
 
 protected:
 
@@ -285,66 +284,11 @@ protected:
 	SubMeshDescriptor neighborSubMesh; // Info about the adjacent SubMesh, including references to flow variables.
 };
 
-// Defines interface towards a region (submesh) with lower refinement level.
-// The adjacent submesh should have an InterfaceToFinerSubMesh towards this region.
-class InterfaceToCoarserSubMesh : public SubmeshInterfaceBoundary
-{
-	InterfaceToCoarserSubMesh(AxisOrientationEnum normalAxis,
-							  EdgeIndexEnum planeIndex)
-	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
-	{}
-
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params)				// <- Input
-								override;
-
-	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
-	{ return std::make_unique<InterfaceToCoarserSubMesh>(*this); }
-
-	int nExtraNodeLayer() override { return 0; }
-};
-
-// Defines interface towards a region (submesh) with higher refinement level.
-// The adjacent submesh should have an InterfaceToCoarserSubMesh towards this region.
-class InterfaceToFinerSubMesh : public SubmeshInterfaceBoundary
-{
-	InterfaceToFinerSubMesh(AxisOrientationEnum normalAxis,
-							EdgeIndexEnum planeIndex,
-							AllFlowVariablesArrayGroup& neighborSubMesh)
-	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
-	{}
-
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params,				// <- Input
-								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
-								override;
-
-	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
-	{ return std::make_unique<InterfaceToFinerSubMesh>(*this); }
-
-	int nExtraNodeLayer() override { return 1; }
-};
-
-// Defines interface towards a region (submesh) with the same refinement level.
-// The adjacent submesh should also have an InterfaceToEqualLevelSubMesh towards this region.
-class InterfaceToEqualLevelSubMesh : public SubmeshInterfaceBoundary
-{
-	InterfaceToEqualLevelSubMesh(AxisOrientationEnum normalAxis,
-								 EdgeIndexEnum planeIndex,
-								 AllFlowVariablesArrayGroup& neighborSubMesh)
-	: MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost)
-	{}
-
-	void applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-								const ConfigSettings& params,				// <- Input
-								AllFlowVariablesArrayGroup& flowVariables)	// <- Output
-								override;
-
-	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
-	{ return std::make_unique<InterfaceToEqualLevelSubMesh>(*this); }
-
-	int nExtraNodeLayer() override { return planeIndex == EdgeIndexEnum::max ? 1 : 0 ; }
-};
+//////////////////////////////////////
+// Mesh edge BCs above ↑
+//////////////////////////////////////
+// Immersed BCs below ↓
+//////////////////////////////////////
 
 // Base class for immersed boundaries.
 // Suggested derived types: Adiabatic wall and iso-thermal wall
@@ -352,7 +296,10 @@ class InterfaceToEqualLevelSubMesh : public SubmeshInterfaceBoundary
 class ImmersedBoundary
 {
 public:
-	ImmersedBoundary();
+
+	ImmersedBoundary(const SubMeshDescriptor& subMeshData) :
+		subMeshData(subMeshData)
+	{}
 
 	virtual ~ImmersedBoundary() = default;
 
@@ -365,34 +312,26 @@ public:
    	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
 									  const Vector3_i& nMeshNodes,
 									  const Vector3_d& meshOriginOffset,
-									  Array3D_nodeType& nodeTypeArray	// <- OUTPUT
-			  	  	  	  	  	  	  ) = 0; // <- PURE virtual
+									  Array3D<NodeTypeEnum>& nodeTypeArray	// ← OUTPUT
+			  	  	  	  	  	  	  ) = 0; // ← PURE virtual
 
-	void applyBoundaryCondition(const ConfigSettings& params,
-								SubMeshDescriptor& mesh // <- In/Output
-			  	  	  	  	    );
+	void applyBoundaryCondition(const ConfigSettings& params);
 
 	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) = 0;
 
 protected:
 
-	vector<GhostNode> ghostNodes;			// The solid ghost nodes adjacent to this surface
+	vector<GhostNode> ghostNodes;		// The solid ghost nodes adjacent to this surface
 	std::map<int, int> ghostNodeMap;	// A codex from 1D index in the mesh, to index of corresponding entry in ghostNodes
-	vector<int> filterNodes;				// The closest interior fluid nodes. Filtered when BC is applied.
+	vector<int> filterNodes;			// The closest interior fluid nodes. Filtered when BC is applied.
+	SubMeshDescriptor subMeshData;		// Info and flow variables for the submesh with this immersed surface.
 
-	void findGhostNodesWithFluidNeighbors(const vector<int>& solidNodeIndices,
-										  const Vector3_i& nMeshNodes,
-										  Array3D_nodeType& nodeTypeArray);
+	void findGhostNodesWithFluidNeighbors(const vector<int>& solidNodeIndices);
 
 	void checkIfSurroundingShouldBeGhost(const Vector3_i &surroundingNode,
-			   	   	   	   	   	   	     vector<GhostNode>& newGhostNodes,
-										 Array3D_nodeType& nodeTypeArray);
+			   	   	   	   	   	   	     vector<GhostNode>& newGhostNodes);
 
-	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess,
-			   	   	   	   	   	   	   	   	 const Vector3_d& gridSpacing,
-											 const Vector3_i& nMeshNodes,
-											 const Vector3_d& meshOriginOffset,
-											 Array3D_nodeType& nodeTypeArray);
+	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess);
 
 	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Vector3_i& nMeshNodes);
 
@@ -406,12 +345,11 @@ protected:
 
 	void setInterpolationValues(
 			const IndexBoundingBox& surroundingNodes,
-			const SubMeshDescriptor& mesh,
-			InterpolationValues& interpolationValues,		// <-
-			InterpolationPositions& interpolationPositions,	// <-
-			Array8_b& ghostFlag,							// <- Output
-			bool& allSurroundingAreFluid,					// <-
-			vector<Vector3_d>& unitNormals);				// <-
+			InterpolationValues& interpolationValues,		// ←
+			InterpolationPositions& interpolationPositions,	// ←
+			Array8_b& ghostFlag,							// ← Output
+			bool& allSurroundingAreFluid,					// ←
+			vector<Vector3_d>& unitNormals);				// ←
 
 	double trilinearInterpolation(const Vector8_d& interpolationValues,
 													 const Vector3_d& imagePoint,
@@ -445,15 +383,15 @@ private:
 
 	void setInterpolationValuesFluidNode(int counter, int surroundingNodeIndex1D,
 			   	   	   	   	   	   	     const SubMeshDescriptor& mesh,
-										 InterpolationValues& interpolationValues,			// <- OUTPUT
-										 InterpolationPositions& interpolationPositions);	// <- OUTPUT
+										 InterpolationValues& interpolationValues,			// ← OUTPUT
+										 InterpolationPositions& interpolationPositions);	// ← OUTPUT
 
 	void setInterpolationValuesGhostNode(
 			int counter,
 			int surroundingNodeIndex1D,
-			vector<Vector3_d>& unitNormals,					// <-
-			InterpolationValues& interpolationValues,		// <- Output
-			InterpolationPositions& interpolationPositions);// <-
+			vector<Vector3_d>& unitNormals,					// ←
+			InterpolationValues& interpolationValues,		// ← Output
+			InterpolationPositions& interpolationPositions);// ←
 
 	PrimitiveVariablesScalars interpolateImagePointVariables(
 			const InterpolationValues& interpolationValues,
@@ -462,15 +400,14 @@ private:
 			const Array8_b& ghostFlag,
 			const GhostNode& ghostNode,
 			const IndexBoundingBox& surroundingNodes,
-			const vector<Vector3_d>& unitNormals,
-			const SubMeshDescriptor& mesh);
+			const vector<Vector3_d>& unitNormals );
 };
 
 // Class to define boundary conditions at an immersed cylinder:
 class CylinderBody : public ImmersedBoundary
 {
 public:
-	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius);
+	CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius, const SubMeshDescriptor& subMeshData);
 
 	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<CylinderBody>(*this); }
@@ -481,7 +418,7 @@ public:
 	   	   	   	   	    	  const Vector3_d& gridSpacing,
 							  const Vector3_i& nMeshNodes,
 							  const Vector3_d& meshOriginOffset,
-							  Array3D_nodeType& nodeTypeArray	// <- Output
+							  Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 							  ) override;
 
 	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
@@ -503,8 +440,8 @@ private:
 										  const Vector3_i& nMeshNodes,
 										  const Vector3_d& meshOriginOffset,
 										  int nNodesFilterLayer,
-										  vector<int>& solidNodeIndices, // <- Output
-										  Array3D_nodeType& nodeTypeArray   // <- Output
+										  vector<int>& solidNodeIndices, // ← Output
+										  Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
 			   	   	   	   	   	 	 	  );
 };
 
@@ -512,7 +449,7 @@ private:
 class SphereBody : public ImmersedBoundary
 {
 public:
-	SphereBody(Vector3_d centerPosition, double radius);
+	SphereBody(Vector3_d centerPosition, double radius, const SubMeshDescriptor& subMeshData);
 
 	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<SphereBody>(*this); }
@@ -523,7 +460,7 @@ public:
    	   	    	  	  	  	  const Vector3_d& gridSpacing,
 							  const Vector3_i& nMeshNodes,
 							  const Vector3_d& meshOriginOffset,
-							  Array3D_nodeType& nodeTypeArray	// <- Output
+							  Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 			  	  	  	  	  ) override;
 
 	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
@@ -542,8 +479,8 @@ private:
 										const Vector3_i& nMeshNodes,
 										const Vector3_d& meshOriginOffset,
 										int nNodesFilterLayer,
-										vector<int>& solidNodeIndices, // <- Output
-										Array3D_nodeType& nodeTypeArray   // <- Output
+										vector<int>& solidNodeIndices, // ← Output
+										Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
 	   	   	   	   	   	   	   	   	    );
 };
 

@@ -86,65 +86,21 @@ void MeshEdgeBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
 }
 
 // Given a node in the boundary plane, find the two adjacent nodes in the normal direction
-void MeshEdgeBoundary::getAdjacentIndices(int index1D, const Vector3_i& nMeshNodes,	// <- Input
-										  int& boundaryAdjacentIndex, 				// <- Output
-										  int& nextToAdjacentIndex)					// <- Output
+void MeshEdgeBoundary::getAdjacentIndices(const Vector3_i& boundaryNode, 		// ← Input
+										  int& boundaryAdjacentIndex, 			// ← Output
+										  int& nextToAdjacentIndex)				// ← Output
 {
-	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
-	{
-		boundaryAdjacentIndex = index1D + nMeshNodes.j * nMeshNodes.k;
-		nextToAdjacentIndex   = index1D + nMeshNodes.j * nMeshNodes.k * 2;
-	}
-	else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
-	{
-		boundaryAdjacentIndex = index1D - nMeshNodes.j * nMeshNodes.k;
-		nextToAdjacentIndex   = index1D - nMeshNodes.j * nMeshNodes.k * 2;
-	}
-	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
-	{
-		boundaryAdjacentIndex = index1D + nMeshNodes.k;
-		nextToAdjacentIndex   = index1D + nMeshNodes.k * 2;
-	}
-	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
-	{
-		boundaryAdjacentIndex = index1D - nMeshNodes.k;
-		nextToAdjacentIndex   = index1D - nMeshNodes.k * 2;
-	}
-	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
-	{
-		boundaryAdjacentIndex = index1D + 1;
-		nextToAdjacentIndex = index1D + 2*1;
-	}
-	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
-	{
-		boundaryAdjacentIndex = index1D - 1;
-		nextToAdjacentIndex = index1D - 2*1;
-	}
+	Vector3_i inwardNormalVector = -1*getOutwardNormal();
+	boundaryAdjacentIndex = getIndex1D(boundaryNode +   inwardNormalVector, subMeshData.arrayLimits);
+	nextToAdjacentIndex   = getIndex1D(boundaryNode + 2*inwardNormalVector, subMeshData.arrayLimits);
 }
 
 // Given a node in the boundary plane, find the boundary adjacent node on the opposite side
-int MeshEdgeBoundary::getPeriodicIndex(int index1D, const Vector3_i& nMeshNodes)
+Vector3_i MeshEdgeBoundary::getPeriodicIndex(const Vector3_i& boundaryNode)
 {
-	Vector3_i indices = getIndices3D(index1D, nMeshNodes);
-	if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::min)
-		indices.i = nMeshNodes.i - 2;	// i -> iMax-1
-
-	else if(normalAxis == AxisOrientationEnum::x && planeIndex == EdgeIndexEnum::max)
-		indices.i = 1;	// i -> iMin+1
-
-	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::min)
-		indices.j = nMeshNodes.j - 2;	// j -> jMax-1
-
-	else if(normalAxis == AxisOrientationEnum::y && planeIndex == EdgeIndexEnum::max)
-		indices.j = 1;	// j -> jMin+1
-
-	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::min)
-		indices.k = nMeshNodes.k - 2;	// k -> kMax-1
-
-	else if(normalAxis == AxisOrientationEnum::z && planeIndex == EdgeIndexEnum::max)
-		indices.k = 1;	// k -> kMin+1
-
-	return getIndex1D(indices, nMeshNodes);
+	const Vector3_i& nNodes = subMeshData.arrayLimits.nNodes();
+	Vector3_i shiftedIndex = boundaryNode + nNodes + getOutwardNormal();
+	return shiftedIndex % nNodes;
 }
 
 Vector3_i MeshEdgeBoundary::getOutwardNormal() const
@@ -171,131 +127,11 @@ InletBoundary::InletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum plane
   velocity{velocity}
 {}
 
-// Filter the density in the inlet plane. Does not affect or use any nodes outside this plane.
-void InletBoundary::filterInletDensity(const Vector3_i& nMeshNodes,					// <- Input
-		   	   	   	   	   	   	   	   const ConfigSettings& params,				// <- Input
-									   AllFlowVariablesArrayGroup& flowVariables)	// <- Output
-{
-	vector<double> rhoFilteredVector;
-	vector<int> filteredNodes;
-	if(normalAxis == AxisOrientationEnum::x)
-		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
-			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
-			{
-				double rhoFiltered = 0;
-				int nNeighbors = 0;
-				if(j<relatedNodes.regular.jMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(relatedNodes.regular.iMin, j+1, k);
-					++nNeighbors;
-				}
-				if(j>relatedNodes.regular.jMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(relatedNodes.regular.iMin, j-1, k);
-					++nNeighbors;
-				}
-				if(k<relatedNodes.regular.kMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(relatedNodes.regular.iMin, j, k+1);
-					++nNeighbors;
-				}
-				if(k>relatedNodes.regular.kMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(relatedNodes.regular.iMin, j, k-1);
-					++nNeighbors;
-				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(relatedNodes.regular.iMin, j, k);
-				rhoFiltered /= 2 * nNeighbors;
-				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(relatedNodes.regular.iMin, j, k, nMeshNodes));
-			}
-	else if(normalAxis == AxisOrientationEnum::y)
-		for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
-			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
-			{
-				double rhoFiltered = 0;
-				int nNeighbors = 0;
-				if(i<relatedNodes.regular.iMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i+1, relatedNodes.regular.jMin, k);
-					++nNeighbors;
-				}
-				if(i>relatedNodes.regular.iMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i-1, relatedNodes.regular.jMin, k);
-					++nNeighbors;
-				}
-				if(k<relatedNodes.regular.kMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, relatedNodes.regular.jMin, k+1);
-					++nNeighbors;
-				}
-				if(k>relatedNodes.regular.kMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, relatedNodes.regular.jMin, k-1);
-					++nNeighbors;
-				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, relatedNodes.regular.jMin, k);
-				rhoFiltered /= 2 * nNeighbors;
-				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(i, relatedNodes.regular.jMin, k, nMeshNodes));
-			}
-	else if(normalAxis == AxisOrientationEnum::z)
-		for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
-			for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
-			{
-				double rhoFiltered = 0;
-				int nNeighbors = 0;
-				if(i<relatedNodes.regular.iMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i+1, j, relatedNodes.regular.kMin);
-					++nNeighbors;
-				}
-				if(i>relatedNodes.regular.iMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i-1, j, relatedNodes.regular.kMin);
-					++nNeighbors;
-				}
-				if(j<relatedNodes.regular.jMax)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, j+1, relatedNodes.regular.kMin);
-					++nNeighbors;
-				}
-				if(j>relatedNodes.regular.jMin)
-				{
-					rhoFiltered += flowVariables.conservedVariables.rho(i, j-1, relatedNodes.regular.kMin);
-					++nNeighbors;
-				}
-				rhoFiltered += nNeighbors * flowVariables.conservedVariables.rho(i, j, relatedNodes.regular.kMin);
-				rhoFiltered /= 2 * nNeighbors;
-				rhoFilteredVector.push_back(rhoFiltered);
-				filteredNodes.push_back(getIndex1D(i, j, relatedNodes.regular.kMin, nMeshNodes));
-			}
-	else
-		throw std::logic_error("Unexpected enum value");
-	for(int index{0}; index<filteredNodes.size(); ++index)
-		flowVariables.conservedVariables.rho(filteredNodes[index]) = rhoFilteredVector[index];
-}
-
 // Linearly extrapolate density, then filter it. Set normal velocity component, respecting ramp-up.
 // Set other velocity components, and temperature fluctuation to zero. Dervive the rest.
 // The ramp-up starts at zero when t=0, and then gradually increases to prescribed value.
-void InletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-										   const ConfigSettings& params)				// <- Input
+void InletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
-	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
-		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
-			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
-			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
-				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-				flowVariables.conservedVariables.rho(i,j,k) =
-						2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-						- flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-			}
-	filterInletDensity(nMeshNodes, params, flowVariables);
-
 	double inletVelocity = min(1., t/50.) * velocity; // TODO: move magic const to params as 'rampUpDuration' etc.
 	if(planeIndex == EdgeIndexEnum::max)	// If we're on the highest index, velocity must be
 		inletVelocity *= -1;				// negative, for this to be an inlet.
@@ -314,21 +150,22 @@ void InletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes
 		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
 			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
 			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
+				Vector3_i boundaryNode(i,j,k);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-				double rho = flowVariables.conservedVariables.rho(index1D);
+				getAdjacentIndices(boundaryNode, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = 2*subMeshData.flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+							 - subMeshData.flowVariables.conservedVariables.rho(nextToAdjacentIndex);
 				double T = 0;
 				double p = (T*(1+rho) + rho) / params.Gamma;
 				double uTripFlow=u;
-				if(params.Re>50 && j<nMeshNodes.j/2 && t<50)
+				if(params.Re>50 && j<params.NJ/2 && t<50)
 					uTripFlow *=0.9;
-				else if(params.Re>50 && j<nMeshNodes.j/2 && t<60)
+				else if(params.Re>50 && j<params.NJ/2 && t<60)
 					uTripFlow = u - (60.-t)/10.*0.1*u;
 				PrimitiveVariablesScalars primitiveVarsScalars(uTripFlow, v, w, p, T);
 				ConservedVariablesScalars   conservedVarsScalars = deriveConservedVariables (primitiveVarsScalars, params);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+				setFlowVariablesAtNode(boundaryNode, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, subMeshData.flowVariables);
 			}
 }
 
@@ -338,24 +175,23 @@ OutletBoundary::OutletBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum pla
 {}
 
 // Set pressure fluctuation to zero. Linearly extrapolate density and momentum. Derive rest.
-void OutletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-		   	   	   	   	   	   	   	   	   const ConfigSettings& params)				// <- Input
+void OutletBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
 	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
 		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
 			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
 			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
+				Vector3_i boundaryNode(i,j,k);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-				double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-							 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-				double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
-				double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
-				double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
+				getAdjacentIndices(boundaryNode, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = 2*subMeshData.flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
+							 - subMeshData.flowVariables.conservedVariables.rho(nextToAdjacentIndex);
+				double rho_u = 2*subMeshData.flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+							   - subMeshData.flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
+				double rho_v = 2*subMeshData.flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+							   - subMeshData.flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
+				double rho_w = 2*subMeshData.flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+							   - subMeshData.flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
 				double p = 0;
 
 				double u = rho_u / (1+rho);
@@ -367,7 +203,7 @@ void OutletBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNode
 				PrimitiveVariablesScalars primitiveVarsScalars(u, v, w, p, T);
 				ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+				setFlowVariablesAtNode(boundaryNode, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, subMeshData.flowVariables);
 			}
 }
 
@@ -377,27 +213,26 @@ PeriodicBoundary::PeriodicBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 {}
 
 // Set all flow variables to the value of the boundary-adjacent node at the opposite side of the mesh.
-void PeriodicBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-	   	   	   	   	   	   	   	   	   	   	  const ConfigSettings& params)					// <- Input
+void PeriodicBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
 	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
 		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
 			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
 			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
-				int oppositeSideIndex = getPeriodicIndex(index1D, nMeshNodes);
-				flowVariables.conservedVariables.rho  (index1D) = flowVariables.conservedVariables.rho  (oppositeSideIndex);
-				flowVariables.conservedVariables.rho_u(index1D) = flowVariables.conservedVariables.rho_u(oppositeSideIndex);
-				flowVariables.conservedVariables.rho_v(index1D) = flowVariables.conservedVariables.rho_v(oppositeSideIndex);
-				flowVariables.conservedVariables.rho_w(index1D) = flowVariables.conservedVariables.rho_w(oppositeSideIndex);
-				flowVariables.conservedVariables.rho_E(index1D) = flowVariables.conservedVariables.rho_E(oppositeSideIndex);
-				flowVariables.primitiveVariables.u(index1D) = flowVariables.primitiveVariables.u(oppositeSideIndex);
-				flowVariables.primitiveVariables.v(index1D) = flowVariables.primitiveVariables.v(oppositeSideIndex);
-				flowVariables.primitiveVariables.w(index1D) = flowVariables.primitiveVariables.w(oppositeSideIndex);
-				flowVariables.primitiveVariables.p(index1D) = flowVariables.primitiveVariables.p(oppositeSideIndex);
-				flowVariables.primitiveVariables.T(index1D) = flowVariables.primitiveVariables.T(oppositeSideIndex);
-				flowVariables.transportProperties.mu   (index1D) = flowVariables.transportProperties.mu   (oppositeSideIndex);
-				flowVariables.transportProperties.kappa(index1D) = flowVariables.transportProperties.kappa(oppositeSideIndex);
+				Vector3_i boundaryNode(i,j,k);
+				Vector3_i periodicNode = getPeriodicIndex(boundaryNode);
+				subMeshData.flowVariables.conservedVariables.rho  (boundaryNode) = subMeshData.flowVariables.conservedVariables.rho  (periodicNode);
+				subMeshData.flowVariables.conservedVariables.rho_u(boundaryNode) = subMeshData.flowVariables.conservedVariables.rho_u(periodicNode);
+				subMeshData.flowVariables.conservedVariables.rho_v(boundaryNode) = subMeshData.flowVariables.conservedVariables.rho_v(periodicNode);
+				subMeshData.flowVariables.conservedVariables.rho_w(boundaryNode) = subMeshData.flowVariables.conservedVariables.rho_w(periodicNode);
+				subMeshData.flowVariables.conservedVariables.rho_E(boundaryNode) = subMeshData.flowVariables.conservedVariables.rho_E(periodicNode);
+				subMeshData.flowVariables.primitiveVariables.u(boundaryNode) = subMeshData.flowVariables.primitiveVariables.u(periodicNode);
+				subMeshData.flowVariables.primitiveVariables.v(boundaryNode) = subMeshData.flowVariables.primitiveVariables.v(periodicNode);
+				subMeshData.flowVariables.primitiveVariables.w(boundaryNode) = subMeshData.flowVariables.primitiveVariables.w(periodicNode);
+				subMeshData.flowVariables.primitiveVariables.p(boundaryNode) = subMeshData.flowVariables.primitiveVariables.p(periodicNode);
+				subMeshData.flowVariables.primitiveVariables.T(boundaryNode) = subMeshData.flowVariables.primitiveVariables.T(periodicNode);
+				subMeshData.flowVariables.transportProperties.mu   (boundaryNode) = subMeshData.flowVariables.transportProperties.mu   (periodicNode);
+				subMeshData.flowVariables.transportProperties.kappa(boundaryNode) = subMeshData.flowVariables.transportProperties.kappa(periodicNode);
 			}
 }
 
@@ -409,44 +244,44 @@ SymmetryBoundary::SymmetryBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum
 // Symmetry plane is the adjacent interior nodes. The owned boundary nodes are ghost nodes.
 // In these ghost nodes all primitive variables are mirrored from the second adjacent interior nodes,
 // (mirrored across the symmetry plane), except the normal velocity component, which changes sign.
-void SymmetryBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-	   	   	   	   	   	  	  	  	  	  	  const ConfigSettings& params)					// <- Input
+void SymmetryBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
+	const PrimitiveVariablesArrayGroup& primitiveVars = subMeshData.flowVariables.primitiveVariables;
 	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
 		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
 			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
 			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
+				Vector3_i boundaryNode(i,j,k);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
+				getAdjacentIndices(boundaryNode, boundaryAdjacentIndex, nextToAdjacentIndex);
 				double u, v, w;
 				if(normalAxis == AxisOrientationEnum::x)
 				{	// Normal component zero, and other components get zero gradient.
-					u = -flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-					v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-					w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+					u = -primitiveVars.u(nextToAdjacentIndex);
+					v =  primitiveVars.v(nextToAdjacentIndex);
+					w =  primitiveVars.w(nextToAdjacentIndex);
 				}
 				else if(normalAxis == AxisOrientationEnum::y)
 				{
-					u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-					v = -flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-					w =  flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+					u =  primitiveVars.u(nextToAdjacentIndex);
+					v = -primitiveVars.v(nextToAdjacentIndex);
+					w =  primitiveVars.w(nextToAdjacentIndex);
 				}
 				else if(normalAxis == AxisOrientationEnum::z)
 				{
-					u =  flowVariables.primitiveVariables.u(nextToAdjacentIndex);
-					v =  flowVariables.primitiveVariables.v(nextToAdjacentIndex);
-					w = -flowVariables.primitiveVariables.w(nextToAdjacentIndex);
+					u =  primitiveVars.u(nextToAdjacentIndex);
+					v =  primitiveVars.v(nextToAdjacentIndex);
+					w = -primitiveVars.w(nextToAdjacentIndex);
 				}
 				else
 					throw std::logic_error("Unexpected enum value");
 
-				double p = flowVariables.primitiveVariables.p(nextToAdjacentIndex);
-				double T = flowVariables.primitiveVariables.T(nextToAdjacentIndex);
+				double p = primitiveVars.p(nextToAdjacentIndex);
+				double T = primitiveVars.T(nextToAdjacentIndex);
 				PrimitiveVariablesScalars  primitiveVarsScalars(u, v, w, p, T);
 				ConservedVariablesScalars conservedVarsScalars   = deriveConservedVariables (primitiveVarsScalars, params);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+				setFlowVariablesAtNode(boundaryNode, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, subMeshData.flowVariables);
 			}
 }
 
@@ -456,31 +291,43 @@ ExtrapolationBoundary::ExtrapolationBoundary(AxisOrientationEnum normalAxis, Edg
 {}
 
 // Everything is extrapolated
-void ExtrapolationBoundary::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-												   const ConfigSettings& params)				// <- Input
+void ExtrapolationBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
+	const ConservedVariablesArrayGroup& conservedVars = subMeshData.flowVariables.conservedVariables;
 	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; ++i)
 		for(int j=relatedNodes.regular.jMin; j<=relatedNodes.regular.jMax; ++j)
 			for(int k=relatedNodes.regular.kMin; k<=relatedNodes.regular.kMax; ++k)
 			{
-				int index1D = getIndex1D(i, j, k, nMeshNodes);
+				Vector3_i boundaryNode(i,j,k);
 				int boundaryAdjacentIndex{0}, nextToAdjacentIndex{0};
-				getAdjacentIndices(index1D, nMeshNodes, boundaryAdjacentIndex, nextToAdjacentIndex);
-				double rho = 2*flowVariables.conservedVariables.rho(boundaryAdjacentIndex) // Linear extrapolation
-							 - flowVariables.conservedVariables.rho(nextToAdjacentIndex);
-				double rho_u = 2*flowVariables.conservedVariables.rho_u(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_u(nextToAdjacentIndex);
-				double rho_v = 2*flowVariables.conservedVariables.rho_v(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_v(nextToAdjacentIndex);
-				double rho_w = 2*flowVariables.conservedVariables.rho_w(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_w(nextToAdjacentIndex);
-				double rho_E = 2*flowVariables.conservedVariables.rho_E(boundaryAdjacentIndex) // Linear extrapolation
-							   - flowVariables.conservedVariables.rho_E(nextToAdjacentIndex);
+				getAdjacentIndices(boundaryNode, boundaryAdjacentIndex, nextToAdjacentIndex);
+				double rho = 2*conservedVars.rho(boundaryAdjacentIndex) // Linear extrapolation
+							 - conservedVars.rho(nextToAdjacentIndex);
+				double rho_u = 2*conservedVars.rho_u(boundaryAdjacentIndex) // Linear extrapolation
+							   - conservedVars.rho_u(nextToAdjacentIndex);
+				double rho_v = 2*conservedVars.rho_v(boundaryAdjacentIndex) // Linear extrapolation
+							   - conservedVars.rho_v(nextToAdjacentIndex);
+				double rho_w = 2*conservedVars.rho_w(boundaryAdjacentIndex) // Linear extrapolation
+							   - conservedVars.rho_w(nextToAdjacentIndex);
+				double rho_E = 2*conservedVars.rho_E(boundaryAdjacentIndex) // Linear extrapolation
+							   - conservedVars.rho_E(nextToAdjacentIndex);
 				ConservedVariablesScalars conservedVarsScalars(rho, rho_u, rho_v, rho_w, rho_E);
 				PrimitiveVariablesScalars primitiveVarsScalars = derivePrimitiveVariables(conservedVarsScalars, params);
 				TransportPropertiesScalars transportPropsScalars = deriveTransportProperties(primitiveVarsScalars, params);
-				setFlowVariablesAtNode(index1D, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, flowVariables);
+				setFlowVariablesAtNode(boundaryNode, conservedVarsScalars, primitiveVarsScalars, transportPropsScalars, subMeshData.flowVariables);
 			}
+}
+
+int SubmeshInterfaceBoundary::nExtraNodeLayer()
+{
+	if(neighborSubMesh.refinementLevel > subMeshData.refinementLevel)
+		return 0;
+	else if(neighborSubMesh.refinementLevel < subMeshData.refinementLevel)
+		return 1;
+	else if(planeIndex == EdgeIndexEnum::min)
+		return 0;
+	else
+		return 1;
 }
 
 // Check if "otherRegion" applies its boundary conditions before "thisRegion". If so, all nodes in otherRegion are safe to copy.
@@ -492,6 +339,9 @@ bool SubmeshInterfaceBoundary::subMeshHasAppliedBC(const Vector3_i& otherRegionI
 		|| (otherRegionID.i == thisRegionID.i && otherRegionID.j == thisRegionID.j && otherRegionID.k < thisRegionID.k);
 }
 
+// Get the index that another submesh would use to access the given node.
+// It might be outside the other submesh's array limits.
+// It might have a decimal part, if the other submesh is coarser than 'thisSubMesh'.
 Vector3_d SubmeshInterfaceBoundary::indexInOtherSubMesh(const Vector3_i& node,
 														const SubMeshDescriptor& otherSubMesh,
 														const SubMeshDescriptor& thisSubMesh) const
@@ -574,6 +424,7 @@ Vector3_i SubmeshInterfaceBoundary::whoOwnsThisNode(const Vector3_i& node,
 	return Vector3_i(-1,-1,-1);
 }
 
+// Get the node(s) surrounding a point. It can be 1, 2, 4, or 8 nodes, depending on how many grid lines the point coincides with.
 vector<int> SubmeshInterfaceBoundary::getNodesAroundPoint(const Vector3_d& point, const IndexBoundingBox& arrayLimits) const
 {
 	IndexBoundingBox interpolationNodes( static_cast<int>(std::floor(point.x)),
@@ -634,12 +485,15 @@ void SubmeshInterfaceBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedN
 double SubmeshInterfaceBoundary::getMeanNodeValue(vector<int> nodes, const Array3D<double>& flowVariable) const
 {
 	vector<double> nodeValues = flowVariable(nodes);
-	double meanNodeValue = std::accumulate(nodeValues.begin(), nodeValues.end(), 0) / nodeValues.size();
+	double sumOfNodeValues = 0;
+	for(double nodeValue : nodeValues)
+		sumOfNodeValues += nodeValue;
+	double meanNodeValue = sumOfNodeValues / nodeValues.size();
 	return meanNodeValue;
 }
 
-void InterfaceToCoarserSubMesh::applyBoundaryCondition(double t, const Vector3_i& nMeshNodes,		// <- Input
-		   	   	   	   	   	   	   	   	   	   	   	   const ConfigSettings& params)				// <- Input
+
+void SubmeshInterfaceBoundary::applyBoundaryCondition(double t, const ConfigSettings& params)
 {
 	ConservedVariablesArrayGroup& conservedVarsNeighbor = neighborSubMesh.flowVariables.conservedVariables;
 	for(int i=relatedNodes.regular.iMin; i<=relatedNodes.regular.iMax; i+=2)
@@ -667,146 +521,136 @@ void InterfaceToCoarserSubMesh::applyBoundaryCondition(double t, const Vector3_i
 // Immersed BCs below ↓
 //////////////////////////////////////
 
-// Constructor. Use derived classes instead.
-ImmersedBoundary::ImmersedBoundary()
-{
-
-}
-
 // Get interpolation values, to compute values in image points, and then the ghost nodes.
 // Also filters density and energy in the closest fluid nodes.
-void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params,
-											  SubMeshDescriptor& mesh // <- In/Output
-  	  	    								  )
+void ImmersedBoundary::applyBoundaryCondition(const ConfigSettings& params)
 {
 	for(GhostNode ghostNode : ghostNodes)
 	{
 		InterpolationValues interpolationValues;		// Conserved variables at the 8 surrounding interpolation points.
 		InterpolationPositions interpolationPositions;	// Positions of interpolation points
 		Array8_b ghostFlag;					// A bool flag for each surrounding node. True if ghost.
-		ghostFlag.fill(false);				// <- Sets all 8 values to false
+		ghostFlag.fill(false);				// ← Sets all 8 values to false
 		bool allSurroundingAreFluid{true};	// Until otherwise proven
 		vector<Vector3_d> unitNormals;		// For each of the surrounding nodes that is ghost, we put its unit normal probe here.
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, mesh.spacings, mesh.originOffset, mesh.nNodes);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, subMeshData.spacings, subMeshData.boundingBox.getMinPoint(), subMeshData.arrayLimits);
 		
 		setInterpolationValues(
-				surroundingNodes, mesh,								// <- Input
-				interpolationValues, interpolationPositions,		// <- Output
-				ghostFlag, allSurroundingAreFluid, unitNormals);	// <- Output
+				surroundingNodes,									// ← Input
+				interpolationValues, interpolationPositions,		// ← Output
+				ghostFlag, allSurroundingAreFluid, unitNormals);	// ← Output
 		
 		PrimitiveVariablesScalars imagePointPrimVars = interpolateImagePointVariables(
 				interpolationValues, interpolationPositions, allSurroundingAreFluid,
-				ghostFlag, ghostNode, surroundingNodes, unitNormals, mesh);
+				ghostFlag, ghostNode, surroundingNodes, unitNormals);
 
 		PrimitiveVariablesScalars ghostNodePrimVars = getGhostNodeBCVariables(imagePointPrimVars);
 		ConservedVariablesScalars ghostNodeConsVars = deriveConservedVariables(ghostNodePrimVars, params);
 		TransportPropertiesScalars ghostNodeTransportProps = deriveTransportProperties(ghostNodePrimVars, params);
-		setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps,
-								mesh.flowVariables);
+		setFlowVariablesAtNode(ghostNode.indices, ghostNodeConsVars, ghostNodePrimVars, ghostNodeTransportProps, subMeshData.flowVariables);
 	}
 }
 
 // Given a vector of indices to solid nodes, find all who will be part of the numerical stencil
 // of any fluid node. Those solid nodes are marked as solidGhost, and added to the ghostNodes vector.
-void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<int>& solidNodeIndices,
-														const Vector3_i& nMeshNodes,
-														Array3D_nodeType& nodeTypeArray)
+void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<int>& solidNodeIndices)
 {
-	IndexBoundingBox meshSize(nMeshNodes.i-1, nMeshNodes.j-1, nMeshNodes.k-1);
+	Array3D<NodeTypeEnum>& nodeType = subMeshData.nodeType;
+	const IndexBoundingBox& arrayLimits = subMeshData.arrayLimits;
 	for (int index1D : solidNodeIndices)
 	{
 		// In 3D, each node has 26 neighbors. All except the 8 corner nodes (i+1,j+1,k+1), (i+1,j+1,k-1), etc,
 		// are part of the 2nd order stencil for the N-S equations. Thus we must check 18 nodes:
-		Vector3_i solidNode = getIndices3D(index1D, nMeshNodes);
+		Vector3_i solidNode = getIndices3D(index1D, subMeshData.arrayLimits);
 		bool solidNodeHasFluidNeighbor { false };
 
-		if (solidNode.i > meshSize.iMin) // Then we can test all nodes at i-1:
+		if (solidNode.i > arrayLimits.iMin) // Then we can test all nodes at i-1:
 		{
-			if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (nodeType(solidNode.i - 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (-1,0,0)
 
-			if (solidNode.j > meshSize.jMin)
-				if (nodeTypeArray(solidNode.i - 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (solidNode.j > arrayLimits.jMin)
+				if (nodeType(solidNode.i - 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (-1,-1,0)
 
-			if (solidNode.j < meshSize.jMax)
-				if (nodeTypeArray(solidNode.i - 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (solidNode.j < arrayLimits.jMax)
+				if (nodeType(solidNode.i - 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (-1,1,0)
 
-			if (solidNode.k > meshSize.kMin)
-				if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k > arrayLimits.kMin)
+				if (nodeType(solidNode.i - 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (-1,0,-1)
 
-			if (solidNode.k < meshSize.kMax)
-				if (nodeTypeArray(solidNode.i - 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k < arrayLimits.kMax)
+				if (nodeType(solidNode.i - 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (-1,0,1)
 		}
 
-		if (solidNode.i < meshSize.iMax) // Then we can test all nodes at i+1:
+		if (solidNode.i < arrayLimits.iMax) // Then we can test all nodes at i+1:
 		{
-			if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (nodeType(solidNode.i + 1, solidNode.j, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (1,0,0)
 
-			if (solidNode.j > meshSize.jMin)
-				if (nodeTypeArray(solidNode.i + 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (solidNode.j > arrayLimits.jMin)
+				if (nodeType(solidNode.i + 1, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (1,-1,0)
 
-			if (solidNode.j < meshSize.jMax)
-				if (nodeTypeArray(solidNode.i + 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (solidNode.j < arrayLimits.jMax)
+				if (nodeType(solidNode.i + 1, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (1,1,0)
 
-			if (solidNode.k > meshSize.kMin)
-				if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k > arrayLimits.kMin)
+				if (nodeType(solidNode.i + 1, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (1,0,-1)
 
-			if (solidNode.k < meshSize.kMax)
-				if (nodeTypeArray(solidNode.i + 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k < arrayLimits.kMax)
+				if (nodeType(solidNode.i + 1, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (1,0,1)
 		}
 
 		// And then we check the nodes at the same i-index (x-coordinate) as the solid node:
 
-		if (solidNode.j > meshSize.jMin)
+		if (solidNode.j > arrayLimits.jMin)
 		{
-			if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (nodeType(solidNode.i, solidNode.j - 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (0,-1,0
 
-			if (solidNode.k > meshSize.kMin)
-				if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k > arrayLimits.kMin)
+				if (nodeType(solidNode.i, solidNode.j - 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (0,-1,-1)
 
-			if (solidNode.k < meshSize.kMax)
-				if (nodeTypeArray(solidNode.i, solidNode.j - 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k < arrayLimits.kMax)
+				if (nodeType(solidNode.i, solidNode.j - 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (0,-1,1)
 		}
 
-		if (solidNode.j < meshSize.jMax)
+		if (solidNode.j < arrayLimits.jMax)
 		{
-			if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
+			if (nodeType(solidNode.i, solidNode.j + 1, solidNode.k) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (0,1,0)
 
-			if (solidNode.k > meshSize.kMin)
-				if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k > arrayLimits.kMin)
+				if (nodeType(solidNode.i, solidNode.j + 1, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (0,1,-1)
 
-			if (solidNode.k < meshSize.kMax)
-				if (nodeTypeArray(solidNode.i, solidNode.j + 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+			if (solidNode.k < arrayLimits.kMax)
+				if (nodeType(solidNode.i, solidNode.j + 1, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 					solidNodeHasFluidNeighbor = true; // (0,1,1)
 		}
 
-		if (solidNode.k > meshSize.kMin)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
+		if (solidNode.k > arrayLimits.kMin)
+			if (nodeType(solidNode.i, solidNode.j, solidNode.k - 1) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (0,0,-1)
 
-		if (solidNode.k < meshSize.kMax)
-			if (nodeTypeArray(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
+		if (solidNode.k < arrayLimits.kMax)
+			if (nodeType(solidNode.i, solidNode.j, solidNode.k + 1) == NodeTypeEnum::FluidInterior)
 				solidNodeHasFluidNeighbor = true; // (0,0,1)
 
 		if (solidNodeHasFluidNeighbor)
 		{
 			ghostNodeMap[index1D] = ghostNodes.size();
 			ghostNodes.emplace_back(solidNode);
-			nodeTypeArray(solidNode) = NodeTypeEnum::SolidGhost;
+			nodeType(solidNode) = NodeTypeEnum::SolidGhost;
 		}
 	}
 }
@@ -816,30 +660,25 @@ void ImmersedBoundary::findGhostNodesWithFluidNeighbors(const vector<int>& solid
 // be ghost, but when the immersed boundary intersects a mesh edge boundary (and possibly
 // other cases), an image point can be surrounded by a solid that's not part of a stencil.
 void ImmersedBoundary::checkIfSurroundingShouldBeGhost(const Vector3_i &surroundingNode,
-													   vector<GhostNode>& newGhostNodes,
-													   Array3D_nodeType& nodeTypeArray)
+													   vector<GhostNode>& newGhostNodes)
 {
-	if (nodeTypeArray(surroundingNode) == NodeTypeEnum::SolidInactive)
+	if (subMeshData.nodeType(surroundingNode) == NodeTypeEnum::SolidInactive)
 	{
 		newGhostNodes.emplace_back(surroundingNode);
-		nodeTypeArray(surroundingNode) = NodeTypeEnum::SolidGhost;
+		subMeshData.nodeType(surroundingNode) = NodeTypeEnum::SolidGhost;
 	}
 }
 
 // Given an iterator to a GhostNode in a vector, go through the ghosts after the iterator, and find
 // their image points (IP). Also check if any surrounding node of the IP are solidInactive. If so,
 // mark them as ghost ad add them to the return-vector.
-vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess,
-														   const Vector3_d& gridSpacing,
-														   const Vector3_i& nMeshNodes,
-														   const Vector3_d& meshOriginOffset,
-														   Array3D_nodeType& nodeTypeArray)
+vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess)
 {
 	vector<GhostNode> newGhostNodes;
 	for (GhostNodeVectorIterator ghostIterator{firstGhostToProcess}; ghostIterator!=ghostNodes.end(); ++ghostIterator)
 	{
 		GhostNode& ghostNode = *ghostIterator;
-		Vector3_d ghostNodePosition = getNodePosition(ghostNode.indices, gridSpacing, meshOriginOffset);
+		Vector3_d ghostNodePosition = getNodePosition( ghostNode.indices, subMeshData.arrayLimits, subMeshData.spacings, subMeshData.boundingBox.getMinPoint() );
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
@@ -907,11 +746,11 @@ void ImmersedBoundary::filterClosestFluidNodes(const Vector3_i& nMeshNodes,
 }
 
 // Set interpolation values for one of the 8 nodes surrounding an image point (IP). Surrounding node must be fluid.
-void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// <- Which of the 8 surrounding nodes [0-7]
+void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// ← Which of the 8 surrounding nodes [0-7]
 													   int surroundingNodeIndex1D,
 													   const SubMeshDescriptor& mesh,
-													   InterpolationValues& interpolationValues,		// <- OUTPUT
-													   InterpolationPositions& interpolationPositions)	// <- OUTPUT
+													   InterpolationValues& interpolationValues,		// ← OUTPUT
+													   InterpolationPositions& interpolationPositions)	// ← OUTPUT
 {
 	interpolationValues.u[counter] = mesh.flowVariables.primitiveVariables.u(surroundingNodeIndex1D);
 	interpolationValues.v[counter] = mesh.flowVariables.primitiveVariables.v(surroundingNodeIndex1D);
@@ -927,11 +766,11 @@ void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// <- Which 
 
 // Set interpolation values for one of the 8 nodes surrounding an image point (IP). Surrounding node must be ghost.
 void ImmersedBoundary::setInterpolationValuesGhostNode(
-		int counter,	// <- Which of the 8 surrounding nodes [0-7]
+		int counter,	// ← Which of the 8 surrounding nodes [0-7]
 		int surroundingNodeIndex1D,
-		vector<Vector3_d>& unitNormals,					// <-
-		InterpolationValues& interpolationValues,		// <- OUTPUT
-		InterpolationPositions& interpolationPositions)	// <-
+		vector<Vector3_d>& unitNormals,					// ←
+		InterpolationValues& interpolationValues,		// ← OUTPUT
+		InterpolationPositions& interpolationPositions)	// ←
 {
 	GhostNode &surroundingGhostNode = ghostNodes.at( ghostNodeMap.at(surroundingNodeIndex1D) );
 	Vector3_d &unitNormal = unitNormals.emplace_back();
@@ -951,12 +790,11 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 // Also check if any of the 8 nodes are ghost. If so, note which ones and their normal vectors.
 void ImmersedBoundary::setInterpolationValues(
 		const IndexBoundingBox& surroundingNodes,
-		const SubMeshDescriptor& mesh,
-		InterpolationValues& interpolationValues,		// <-
-		InterpolationPositions& interpolationPositions,	// <-
-		Array8_b& ghostFlag,							// <- Output
-		bool& allSurroundingAreFluid,					// <-
-		vector<Vector3_d>& unitNormals)					// <-
+		InterpolationValues& interpolationValues,		// ←
+		InterpolationPositions& interpolationPositions,	// ←
+		Array8_b& ghostFlag,							// ← Output
+		bool& allSurroundingAreFluid,					// ←
+		vector<Vector3_d>& unitNormals)					// ←
 {
 	int counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
 	for (int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(mesh.nNodes))
@@ -965,15 +803,15 @@ void ImmersedBoundary::setInterpolationValues(
 		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
 		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
 		{
-			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, mesh,	// <- Input
-											interpolationValues, interpolationPositions);	// <- Output
+			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, mesh,	// ← Input
+											interpolationValues, interpolationPositions);	// ← Output
 		}
 		else if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
 		{
 			ghostFlag[counter] = true;
 			allSurroundingAreFluid = false;
-			setInterpolationValuesGhostNode(counter, surroundingNodeIndex1D,	// <- Input
-					unitNormals, interpolationValues, interpolationPositions);	// <- Output
+			setInterpolationValuesGhostNode(counter, surroundingNodeIndex1D,	// ← Input
+					unitNormals, interpolationValues, interpolationPositions);	// ← Output
 		}
 		else
 			throw std::logic_error("Impossible situation. Found solid node around image point.");
@@ -985,7 +823,7 @@ void ImmersedBoundary::setInterpolationValues(
 // Get image point value of a flow variable, using the fast simplified interpolation.
 // Only valid if all 8 surrounding nodes are fluid.
 double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationValues,
-												 const Vector3_i& lowerIndexNode, // <- Node with smallest coordinates
+												 const Vector3_i& lowerIndexNode, // ← Node with smallest coordinates
 												 const Vector3_d& imagePointPosition,
 												 const Vector3_d& gridSpacing,
 												 const Vector3_d& meshOriginOffset)
@@ -1112,8 +950,7 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 		const Array8_b& ghostFlag,
 		const GhostNode& ghostNode,
 		const IndexBoundingBox& surroundingNodes,
-		const vector<Vector3_d>& unitNormals,
-		const SubMeshDescriptor& mesh )
+		const vector<Vector3_d>& unitNormals )
 {
 	PrimitiveVariablesScalars imagePointBCVars;
 	if (allSurroundingAreFluid)
@@ -1139,7 +976,8 @@ PrimitiveVariablesScalars ImmersedBoundary::interpolateImagePointVariables(
 
 // Constructor. Only two of the coordinates in centroidPosition matter. Not the one corresponding
 // to the cylinder axis direction.
-CylinderBody::CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius) :
+CylinderBody::CylinderBody(Vector3_d centroidPosition, AxisOrientationEnum axis, double radius, const SubMeshDescriptor& subMeshData) :
+ImmersedBoundary(subMeshData),
 centroidPosition(centroidPosition),
 axis{axis},
 radius{radius}
@@ -1162,7 +1000,7 @@ void CylinderBody::identifyRelatedNodes(const ConfigSettings& params,
 		   	   	   	   	   	   	   	    const Vector3_d& gridSpacing,
 										const Vector3_i& nMeshNodes,
 										const Vector3_d& meshOriginOffset,
-										Array3D_nodeType& nodeTypeArray	// <- Output
+										Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 										)
 {
 	int filterNodesLayerWidth = 2; // TODO: Remove if it seems to be OK without this extra filtering. Otherwise: param?
@@ -1326,8 +1164,8 @@ void CylinderBody::getSolidAndFilterNodesInCylinder(const ConfigSettings& params
 													const Vector3_i& nMeshNodes,
 													const Vector3_d& meshOriginOffset,
 													int nNodesFilterLayer,
-													vector<int>& solidNodeIndices, // <- Output
-													Array3D_nodeType& nodeTypeArray   // <- Output
+													vector<int>& solidNodeIndices, // ← Output
+													Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
 										   	   	    )
 {
 	for (int i { indicesToCheck.iMin }; i <= indicesToCheck.iMax; ++i)
@@ -1369,7 +1207,8 @@ void CylinderBody::getSolidAndFilterNodesInCylinder(const ConfigSettings& params
 }
 
 // Constructor
-SphereBody::SphereBody(Vector3_d centerPosition, double radius) :
+SphereBody::SphereBody(Vector3_d centerPosition, double radius, const SubMeshDescriptor& subMeshData) :
+ImmersedBoundary(subMeshData),
 centerPosition(centerPosition),
 radius{radius}
 {}
@@ -1387,7 +1226,7 @@ void SphereBody::identifyRelatedNodes(const ConfigSettings& params,
 	   	   	   	    				  const Vector3_d& gridSpacing,
 									  const Vector3_i& nMeshNodes,
 									  const Vector3_d& meshOriginOffset,
-									  Array3D_nodeType& nodeTypeArray	// <- Output
+									  Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 									  )
 {
 	int filterNodesLayerWidth = 2; // TODO: param
@@ -1529,8 +1368,8 @@ void SphereBody::getSolidAndFilterNodesInSphere(const ConfigSettings& params,
 												const Vector3_i& nMeshNodes,
 												const Vector3_d& meshOriginOffset,
 												int nNodesFilterLayer,
-												vector<int>& solidNodeIndices, // <- Output
-												Array3D_nodeType& nodeTypeArray   // <- Output
+												vector<int>& solidNodeIndices, // ← Output
+												Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
 		   	   	   	   	   	   	   	   	   	    )
 {
 	double filterLayerWidth = nNodesFilterLayer * max({gridSpacing.x, gridSpacing.y, gridSpacing.z});

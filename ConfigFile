@@ -43,7 +43,7 @@ refineBoundZ = []
 // Regions where we set a given refinement level:
 // Given as array "[]" of groups "{}". Each group should be {indices=[ , , ], level= }
 refineLevels = (
-// example:	{indices = [2,2,0]; level = 2},	<- remove comma if there's only one
+// example:	{indices = [2,2,0]; level = 2},	← remove comma if there's only one
 		{indices = [2,2,0]; level = 2}
 		)
 

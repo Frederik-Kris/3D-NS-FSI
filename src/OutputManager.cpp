@@ -69,9 +69,9 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t, long timeLe
 // It will save solution if the next timestep would take the solution past the save-time.
 // Thus, in general it saves too early, but the deviation is dt at most.
 void OutputManager::processIntermediateOutput(const Mesh& mesh,
-											  double t, // <- time
+											  double t, // ← time
 											  long timeLevel,
-											  double dt) // <- timestep size
+											  double dt) // ← timestep size
 {
 	// Save to disk:
 	if(params.saveIntervals)
@@ -98,9 +98,9 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh,
 
 // If appropriate, process output after simulation has reached its end.
 void OutputManager::processFinalOutput(const Mesh& mesh,
-									   double t, // <- time
+									   double t, // ← time
 									   long timeLevel,
-									   double dt, // <- timestep size
+									   double dt, // ← timestep size
 									   const ConservedVariablesVectorGroup& convergenceHistory,
 									   const vector<double>& lift,
 									   const vector<double>& drag,
@@ -142,7 +142,7 @@ string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 
 // Define a scalar integer flag value to describe the type of each node, and write that to the .vtk file.
 void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
-									  ofstream& outputFile) // <- OUTPUT, vtk file
+									  ofstream& outputFile) // ← OUTPUT, vtk file
 {
 	outputFile << "SCALARS Node_Flag int 1\n";
 	outputFile << "LOOKUP_TABLE default\n";
@@ -207,7 +207,7 @@ vector<string> OutputManager::getScalarVariableNames()
 
 // Write the current values of the scalar (non-vector) flow variables to specified vtk file.
 void OutputManager::writeVtkScalarData(const Mesh& mesh,
-									   ofstream& outputFile) // <- OUTPUT, vtk file
+									   ofstream& outputFile) // ← OUTPUT, vtk file
 {
 	vector<const Array3D_d*> scalarFlowVariables = getScalarVariablePointers(mesh);
 	vector<string> variableNames = getScalarVariableNames();
@@ -257,7 +257,7 @@ vector<string> OutputManager::getVectorVariableNames()
 
 // Write the current values of the vector flow variables to specified vtk file.
 void OutputManager::writeVtkVectorData(const Mesh& mesh,
-									   ofstream& outputFile) // <- OUTPUT, vtk file
+									   ofstream& outputFile) // ← OUTPUT, vtk file
 {
 	// The std::array with fixed size 3 represents the 3D vectors' three components:
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables = getVectorVariablePointers(mesh);
@@ -269,9 +269,9 @@ void OutputManager::writeVtkVectorData(const Mesh& mesh,
 		for (int k{0}; k<mesh.NK; ++k)
 			for (int j{0}; j<mesh.NJ; ++j)
 				for (int i{0}; i<mesh.NI; ++i)
-					outputFile << flowVariableVector[0]->at(i,j,k) << " "	// <- x-component
-							   << flowVariableVector[1]->at(i,j,k) << " "	// <- y-component
-							   << flowVariableVector[2]->at(i,j,k) << "\n";	// <- z-component
+					outputFile << flowVariableVector[0]->at(i,j,k) << " "	// ← x-component
+							   << flowVariableVector[1]->at(i,j,k) << " "	// ← y-component
+							   << flowVariableVector[2]->at(i,j,k) << "\n";	// ← z-component
 		++counter;
 	}
 }
@@ -300,9 +300,9 @@ void OutputManager::storeCurrentSolution_vtk(const Mesh& mesh, double t)
 // Writes a brief report with progression, timestep size and wall clock time elapsed, etc.
 // Progression is computed based on the stopping criterion (end time or time level).
 // 'setprecision' is used to control no. of significant digits, default is 6.
-void OutputManager::writeStatusReport_toScreen(double t,	// <- time
+void OutputManager::writeStatusReport_toScreen(double t,	// ← time
 											   long timeLevel,
-											   double dt)	// <- timestep size
+											   double dt)	// ← timestep size
 {
 	cout << "Simulated time: t = " << t;
 	double progressPercentage{0};
