@@ -682,83 +682,45 @@ vector<GhostNode> ImmersedBoundary::setImagePointPositions(GhostNodeVectorIterat
 		Vector3_d normalProbe = getNormalProbe(ghostNodePosition); // from ghost to body intercept point
 		ghostNode.bodyInterceptPoint = ghostNodePosition + normalProbe;
 		ghostNode.imagePoint = ghostNode.bodyInterceptPoint + normalProbe;
-		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, gridSpacing, meshOriginOffset, nMeshNodes);
+		IndexBoundingBox surroundingNodes = getSurroundingNodesBox(ghostNode.imagePoint, subMeshData.spacings,
+																	subMeshData.boundingBox.getMinPoint(), subMeshData.arrayLimits);
 		for( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(IndexBoundingBox()) )
-			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
-											 newGhostNodes, nodeTypeArray );
+			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, subMeshData.arrayLimits),
+											 newGhostNodes );
 		// Because of the way that lift/drag etc is computed we need also BI to be only surrounded by ghost or fluid:
-		surroundingNodes = getSurroundingNodesBox(ghostNode.bodyInterceptPoint, gridSpacing, meshOriginOffset, nMeshNodes);
-		for( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(nMeshNodes) )
-			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, nMeshNodes),
-											 newGhostNodes, nodeTypeArray );
+		surroundingNodes = getSurroundingNodesBox(ghostNode.bodyInterceptPoint, subMeshData.spacings, subMeshData.boundingBox.getMinPoint(), subMeshData.arrayLimits);
+		for( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(subMeshData.arrayLimits) )
+			checkIfSurroundingShouldBeGhost( getIndices3D(surroundingNodeIndex1D, subMeshData.arrayLimits),
+											 newGhostNodes );
 	}
 	return newGhostNodes;
 }
 
 // Add the nodes from newGhostNodes at the end of ghostNodes. Return iterator to the first appended node.
-GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNode>& newGhostNodes,
-														   const Vector3_i& nMeshNodes)
+GhostNodeVectorIterator ImmersedBoundary::appendGhostNodes(const vector<GhostNode>& newGhostNodes)
 {
 	for(const GhostNode& newGhostNode : newGhostNodes)
 	{
-		int index1D = getIndex1D( newGhostNode.indices, nMeshNodes );
+		int index1D = getIndex1D( newGhostNode.indices, subMeshData.arrayLimits );
 		ghostNodeMap[index1D] = ghostNodes.size();
 		ghostNodes.push_back(newGhostNode);
 	}
 	return ghostNodes.end() - newGhostNodes.size();
 }
 
-// Filter density and energy in the fluid nodes closest to the immersed surface.
-void ImmersedBoundary::filterClosestFluidNodes(const Vector3_i& nMeshNodes,
-							 	 	 	 	   const AllFlowVariablesArrayGroup& flowVariables)
-{
-	vector<double> rhoFilteredVector;
-	vector<double> energyFilteredVector;
-	for(int index1D : filterNodes)
-	{
-		Vector3_i indices = getIndices3D(index1D, nMeshNodes);
-		double rhoFiltered = ( 6*flowVariables.conservedVariables.rho(indices)
-							   + flowVariables.conservedVariables.rho(indices.i+1, indices.j, indices.k)
-							   + flowVariables.conservedVariables.rho(indices.i-1, indices.j, indices.k)
-							   + flowVariables.conservedVariables.rho(indices.i, indices.j+1, indices.k)
-							   + flowVariables.conservedVariables.rho(indices.i, indices.j-1, indices.k)
-							   + flowVariables.conservedVariables.rho(indices.i, indices.j, indices.k+1)
-							   + flowVariables.conservedVariables.rho(indices.i, indices.j, indices.k-1)
-							   ) / 12;
-		double energyFiltered = ( 6*flowVariables.conservedVariables.rho_E(indices)
-							      + flowVariables.conservedVariables.rho_E(indices.i+1, indices.j, indices.k)
-							      + flowVariables.conservedVariables.rho_E(indices.i-1, indices.j, indices.k)
-							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j+1, indices.k)
-							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j-1, indices.k)
-							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j, indices.k+1)
-							      + flowVariables.conservedVariables.rho_E(indices.i, indices.j, indices.k-1)
-							      ) / 12;
-		rhoFilteredVector	.push_back(rhoFiltered);
-		energyFilteredVector.push_back(energyFiltered);
-	}
-	int counter = 0;
-	for(int index1D : filterNodes)
-	{
-		flowVariables.conservedVariables.rho  (index1D) = rhoFilteredVector   [counter];
-		flowVariables.conservedVariables.rho_E(index1D) = energyFilteredVector[counter];
-		++counter;
-	}
-}
-
 // Set interpolation values for one of the 8 nodes surrounding an image point (IP). Surrounding node must be fluid.
 void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// ← Which of the 8 surrounding nodes [0-7]
 													   int surroundingNodeIndex1D,
-													   const SubMeshDescriptor& mesh,
 													   InterpolationValues& interpolationValues,		// ← OUTPUT
 													   InterpolationPositions& interpolationPositions)	// ← OUTPUT
 {
-	interpolationValues.u[counter] = mesh.flowVariables.primitiveVariables.u(surroundingNodeIndex1D);
-	interpolationValues.v[counter] = mesh.flowVariables.primitiveVariables.v(surroundingNodeIndex1D);
-	interpolationValues.w[counter] = mesh.flowVariables.primitiveVariables.w(surroundingNodeIndex1D);
-	interpolationValues.p[counter] = mesh.flowVariables.primitiveVariables.p(surroundingNodeIndex1D);
-	interpolationValues.T[counter] = mesh.flowVariables.primitiveVariables.T(surroundingNodeIndex1D);
-	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, mesh.nNodes),
-															mesh.spacings, mesh.originOffset );
+	interpolationValues.u[counter] = subMeshData.flowVariables.primitiveVariables.u(surroundingNodeIndex1D);
+	interpolationValues.v[counter] = subMeshData.flowVariables.primitiveVariables.v(surroundingNodeIndex1D);
+	interpolationValues.w[counter] = subMeshData.flowVariables.primitiveVariables.w(surroundingNodeIndex1D);
+	interpolationValues.p[counter] = subMeshData.flowVariables.primitiveVariables.p(surroundingNodeIndex1D);
+	interpolationValues.T[counter] = subMeshData.flowVariables.primitiveVariables.T(surroundingNodeIndex1D);
+	Vector3_d surroundingNodePosition = getNodePosition( getIndices3D(surroundingNodeIndex1D, subMeshData.arrayLimits), subMeshData.arrayLimits,
+															subMeshData.spacings, subMeshData.boundingBox.getMinPoint() );
 	interpolationPositions.x[counter] = surroundingNodePosition.x;
 	interpolationPositions.y[counter] = surroundingNodePosition.y;
 	interpolationPositions.z[counter] = surroundingNodePosition.z;
@@ -768,9 +730,9 @@ void ImmersedBoundary::setInterpolationValuesFluidNode(int counter,	// ← Which
 void ImmersedBoundary::setInterpolationValuesGhostNode(
 		int counter,	// ← Which of the 8 surrounding nodes [0-7]
 		int surroundingNodeIndex1D,
-		vector<Vector3_d>& unitNormals,					// ←
+		vector<Vector3_d>& unitNormals,					// ↰
 		InterpolationValues& interpolationValues,		// ← OUTPUT
-		InterpolationPositions& interpolationPositions)	// ←
+		InterpolationPositions& interpolationPositions)	// ↲
 {
 	GhostNode &surroundingGhostNode = ghostNodes.at( ghostNodeMap.at(surroundingNodeIndex1D) );
 	Vector3_d &unitNormal = unitNormals.emplace_back();
@@ -790,23 +752,23 @@ void ImmersedBoundary::setInterpolationValuesGhostNode(
 // Also check if any of the 8 nodes are ghost. If so, note which ones and their normal vectors.
 void ImmersedBoundary::setInterpolationValues(
 		const IndexBoundingBox& surroundingNodes,
-		InterpolationValues& interpolationValues,		// ←
-		InterpolationPositions& interpolationPositions,	// ←
+		InterpolationValues& interpolationValues,		// ↰
+		InterpolationPositions& interpolationPositions,	// ↰
 		Array8_b& ghostFlag,							// ← Output
-		bool& allSurroundingAreFluid,					// ←
-		vector<Vector3_d>& unitNormals)					// ←
+		bool& allSurroundingAreFluid,					// ↲
+		vector<Vector3_d>& unitNormals)					// ↲
 {
 	int counter { 0 }; // 0, 1, ..., 7.  To index the interpolation point arrays.
-	for (int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(mesh.nNodes))
+	for ( int surroundingNodeIndex1D : surroundingNodes.cornersAsIndexList(subMeshData.arrayLimits) )
 	{
-		if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
-		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
-		||	mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
+		if (subMeshData.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidInterior
+		||	subMeshData.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidEdge
+		||	subMeshData.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::FluidGhost)
 		{
-			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D, mesh,	// ← Input
+			setInterpolationValuesFluidNode(counter, surroundingNodeIndex1D,				// ← Input
 											interpolationValues, interpolationPositions);	// ← Output
 		}
-		else if (mesh.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
+		else if (subMeshData.nodeType(surroundingNodeIndex1D) == NodeTypeEnum::SolidGhost)
 		{
 			ghostFlag[counter] = true;
 			allSurroundingAreFluid = false;
@@ -824,11 +786,9 @@ void ImmersedBoundary::setInterpolationValues(
 // Only valid if all 8 surrounding nodes are fluid.
 double ImmersedBoundary::simplifiedInterpolation(const Vector8_d& interpolationValues,
 												 const Vector3_i& lowerIndexNode, // ← Node with smallest coordinates
-												 const Vector3_d& imagePointPosition,
-												 const Vector3_d& gridSpacing,
-												 const Vector3_d& meshOriginOffset)
+												 const Vector3_d& imagePointPosition)
 {
-	Vector3_d lowerIndexNodePosition = getNodePosition(lowerIndexNode, gridSpacing, meshOriginOffset);
+	Vector3_d lowerIndexNodePosition = getNodePosition( lowerIndexNode, subMeshData.arrayLimits, subMeshData.spacings, subMeshData.boundingBox.getMinPoint() );
 	Vector3_d relativePosition = imagePointPosition - lowerIndexNodePosition;
 
 	// The ordering [0-7] is such that z(k) changes fastest, x(i) changes the least.

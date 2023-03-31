@@ -333,7 +333,7 @@ protected:
 
 	vector<GhostNode> setImagePointPositions(GhostNodeVectorIterator firstGhostToProcess);
 
-	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes, const Vector3_i& nMeshNodes);
+	GhostNodeVectorIterator appendGhostNodes(const vector<GhostNode>& newGhostNodes);
 
 	void populateVandermondeDirichlet(const InterpolationPositions& interpolationPoints,
 									  Matrix8x8_d& vandermonde);
@@ -345,11 +345,11 @@ protected:
 
 	void setInterpolationValues(
 			const IndexBoundingBox& surroundingNodes,
-			InterpolationValues& interpolationValues,		// ←
-			InterpolationPositions& interpolationPositions,	// ←
+			InterpolationValues& interpolationValues,		// ↰
+			InterpolationPositions& interpolationPositions,	// ↰
 			Array8_b& ghostFlag,							// ← Output
-			bool& allSurroundingAreFluid,					// ←
-			vector<Vector3_d>& unitNormals);				// ←
+			bool& allSurroundingAreFluid,					// ↲
+			vector<Vector3_d>& unitNormals);				// ↲
 
 	double trilinearInterpolation(const Vector8_d& interpolationValues,
 													 const Vector3_d& imagePoint,
@@ -358,14 +358,9 @@ protected:
 private:
 	virtual Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) = 0;
 
-	void filterClosestFluidNodes(const Vector3_i& nMeshNodes,
-								 const AllFlowVariablesArrayGroup& flowVariables);
-
 	double simplifiedInterpolation(const Vector8_d& interpolationValues,
 			 	 	 	 	 	   const Vector3_i& lowerIndexNode,
-								   const Vector3_d& imagePointPosition,
-								   const Vector3_d& gridSpacing,
-								   const Vector3_d& meshOriginOffset);
+								   const Vector3_d& imagePointPosition);
 
 	PrimitiveVariablesScalars simplifiedInterpolationAll(
 			const InterpolationValues& interpolationValues,
@@ -382,7 +377,6 @@ private:
 														const Matrix8x8_d& vandermondeNeumann);
 
 	void setInterpolationValuesFluidNode(int counter, int surroundingNodeIndex1D,
-			   	   	   	   	   	   	     const SubMeshDescriptor& mesh,
 										 InterpolationValues& interpolationValues,			// ← OUTPUT
 										 InterpolationPositions& interpolationPositions);	// ← OUTPUT
 
