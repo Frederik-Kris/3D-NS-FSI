@@ -22,18 +22,18 @@ public:
 
 	OutputManager(const ConfigSettings& params);
 
-	void initialize(long timeLevelStart);
+	void initialize(long unsigned timeLevelStart);
 
-	void processInitialOutput(const Mesh& mesh, double t, long timeLevel);
+	void processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel);
 
 	void processIntermediateOutput(const Mesh& mesh,
 								   double t,
-								   long timeLevel,
+								   long unsigned timeLevel,
 								   double dt);
 
 	void processFinalOutput(const Mesh& mesh,
 							double t,
-							long timeLevel,
+							long unsigned timeLevel,
 							double dt,
 							const ConservedVariablesVectorGroup& convergenceHistory,
 							const vector<double>& lift,

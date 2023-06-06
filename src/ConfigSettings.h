@@ -53,7 +53,7 @@ public:
 
 
 	StopCriterionEnum stopCriterion; // How the stopping criterion is defined
-	long stopTimeLevel;  			 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
+	long unsigned stopTimeLevel;  	 // Time level to stop simulation, if stopCriterion is 'timesteps'. Zero is IC.
 	double t_end;                    // Time to stop simulation, if stopCriterion is 'end_time'.
 	double convStabilityLimit;       // Constant specifying the inviscid stability criterion
 	double viscStabilityLimit;       // Constant specifying the viscous stability criterion
@@ -86,7 +86,7 @@ public:
 
 	// Derived (not given in config file):
 
-	double machinePrecisionBuffer;
+	double machinePrecisionBuffer;	// Safety margin based on machine epsilon and domain size
 private:
 	void tryOpenConfigFile(Config& cfg, string filename);
 	void tryReadSettingValues(Config& cfg);

@@ -21,9 +21,8 @@ dt{0}
 
 // Preparing solver before starting to march solution.
 // Setup boundaries, apply initial condition (IC) and set the time-step size based on the IC.
-void Solver::initialize(long timeLevel)
+void Solver::initialize(long unsigned timeLevel)
 {
-	mesh.setupBoundaries(params);
 	mesh.categorizeNodes(params);
 	applyInitialConditions();
 	if(params.continueSimulation)
@@ -94,7 +93,7 @@ void Solver::applyInitialConditions()
 {
 	if(!params.continueSimulation)
 		applyStagnation_IC();
-	else
+/*	else
 	{
 		SolutionImporter reader(params);
 		reader.loadVtkFile();
@@ -116,7 +115,7 @@ void Solver::applyInitialConditions()
 					setFlowVariablesAtNode( Vector3_i(i,j,k), conservedVars, primitiveVars, transportProps, mesh.flowVariableReferences);
 					++index1D;
 				}
-	}
+	}*/
 }
 
 // Set the time step size (dt) as large as possible, within the stability criterion, without surpassing the end-time.
@@ -181,7 +180,7 @@ double Solver::getViscousTimeStepLimit()
 // Advances the conserved variables, primitive variables and transport properties from time t to t + dt, using RK4.
 // Updates time step size per the stability criterion after advancing the solution.
 void Solver::marchTimeStep(double& t, 			// ← IN-/OUTPUT, time
-						   long& timeLevel)	// ← OUTPUT
+						   long unsigned& timeLevel)	// ← OUTPUT
 {
 	mesh.applyFilter_ifAppropriate(params, timeLevel, t);
 	mesh.swapConservedVariables();	// Swap conserved variables and "old" arrays by move-semantics.
@@ -194,30 +193,25 @@ void Solver::marchTimeStep(double& t, 			// ← IN-/OUTPUT, time
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
-	computeRK4slopes(mesh.conservedVariables, k2);  // k2: The slopes at time t + dt/2
-	computeAllIntermediateSolutions(k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
+	computeRK4slopes(ChooseSolutionStage::intermediate, ChooseSlopeStage::k2);  // k2: The slopes at time t + dt/2
+	computeAllIntermediateSolutions(ChooseSlopeStage::k2, dt/2);	// Compute intermediate solutions at time t + dt/2, using the slopes k2.
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt/2, params);
 
-	computeRK4slopes(mesh.conservedVariables, k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
-	computeAllIntermediateSolutions(k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
+	computeRK4slopes(ChooseSolutionStage::intermediate, ChooseSlopeStage::k3);	// k3: Again, the slopes at time t + dt/2, but now using k2
+	computeAllIntermediateSolutions(ChooseSlopeStage::k3, dt);	// Compute intermediate solutions at time t + dt, using the slopes k3.
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
-	computeRK4slopes(mesh.conservedVariables, k4);	// k4: The slopes at time t + dt
+	computeRK4slopes(ChooseSolutionStage::intermediate, ChooseSlopeStage::k4);	// k4: The slopes at time t + dt
 	computeRK4finalStepAllVariables();	// Use slopes k1, ..., k4 to compute solution at t+dt
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
-	Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-	Vector3_d gridSpacings(mesh.dx, mesh.dy, mesh.dz);
-	SubMeshDescriptor meshDescriptor(nMeshNodes,
-								  gridSpacings,
-								  mesh.positionOffset,
-								  mesh.nodeType,
-								  mesh.flowVariableReferences
-								  );
-	IntegralProperties integralProperties = mesh.getImmersedBoundaries().front()->getIntegralProperties(params, meshDescriptor);
+	SubMesh& subMeshWithIB = mesh.subMeshes(2,2,0);
+	if( subMeshWithIB.getImmersedBoundaries().empty() )
+		throw std::runtime_error("'subMmeshWithIB' does not have any immersed boundary.");
+	IntegralProperties integralProperties = subMeshWithIB.getImmersedBoundaries().front()->getIntegralProperties(params);
 	liftHistory.push_back(integralProperties.lift);
 	dragHistory.push_back(integralProperties.drag);
 	separationAngles.clear();
@@ -271,15 +265,20 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // ← Momentum
 										 const Array3D_d& rho_w, // ← Momentum density
 										 Array3D_d& RK4_slope)	 // ← OUTPUT, slope to overwrite
 {
-	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
-		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
-		double massFluxX = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*mesh.dx);
-		double massFluxY = - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*mesh.dy);
-		double massFluxZ = - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*mesh.dz);
-		RK4_slope(i,j,k) = massFluxX + massFluxY + massFluxZ;
+		double dx = subMesh.gridSpacings.x;
+		double dy = subMesh.gridSpacings.y;
+		double dz = subMesh.gridSpacings.z;
+		for(int index1D : subMesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+		{
+			Vector3_i indices3D = getIndices3D(index1D, subMesh.arrayLimits);
+			int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+			double massFluxX = - ( rho_u(i+1, j  , k  )-rho_u(i-1, j  , k  ) ) / (2*dx);
+			double massFluxY = - ( rho_v(i  , j+1, k  )-rho_v(i  , j-1, k  ) ) / (2*dy);
+			double massFluxZ = - ( rho_w(i  , j  , k+1)-rho_w(i  , j  , k-1) ) / (2*dz);
+			RK4_slope(i,j,k) = massFluxX + massFluxY + massFluxZ;
+		}
 	}
 }
 
@@ -287,46 +286,50 @@ void Solver::compute_RK4_step_continuity(const Array3D_d& rho_u, // ← Momentum
 void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // ← Momentum density
 										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node.
-	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
-	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
-	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
-	double neg_1_div_6dydx = -1. / ( 6 * mesh.dy * mesh.dx );
-	double pos_1_div_4dxdy =  1. / ( 4 * mesh.dx * mesh.dy );
-	double neg_1_div_6dzdx = -1. / ( 6 * mesh.dz * mesh.dx );
-	double pos_1_div_4dxdz =  1. / ( 4 * mesh.dx * mesh.dz );
-
-	const Array3D_d& p {mesh.primitiveVariables.p}; // For readability in math expression below.
-	const Array3D_d& u {mesh.primitiveVariables.u};
-	const Array3D_d& v {mesh.primitiveVariables.v};
-	const Array3D_d& w {mesh.primitiveVariables.w};
-	const Array3D_d& mu{mesh.transportProperties.mu};
-
-	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-
-	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
-		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
-		double convFluxX = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) );
-		double convFluxY = neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) );
-		double convFluxZ = neg_1_div_2dz   * ( rho_u(i,j,k+1) * w(i,j,k+1) - rho_u(i,j,k-1) * w(i,j,k-1) );
+		double dx = subMesh.gridSpacings.x;
+		double dy = subMesh.gridSpacings.y;
+		double dz = subMesh.gridSpacings.z;
+		double neg_1_div_2dx   = -1. / ( 2 * dx );       // ← The parts of the flux/residual evaluation
+		double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node.
+		double neg_1_div_2dz   = -1. / ( 2 * dz );
+		double pos_2_div_3dxdx =  2. / ( 3 * dx * dx );
+		double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
+		double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
+		double neg_1_div_6dydx = -1. / ( 6 * dy * dx );
+		double pos_1_div_4dxdy =  1. / ( 4 * dx * dy );
+		double neg_1_div_6dzdx = -1. / ( 6 * dz * dx );
+		double pos_1_div_4dxdz =  1. / ( 4 * dx * dz );
 
-		double viscFluxXX = pos_2_div_3dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (u(i+1,j,k) - u(i  ,j,k))
-											 - (mu(i-1,j,k) + mu(i,j,k)) * (u(i  ,j,k) - u(i-1,j,k)) );
-		double viscFluxYY = pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (u(i,j+1,k) - u(i,j  ,k))
-											 - (mu(i,j-1,k) + mu(i,j,k)) * (u(i,j  ,k) - u(i,j-1,k)) );
-		double viscFluxZZ = pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (u(i,j,k+1) - u(i,j,k  ))
-											 - (mu(i,j,k-1) + mu(i,j,k)) * (u(i,j,k  ) - u(i,j,k-1)) );
-		double viscFluxXY = pos_1_div_4dxdy * ( mu(i,j+1,k) * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu(i,j-1,k) * (v(i+1,j-1,k) - v(i-1,j-1,k)) );
-		double viscFluxYX = neg_1_div_6dydx * ( mu(i+1,j,k) * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu(i-1,j,k) * (v(i-1,j+1,k) - v(i-1,j-1,k)) );
-		double viscFluxXZ = pos_1_div_4dxdz * ( mu(i,j,k+1) * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu(i,j,k-1) * (w(i+1,j,k-1) - w(i-1,j,k-1)) );
-		double viscFluxZX = neg_1_div_6dzdx * ( mu(i+1,j,k) * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu(i-1,j,k) * (w(i-1,j,k+1) - w(i-1,j,k-1)) );
-		RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
-						 + viscFluxXX + viscFluxYY + viscFluxZZ
-						 + viscFluxXY + viscFluxYX + viscFluxXZ + viscFluxZX ;
+		const Array3D_d& p {subMesh.primitiveVariables.p}; // For readability in math expression below.
+		const Array3D_d& u {subMesh.primitiveVariables.u};
+		const Array3D_d& v {subMesh.primitiveVariables.v};
+		const Array3D_d& w {subMesh.primitiveVariables.w};
+		const Array3D_d& mu{subMesh.transportProperties.mu};
+
+		for(int index1D : subMesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+		{
+			Vector3_i indices3D = getIndices3D(index1D, subMesh.arrayLimits);
+			int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+			double convFluxX = neg_1_div_2dx   * ( rho_u(i+1,j,k) * u(i+1,j,k) + p(i+1,j,k) - rho_u(i-1,j,k) * u(i-1,j,k) - p(i-1,j,k) );
+			double convFluxY = neg_1_div_2dy   * ( rho_u(i,j+1,k) * v(i,j+1,k) - rho_u(i,j-1,k) * v(i,j-1,k) );
+			double convFluxZ = neg_1_div_2dz   * ( rho_u(i,j,k+1) * w(i,j,k+1) - rho_u(i,j,k-1) * w(i,j,k-1) );
+
+			double viscFluxXX = pos_2_div_3dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (u(i+1,j,k) - u(i  ,j,k))
+												 - (mu(i-1,j,k) + mu(i,j,k)) * (u(i  ,j,k) - u(i-1,j,k)) );
+			double viscFluxYY = pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (u(i,j+1,k) - u(i,j  ,k))
+												 - (mu(i,j-1,k) + mu(i,j,k)) * (u(i,j  ,k) - u(i,j-1,k)) );
+			double viscFluxZZ = pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (u(i,j,k+1) - u(i,j,k  ))
+												 - (mu(i,j,k-1) + mu(i,j,k)) * (u(i,j,k  ) - u(i,j,k-1)) );
+			double viscFluxXY = pos_1_div_4dxdy * ( mu(i,j+1,k) * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu(i,j-1,k) * (v(i+1,j-1,k) - v(i-1,j-1,k)) );
+			double viscFluxYX = neg_1_div_6dydx * ( mu(i+1,j,k) * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu(i-1,j,k) * (v(i-1,j+1,k) - v(i-1,j-1,k)) );
+			double viscFluxXZ = pos_1_div_4dxdz * ( mu(i,j,k+1) * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu(i,j,k-1) * (w(i+1,j,k-1) - w(i-1,j,k-1)) );
+			double viscFluxZX = neg_1_div_6dzdx * ( mu(i+1,j,k) * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu(i-1,j,k) * (w(i-1,j,k+1) - w(i-1,j,k-1)) );
+			RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
+							 + viscFluxXX + viscFluxYY + viscFluxZZ
+							 + viscFluxXY + viscFluxYX + viscFluxXZ + viscFluxZX ;
+		}
 	}
 }
 
@@ -334,46 +337,50 @@ void Solver::compute_RK4_step_xMomentum(const Array3D_d& rho_u, // ← Momentum 
 void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // ← Momentum density
 										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
-	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
-	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
-	double pos_2_div_3dydy =  2. / ( 3 * mesh.dy * mesh.dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
-	double neg_1_div_6dxdy = -1. / ( 6 * mesh.dx * mesh.dy );
-	double pos_1_div_4dydx =  1. / ( 4 * mesh.dy * mesh.dx );
-	double neg_1_div_6dzdy = -1. / ( 6 * mesh.dz * mesh.dy );
-	double pos_1_div_4dydz =  1. / ( 4 * mesh.dy * mesh.dz );
-
-	const Array3D_d& p {mesh.primitiveVariables.p}; // For readability in math expression below.
-	const Array3D_d& u {mesh.primitiveVariables.u};
-	const Array3D_d& v {mesh.primitiveVariables.v};
-	const Array3D_d& w {mesh.primitiveVariables.w};
-	const Array3D_d& mu{mesh.transportProperties.mu};
-
-	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-
-	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
-		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
-		double convFluxX = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) );
-		double convFluxY = neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) );
-		double convFluxZ = neg_1_div_2dz   * ( rho_v(i,j,k+1) * w(i,j,k+1) - rho_v(i,j,k-1) * w(i,j,k-1) );
+		double dx = subMesh.gridSpacings.x;
+		double dy = subMesh.gridSpacings.y;
+		double dz = subMesh.gridSpacings.z;
+		double neg_1_div_2dx   = -1. / ( 2 * dx );       // ← The parts of the flux/residual evaluation
+		double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node
+		double neg_1_div_2dz   = -1. / ( 2 * dz );
+		double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
+		double pos_2_div_3dydy =  2. / ( 3 * dy * dy );
+		double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
+		double neg_1_div_6dxdy = -1. / ( 6 * dx * dy );
+		double pos_1_div_4dydx =  1. / ( 4 * dy * dx );
+		double neg_1_div_6dzdy = -1. / ( 6 * dz * dy );
+		double pos_1_div_4dydz =  1. / ( 4 * dy * dz );
 
-		double viscFluxXX = pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (v(i+1,j,k) - v(i  ,j,k))
-											 - (mu(i-1,j,k) + mu(i,j,k)) * (v(i  ,j,k) - v(i-1,j,k)) );
-		double viscFluxYY = pos_2_div_3dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (v(i,j+1,k) - v(i,j  ,k))
-											 - (mu(i,j-1,k) + mu(i,j,k)) * (v(i,j  ,k) - v(i,j-1,k)) );
-		double viscFluxZZ = pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (v(i,j,k+1) - v(i,j,k  ))
-											 - (mu(i,j,k-1) + mu(i,j,k)) * (v(i,j,k  ) - v(i,j,k-1)) );
-		double viscFluxYX = pos_1_div_4dydx * ( mu(i+1,j,k) * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu(i-1,j,k) * (u(i-1,j+1,k) - u(i-1,j-1,k)) );
-		double viscFluxXY = neg_1_div_6dxdy * ( mu(i,j+1,k) * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu(i,j-1,k) * (u(i+1,j-1,k) - u(i-1,j-1,k)) );
-		double viscFluxYZ = pos_1_div_4dydz * ( mu(i,j,k+1) * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu(i,j,k-1) * (w(i,j+1,k-1) - w(i,j-1,k-1)) ) ;
-		double viscFluxZY = neg_1_div_6dzdy * ( mu(i,j+1,k) * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu(i,j-1,k) * (w(i,j-1,k+1) - w(i,j-1,k-1)) );
-		RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
-						 + viscFluxXX + viscFluxYY + viscFluxZZ
-						 + viscFluxYX + viscFluxXY + viscFluxYZ + viscFluxZY ;
+		const Array3D_d& p {subMesh.primitiveVariables.p}; // For readability in math expression below.
+		const Array3D_d& u {subMesh.primitiveVariables.u};
+		const Array3D_d& v {subMesh.primitiveVariables.v};
+		const Array3D_d& w {subMesh.primitiveVariables.w};
+		const Array3D_d& mu{subMesh.transportProperties.mu};
+
+		for(int index1D : subMesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+		{
+			Vector3_i indices3D = getIndices3D(index1D, subMesh.arrayLimits);
+			int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+			double convFluxX = neg_1_div_2dx   * ( rho_v(i+1,j,k) * u(i+1,j,k) - rho_v(i-1,j,k) * u(i-1,j,k) );
+			double convFluxY = neg_1_div_2dy   * ( rho_v(i,j+1,k) * v(i,j+1,k) + p(i,j+1,k) - rho_v(i,j-1,k) * v(i,j-1,k) - p(i,j-1,k) );
+			double convFluxZ = neg_1_div_2dz   * ( rho_v(i,j,k+1) * w(i,j,k+1) - rho_v(i,j,k-1) * w(i,j,k-1) );
+
+			double viscFluxXX = pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (v(i+1,j,k) - v(i  ,j,k))
+												 - (mu(i-1,j,k) + mu(i,j,k)) * (v(i  ,j,k) - v(i-1,j,k)) );
+			double viscFluxYY = pos_2_div_3dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (v(i,j+1,k) - v(i,j  ,k))
+												 - (mu(i,j-1,k) + mu(i,j,k)) * (v(i,j  ,k) - v(i,j-1,k)) );
+			double viscFluxZZ = pos_1_div_2dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (v(i,j,k+1) - v(i,j,k  ))
+												 - (mu(i,j,k-1) + mu(i,j,k)) * (v(i,j,k  ) - v(i,j,k-1)) );
+			double viscFluxYX = pos_1_div_4dydx * ( mu(i+1,j,k) * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu(i-1,j,k) * (u(i-1,j+1,k) - u(i-1,j-1,k)) );
+			double viscFluxXY = neg_1_div_6dxdy * ( mu(i,j+1,k) * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu(i,j-1,k) * (u(i+1,j-1,k) - u(i-1,j-1,k)) );
+			double viscFluxYZ = pos_1_div_4dydz * ( mu(i,j,k+1) * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu(i,j,k-1) * (w(i,j+1,k-1) - w(i,j-1,k-1)) ) ;
+			double viscFluxZY = neg_1_div_6dzdy * ( mu(i,j+1,k) * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu(i,j-1,k) * (w(i,j-1,k+1) - w(i,j-1,k-1)) );
+			RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
+							 + viscFluxXX + viscFluxYY + viscFluxZZ
+							 + viscFluxYX + viscFluxXY + viscFluxYZ + viscFluxZY ;
+		}
 	}
 }
 
@@ -381,48 +388,52 @@ void Solver::compute_RK4_step_yMomentum(const Array3D_d& rho_v, // ← Momentum 
 void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // ← Momentum density
 										Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
-	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
-	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
-	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
-	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
-	double pos_1_div_4dzdx =  1. / ( 4 * mesh.dz * mesh.dx );
-	double neg_1_div_6dxdz = -1. / ( 6 * mesh.dx * mesh.dz );
-	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
-	double neg_1_div_6dydz = -1. / ( 6 * mesh.dy * mesh.dz );
-
-	const Array3D_d& p {mesh.primitiveVariables.p}; // For readability in math expression below.
-	const Array3D_d& u {mesh.primitiveVariables.u};
-	const Array3D_d& v {mesh.primitiveVariables.v};
-	const Array3D_d& w {mesh.primitiveVariables.w};
-	const Array3D_d& mu{mesh.transportProperties.mu};
-
-	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-
-	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
-		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+		double dx = subMesh.gridSpacings.x;
+		double dy = subMesh.gridSpacings.y;
+		double dz = subMesh.gridSpacings.z;
+		double neg_1_div_2dx   = -1. / ( 2 * dx );       // ← The parts of the flux/residual evaluation
+		double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node
+		double neg_1_div_2dz   = -1. / ( 2 * dz );
+		double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
+		double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
+		double pos_2_div_3dzdz =  2. / ( 3 * dz * dz );
+		double pos_1_div_4dzdx =  1. / ( 4 * dz * dx );
+		double neg_1_div_6dxdz = -1. / ( 6 * dx * dz );
+		double pos_1_div_4dzdy =  1. / ( 4 * dz * dy );
+		double neg_1_div_6dydz = -1. / ( 6 * dy * dz );
 
-		double convFluxX = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) );
-		double convFluxY = neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) );
-		double convFluxZ = neg_1_div_2dz   * ( rho_w(i,j,k+1) * w(i,j,k+1) + p(i,j,k+1)
-											 - rho_w(i,j,k-1) * w(i,j,k-1) - p(i,j,k-1) );
+		const Array3D_d& p {subMesh.primitiveVariables.p}; // For readability in math expression below.
+		const Array3D_d& u {subMesh.primitiveVariables.u};
+		const Array3D_d& v {subMesh.primitiveVariables.v};
+		const Array3D_d& w {subMesh.primitiveVariables.w};
+		const Array3D_d& mu{subMesh.transportProperties.mu};
 
-		double viscFluxXX = pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (w(i+1,j,k) - w(i  ,j,k))
-											  - (mu(i-1,j,k) + mu(i,j,k)) * (w(i  ,j,k) - w(i-1,j,k)) );
-		double viscFluxYY = pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (w(i,j+1,k) - w(i,j  ,k))
-											  - (mu(i,j-1,k) + mu(i,j,k)) * (w(i,j  ,k) - w(i,j-1,k)) );
-		double viscFluxZZ = pos_2_div_3dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (w(i,j,k+1) - w(i,j,k  ))
-											  - (mu(i,j,k-1) + mu(i,j,k)) * (w(i,j,k  ) - w(i,j,k-1)) );
-		double viscFluxZX = pos_1_div_4dzdx * ( mu(i+1,j,k) * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu(i-1,j,k) * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
-		double viscFluxXZ = neg_1_div_6dxdz * ( mu(i,j,k+1) * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu(i,j,k-1) * (u(i+1,j,k-1) - u(i-1,j,k-1)) );
-		double viscFluxZY = pos_1_div_4dzdy * ( mu(i,j+1,k) * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu(i,j-1,k) * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
-		double viscFluxYZ = neg_1_div_6dydz * ( mu(i,j,k+1) * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu(i,j,k-1) * (v(i,j+1,k-1) - v(i,j-1,k-1)) );
-		RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
-						 + viscFluxXX + viscFluxYY + viscFluxZZ
-						 + viscFluxZX + viscFluxXZ + viscFluxZY + viscFluxYZ ;
+		for(int index1D : subMesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+		{
+			Vector3_i indices3D = getIndices3D(index1D, subMesh.arrayLimits);
+			int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+
+			double convFluxX = neg_1_div_2dx   * ( rho_w(i+1,j,k) * u(i+1,j,k) - rho_w(i-1,j,k) * u(i-1,j,k) );
+			double convFluxY = neg_1_div_2dy   * ( rho_w(i,j+1,k) * v(i,j+1,k) - rho_w(i,j-1,k) * v(i,j-1,k) );
+			double convFluxZ = neg_1_div_2dz   * ( rho_w(i,j,k+1) * w(i,j,k+1) + p(i,j,k+1)
+												 - rho_w(i,j,k-1) * w(i,j,k-1) - p(i,j,k-1) );
+
+			double viscFluxXX = pos_1_div_2dxdx * ( (mu(i+1,j,k) + mu(i,j,k)) * (w(i+1,j,k) - w(i  ,j,k))
+												  - (mu(i-1,j,k) + mu(i,j,k)) * (w(i  ,j,k) - w(i-1,j,k)) );
+			double viscFluxYY = pos_1_div_2dydy * ( (mu(i,j+1,k) + mu(i,j,k)) * (w(i,j+1,k) - w(i,j  ,k))
+												  - (mu(i,j-1,k) + mu(i,j,k)) * (w(i,j  ,k) - w(i,j-1,k)) );
+			double viscFluxZZ = pos_2_div_3dzdz * ( (mu(i,j,k+1) + mu(i,j,k)) * (w(i,j,k+1) - w(i,j,k  ))
+												  - (mu(i,j,k-1) + mu(i,j,k)) * (w(i,j,k  ) - w(i,j,k-1)) );
+			double viscFluxZX = pos_1_div_4dzdx * ( mu(i+1,j,k) * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu(i-1,j,k) * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
+			double viscFluxXZ = neg_1_div_6dxdz * ( mu(i,j,k+1) * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu(i,j,k-1) * (u(i+1,j,k-1) - u(i-1,j,k-1)) );
+			double viscFluxZY = pos_1_div_4dzdy * ( mu(i,j+1,k) * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu(i,j-1,k) * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
+			double viscFluxYZ = neg_1_div_6dydz * ( mu(i,j,k+1) * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu(i,j,k-1) * (v(i,j+1,k-1) - v(i,j-1,k-1)) );
+			RK4_slope(i,j,k) = convFluxX + convFluxY + convFluxZ
+							 + viscFluxXX + viscFluxYY + viscFluxZZ
+							 + viscFluxZX + viscFluxXZ + viscFluxZY + viscFluxYZ ;
+		}
 	}
 }
 
@@ -430,78 +441,82 @@ void Solver::compute_RK4_step_zMomentum(const Array3D_d& rho_w, // ← Momentum 
 void Solver::compute_RK4_step_energy(const Array3D_d& E,	// ← Total specific energy per volume
 									 Array3D_d& RK4_slope)	// ← OUTPUT, slope to overwrite
 {
-	double neg_1_div_2dx   = -1. / ( 2 * mesh.dx );       // ← The parts of the flux/residual evaluation
-	double neg_1_div_2dy   = -1. / ( 2 * mesh.dy );       //    that don't change from node to node
-	double neg_1_div_2dz   = -1. / ( 2 * mesh.dz );
-	double pos_2_div_3dxdx =  2. / ( 3 * mesh.dx * mesh.dx );
-	double pos_1_div_2dxdx =  1. / ( 2 * mesh.dx * mesh.dx );
-	double neg_1_div_6dydx = -1. / ( 6 * mesh.dy * mesh.dx );
-	double neg_1_div_6dzdx = -1. / ( 6 * mesh.dz * mesh.dx );
-	double pos_1_div_4dydx =  1. / ( 4 * mesh.dy * mesh.dx );
-	double pos_1_div_4dzdx =  1. / ( 4 * mesh.dz * mesh.dx );
-	double pos_1_div_2dydy =  1. / ( 2 * mesh.dy * mesh.dy );
-	double pos_2_div_3dydy =  2. / ( 3 * mesh.dy * mesh.dy );
-	double neg_1_div_6dzdy = -1. / ( 6 * mesh.dz * mesh.dy );
-	double pos_1_div_4dzdy =  1. / ( 4 * mesh.dz * mesh.dy );
-	double pos_1_div_2dzdz =  1. / ( 2 * mesh.dz * mesh.dz );
-	double pos_2_div_3dzdz =  2. / ( 3 * mesh.dz * mesh.dz );
-	double rho_H_0 = 1. / ( params.Gamma - 1 );     // ← Dimensionless reference enthalpy
-
-	const Array3D_d& p{mesh.primitiveVariables.p}; // For readability in math expression below.
-	const Array3D_d& u{mesh.primitiveVariables.u};
-	const Array3D_d& v{mesh.primitiveVariables.v};
-	const Array3D_d& w{mesh.primitiveVariables.w};
-	const Array3D_d& T{mesh.primitiveVariables.T};
-	const Array3D_d& mu   {mesh.transportProperties.mu};
-	const Array3D_d& kappa{mesh.transportProperties.kappa};
-
-	const Vector3_i nMeshNodes(mesh.NI, mesh.NJ, mesh.NK);
-
-	for(int index1D : mesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+	for(SubMesh& subMesh : mesh.subMeshes)
 	{
-		Vector3_i indices3D = getIndices3D(index1D, nMeshNodes);
-		int i = indices3D.i, j = indices3D.j, k = indices3D.k;
-		// To make the colossal expression below a bit more readable I define some subindices for neighbor nodes:
-		// P(actual point), W(West, i-1), E(East, i+1), S(South, j-1), N(North, j+1), D(Down, k-1), U(Up, k+1)
-		double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
-		double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};
-		double  v_P{ v(i,j,k)},  v_W{ v(i-1,j,k)},  v_E{ v(i+1,j,k)},  v_S{ v(i,j-1,k)},  v_N{ v(i,j+1,k)},  v_D{ v(i,j,k-1)},  v_U{ v(i,j,k+1)};
-		double  w_P{ w(i,j,k)},  w_W{ w(i-1,j,k)},  w_E{ w(i+1,j,k)},  w_S{ w(i,j-1,k)},  w_N{ w(i,j+1,k)},  w_D{ w(i,j,k-1)},  w_U{ w(i,j,k+1)};
-		double kappa_P{kappa(i,j,k)}, T_P{T(i,j,k)};
+		double dx = subMesh.gridSpacings.x;
+		double dy = subMesh.gridSpacings.y;
+		double dz = subMesh.gridSpacings.z;
+		double neg_1_div_2dx   = -1. / ( 2 * dx );       // ← The parts of the flux/residual evaluation
+		double neg_1_div_2dy   = -1. / ( 2 * dy );       //    that don't change from node to node
+		double neg_1_div_2dz   = -1. / ( 2 * dz );
+		double pos_2_div_3dxdx =  2. / ( 3 * dx * dx );
+		double pos_1_div_2dxdx =  1. / ( 2 * dx * dx );
+		double neg_1_div_6dydx = -1. / ( 6 * dy * dx );
+		double neg_1_div_6dzdx = -1. / ( 6 * dz * dx );
+		double pos_1_div_4dydx =  1. / ( 4 * dy * dx );
+		double pos_1_div_4dzdx =  1. / ( 4 * dz * dx );
+		double pos_1_div_2dydy =  1. / ( 2 * dy * dy );
+		double pos_2_div_3dydy =  2. / ( 3 * dy * dy );
+		double neg_1_div_6dzdy = -1. / ( 6 * dz * dy );
+		double pos_1_div_4dzdy =  1. / ( 4 * dz * dy );
+		double pos_1_div_2dzdz =  1. / ( 2 * dz * dz );
+		double pos_2_div_3dzdz =  2. / ( 3 * dz * dz );
+		double rho_H_0 = 1. / ( params.Gamma - 1 );     // ← Dimensionless reference enthalpy
 
-		double inviscidFluxes = neg_1_div_2dx * ( (rho_H_0 + E(i+1,j,k) + p(i+1,j,k)) * u_E - (rho_H_0 + E(i-1,j,k) + p(i-1,j,k)) * u_W )
-							  + neg_1_div_2dy * ( (rho_H_0 + E(i,j+1,k) + p(i,j+1,k)) * v_N - (rho_H_0 + E(i,j-1,k) + p(i,j-1,k)) * v_S )
-							  + neg_1_div_2dz * ( (rho_H_0 + E(i,j,k+1) + p(i,j,k+1)) * w_U - (rho_H_0 + E(i,j,k-1) + p(i,j,k-1)) * w_D );
+		const Array3D_d& p{subMesh.primitiveVariables.p}; // For readability in math expression below.
+		const Array3D_d& u{subMesh.primitiveVariables.u};
+		const Array3D_d& v{subMesh.primitiveVariables.v};
+		const Array3D_d& w{subMesh.primitiveVariables.w};
+		const Array3D_d& T{subMesh.primitiveVariables.T};
+		const Array3D_d& mu   {subMesh.transportProperties.mu};
+		const Array3D_d& kappa{subMesh.transportProperties.kappa};
 
-		double viscousFluxX = pos_2_div_3dxdx * ( (mu_E*u_E + mu_P*u_P) * (u_E - u_P) - (mu_W*u_W + mu_P*u_P) * (u_P - u_W) )
-							+ pos_1_div_2dxdx * ( (mu_E*v_E + mu_P*v_P) * (v_E - v_P) - (mu_W*v_W + mu_P*v_P) * (v_P - v_W) )
-							+ pos_1_div_2dxdx * ( (mu_E*w_E + mu_P*w_P) * (w_E - w_P) - (mu_W*w_W + mu_P*w_P) * (w_P - w_W) )
-							+ neg_1_div_6dydx * ( mu_E * u_E * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu_W * u_W * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
-							+ neg_1_div_6dzdx * ( mu_E * u_E * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu_W * u_W * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
-							+ pos_1_div_4dydx * ( mu_E * v_E * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu_W * v_W * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
-							+ pos_1_div_4dzdx * ( mu_E * w_E * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu_W * w_W * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
+		for(int index1D : subMesh.indexByType.fluidInterior) // Loop through interior fluid nodes
+		{
+			Vector3_i indices3D = getIndices3D(index1D, subMesh.arrayLimits);
+			int i = indices3D.i, j = indices3D.j, k = indices3D.k;
+			// To make the colossal expression below a bit more readable I define some subindices for neighbor nodes:
+			// P(actual point), W(West, i-1), E(East, i+1), S(South, j-1), N(North, j+1), D(Down, k-1), U(Up, k+1)
+			double mu_P{mu(i,j,k)}, mu_W{mu(i-1,j,k)}, mu_E{mu(i+1,j,k)}, mu_S{mu(i,j-1,k)}, mu_N{mu(i,j+1,k)}, mu_D{mu(i,j,k-1)}, mu_U{mu(i,j,k+1)};
+			double  u_P{ u(i,j,k)},  u_W{ u(i-1,j,k)},  u_E{ u(i+1,j,k)},  u_S{ u(i,j-1,k)},  u_N{ u(i,j+1,k)},  u_D{ u(i,j,k-1)},  u_U{ u(i,j,k+1)};
+			double  v_P{ v(i,j,k)},  v_W{ v(i-1,j,k)},  v_E{ v(i+1,j,k)},  v_S{ v(i,j-1,k)},  v_N{ v(i,j+1,k)},  v_D{ v(i,j,k-1)},  v_U{ v(i,j,k+1)};
+			double  w_P{ w(i,j,k)},  w_W{ w(i-1,j,k)},  w_E{ w(i+1,j,k)},  w_S{ w(i,j-1,k)},  w_N{ w(i,j+1,k)},  w_D{ w(i,j,k-1)},  w_U{ w(i,j,k+1)};
+			double kappa_P{kappa(i,j,k)}, T_P{T(i,j,k)};
 
-		double viscousFluxY = pos_1_div_2dydy * ( (mu_N*u_N + mu_P*u_P) * (u_N - u_P) - (mu_S*u_S + mu_P*u_P) * (u_P - u_S) )
-							+ pos_2_div_3dydy * ( (mu_N*v_N + mu_P*v_P) * (v_N - v_P) - (mu_S*v_S + mu_P*v_P) * (v_P - v_S) )
-							+ pos_1_div_2dydy * ( (mu_N*w_N + mu_P*w_P) * (w_N - w_P) - (mu_S*w_S + mu_P*w_P) * (w_P - w_S) )
-							+ neg_1_div_6dydx * ( mu_N * v_N * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu_S * v_S * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
-							+ neg_1_div_6dzdy * ( mu_N * v_N * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu_S * v_S * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
-							+ pos_1_div_4dydx * ( mu_N * u_N * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu_S * u_S * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
-							+ pos_1_div_4dzdy * ( mu_N * w_N * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu_S * w_S * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
+			double inviscidFluxes = neg_1_div_2dx * ( (rho_H_0 + E(i+1,j,k) + p(i+1,j,k)) * u_E - (rho_H_0 + E(i-1,j,k) + p(i-1,j,k)) * u_W )
+								  + neg_1_div_2dy * ( (rho_H_0 + E(i,j+1,k) + p(i,j+1,k)) * v_N - (rho_H_0 + E(i,j-1,k) + p(i,j-1,k)) * v_S )
+								  + neg_1_div_2dz * ( (rho_H_0 + E(i,j,k+1) + p(i,j,k+1)) * w_U - (rho_H_0 + E(i,j,k-1) + p(i,j,k-1)) * w_D );
 
-		double viscousFluxZ = pos_1_div_2dzdz * ( (mu_U*u_U + mu_P*u_P) * (u_U - u_P) - (mu_D*u_D + mu_P*u_P) * (u_P - u_D) )
-							+ pos_1_div_2dzdz * ( (mu_U*v_U + mu_P*v_P) * (v_U - v_P) - (mu_D*v_D + mu_P*v_P) * (v_P - v_D) )
-							+ pos_2_div_3dzdz * ( (mu_U*w_U + mu_P*w_P) * (w_U - w_P) - (mu_D*w_D + mu_P*w_P) * (w_P - w_D) )
-							+ neg_1_div_6dzdx * ( mu_U * w_U * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu_D * w_D * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
-							+ neg_1_div_6dzdy * ( mu_U * w_U * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu_D * w_D * (v(i,j+1,k-1) - v(i,j-1,k-1)) )
-							+ pos_1_div_4dzdx * ( mu_U * u_U * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu_D * u_D * (w(i+1,j,k-1) - w(i-1,j,k-1)) )
-							+ pos_1_div_4dzdy * ( mu_U * v_U * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu_D * v_D * (w(i,j+1,k-1) - w(i,j-1,k-1)) );
+			double viscousFluxX = pos_2_div_3dxdx * ( (mu_E*u_E + mu_P*u_P) * (u_E - u_P) - (mu_W*u_W + mu_P*u_P) * (u_P - u_W) )
+								+ pos_1_div_2dxdx * ( (mu_E*v_E + mu_P*v_P) * (v_E - v_P) - (mu_W*v_W + mu_P*v_P) * (v_P - v_W) )
+								+ pos_1_div_2dxdx * ( (mu_E*w_E + mu_P*w_P) * (w_E - w_P) - (mu_W*w_W + mu_P*w_P) * (w_P - w_W) )
+								+ neg_1_div_6dydx * ( mu_E * u_E * (v(i+1,j+1,k) - v(i+1,j-1,k)) - mu_W * u_W * (v(i-1,j+1,k) - v(i-1,j-1,k)) )
+								+ neg_1_div_6dzdx * ( mu_E * u_E * (w(i+1,j,k+1) - w(i+1,j,k-1)) - mu_W * u_W * (w(i-1,j,k+1) - w(i-1,j,k-1)) )
+								+ pos_1_div_4dydx * ( mu_E * v_E * (u(i+1,j+1,k) - u(i+1,j-1,k)) - mu_W * v_W * (u(i-1,j+1,k) - u(i-1,j-1,k)) )
+								+ pos_1_div_4dzdx * ( mu_E * w_E * (u(i+1,j,k+1) - u(i+1,j,k-1)) - mu_W * w_W * (u(i-1,j,k+1) - u(i-1,j,k-1)) );
 
-		double heatFluxes = pos_1_div_2dxdx * ( (kappa(i+1,j,k) + kappa_P) * (T(i+1,j,k) - T_P) - (kappa(i-1,j,k) + kappa_P) * (T_P - T(i-1,j,k)) )
-						  + pos_1_div_2dydy * ( (kappa(i,j+1,k) + kappa_P) * (T(i,j+1,k) - T_P) - (kappa(i,j-1,k) + kappa_P) * (T_P - T(i,j-1,k)) )
-						  + pos_1_div_2dzdz * ( (kappa(i,j,k+1) + kappa_P) * (T(i,j,k+1) - T_P) - (kappa(i,j,k-1) + kappa_P) * (T_P - T(i,j,k-1)) );
+			double viscousFluxY = pos_1_div_2dydy * ( (mu_N*u_N + mu_P*u_P) * (u_N - u_P) - (mu_S*u_S + mu_P*u_P) * (u_P - u_S) )
+								+ pos_2_div_3dydy * ( (mu_N*v_N + mu_P*v_P) * (v_N - v_P) - (mu_S*v_S + mu_P*v_P) * (v_P - v_S) )
+								+ pos_1_div_2dydy * ( (mu_N*w_N + mu_P*w_P) * (w_N - w_P) - (mu_S*w_S + mu_P*w_P) * (w_P - w_S) )
+								+ neg_1_div_6dydx * ( mu_N * v_N * (u(i+1,j+1,k) - u(i-1,j+1,k)) - mu_S * v_S * (u(i+1,j-1,k) - u(i-1,j-1,k)) )
+								+ neg_1_div_6dzdy * ( mu_N * v_N * (w(i,j+1,k+1) - w(i,j+1,k-1)) - mu_S * v_S * (w(i,j-1,k+1) - w(i,j-1,k-1)) )
+								+ pos_1_div_4dydx * ( mu_N * u_N * (v(i+1,j+1,k) - v(i-1,j+1,k)) - mu_S * u_S * (v(i+1,j-1,k) - v(i-1,j-1,k)) )
+								+ pos_1_div_4dzdy * ( mu_N * w_N * (v(i,j+1,k+1) - v(i,j+1,k-1)) - mu_S * w_S * (v(i,j-1,k+1) - v(i,j-1,k-1)) );
 
-		RK4_slope(i,j,k) = inviscidFluxes + viscousFluxX + viscousFluxY + viscousFluxZ + heatFluxes;
+			double viscousFluxZ = pos_1_div_2dzdz * ( (mu_U*u_U + mu_P*u_P) * (u_U - u_P) - (mu_D*u_D + mu_P*u_P) * (u_P - u_D) )
+								+ pos_1_div_2dzdz * ( (mu_U*v_U + mu_P*v_P) * (v_U - v_P) - (mu_D*v_D + mu_P*v_P) * (v_P - v_D) )
+								+ pos_2_div_3dzdz * ( (mu_U*w_U + mu_P*w_P) * (w_U - w_P) - (mu_D*w_D + mu_P*w_P) * (w_P - w_D) )
+								+ neg_1_div_6dzdx * ( mu_U * w_U * (u(i+1,j,k+1) - u(i-1,j,k+1)) - mu_D * w_D * (u(i+1,j,k-1) - u(i-1,j,k-1)) )
+								+ neg_1_div_6dzdy * ( mu_U * w_U * (v(i,j+1,k+1) - v(i,j-1,k+1)) - mu_D * w_D * (v(i,j+1,k-1) - v(i,j-1,k-1)) )
+								+ pos_1_div_4dzdx * ( mu_U * u_U * (w(i+1,j,k+1) - w(i-1,j,k+1)) - mu_D * u_D * (w(i+1,j,k-1) - w(i-1,j,k-1)) )
+								+ pos_1_div_4dzdy * ( mu_U * v_U * (w(i,j+1,k+1) - w(i,j-1,k+1)) - mu_D * v_D * (w(i,j+1,k-1) - w(i,j-1,k-1)) );
+
+			double heatFluxes = pos_1_div_2dxdx * ( (kappa(i+1,j,k) + kappa_P) * (T(i+1,j,k) - T_P) - (kappa(i-1,j,k) + kappa_P) * (T_P - T(i-1,j,k)) )
+							  + pos_1_div_2dydy * ( (kappa(i,j+1,k) + kappa_P) * (T(i,j+1,k) - T_P) - (kappa(i,j-1,k) + kappa_P) * (T_P - T(i,j-1,k)) )
+							  + pos_1_div_2dzdz * ( (kappa(i,j,k+1) + kappa_P) * (T(i,j,k+1) - T_P) - (kappa(i,j,k-1) + kappa_P) * (T_P - T(i,j,k-1)) );
+
+			RK4_slope(i,j,k) = inviscidFluxes + viscousFluxX + viscousFluxY + viscousFluxZ + heatFluxes;
+		}
 	}
 }
 
@@ -594,12 +609,21 @@ void Solver::updatePrimitiveVariables()
 // Use all the 4 slopes to bring the solution to the next time level
 void Solver::computeRK4finalStepAllVariables()
 {
-	const ConservedVariablesArrayGroup& k1{mesh.RK4slopes.k1}, &k2{mesh.RK4slopes.k2}, &k3{mesh.RK4slopes.k3}, &k4{mesh.RK4slopes.k4};
-	compute_RK4_final_step(k1.rho,   k2.rho,   k3.rho,   k4.rho,   mesh.conservedVariablesOld.rho  , mesh.conservedVariables.rho  );  // Use a weighted average of the four slopes
-	compute_RK4_final_step(k1.rho_u, k2.rho_u, k3.rho_u, k4.rho_u, mesh.conservedVariablesOld.rho_u, mesh.conservedVariables.rho_u);  // to advance the solution from time t, to
-	compute_RK4_final_step(k1.rho_v, k2.rho_v, k3.rho_v, k4.rho_v, mesh.conservedVariablesOld.rho_v, mesh.conservedVariables.rho_v);  // t + dt. The solutions at the new time level
-	compute_RK4_final_step(k1.rho_w, k2.rho_w, k3.rho_w, k4.rho_w, mesh.conservedVariablesOld.rho_w, mesh.conservedVariables.rho_w);  // are stored in the intermediate arrays, so the
-	compute_RK4_final_step(k1.rho_E, k2.rho_E, k3.rho_E, k4.rho_E, mesh.conservedVariablesOld.rho_E, mesh.conservedVariables.rho_E);  // norm of the change can be computed.
+	for(SubMesh& subMesh : mesh.subMeshes)
+	{
+		const ConservedVariablesArrayGroup& k1{subMesh.RK4slopes.k1};
+		const ConservedVariablesArrayGroup& k2{subMesh.RK4slopes.k2};
+		const ConservedVariablesArrayGroup& k3{subMesh.RK4slopes.k3};
+		const ConservedVariablesArrayGroup& k4{subMesh.RK4slopes.k4};
+		const ConservedVariablesArrayGroup& conservedVarsOld{subMesh.conservedVariablesOld};
+		ConservedVariablesArrayGroup& conservedVarsNew{subMesh.conservedVariables};
+		const vector<int>& interiorNodes{subMesh.indexByType.fluidInterior};
+		compute_RK4_final_step(k1.rho,   k2.rho,   k3.rho,   k4.rho,   interiorNodes, conservedVarsOld.rho  , conservedVarsNew.rho  );  // Use a weighted average of the four slopes
+		compute_RK4_final_step(k1.rho_u, k2.rho_u, k3.rho_u, k4.rho_u, interiorNodes, conservedVarsOld.rho_u, conservedVarsNew.rho_u);  // to advance the solution from time t, to
+		compute_RK4_final_step(k1.rho_v, k2.rho_v, k3.rho_v, k4.rho_v, interiorNodes, conservedVarsOld.rho_v, conservedVarsNew.rho_v);  // t + dt. The solutions at the new time level
+		compute_RK4_final_step(k1.rho_w, k2.rho_w, k3.rho_w, k4.rho_w, interiorNodes, conservedVarsOld.rho_w, conservedVarsNew.rho_w);  // are stored in the intermediate arrays, so the
+		compute_RK4_final_step(k1.rho_E, k2.rho_E, k3.rho_E, k4.rho_E, interiorNodes, conservedVarsOld.rho_E, conservedVarsNew.rho_E);  // norm of the change can be computed.
+	}
 }
 
 // Uses all the intermediate RK4 slopes k1,2,3,4, for a variable, to advance the variable from t to t+dt
@@ -607,13 +631,13 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, // ← Slopes
 									const Array3D_d& k2,
 									const Array3D_d& k3,
 									const Array3D_d& k4,
+									const vector<int>& interiorNodes,
 									const Array3D_d& conservedVar_old, // ← Values at current time
 									Array3D_d& conservedVar_new) // ← OUTPUT, values at next time level
 {
-	double dtFactor{dt / 6};
-	for(int i : mesh.indexByType.fluidInterior)
+	for(int i : interiorNodes)
 	{
-		double residualValue = dtFactor*( k1(i) + 2*k2(i) + 2*k3(i) + k4(i) );
+		double residualValue = (dt/6) * ( k1(i) + 2*k2(i) + 2*k3(i) + k4(i) );
 		conservedVar_new(i) = conservedVar_old(i) + residualValue;
 	}
 }
@@ -621,25 +645,38 @@ void Solver::compute_RK4_final_step(const Array3D_d& k1, // ← Slopes
 // Compute and store norms of change for conserved variables, if specified in config file
 void Solver::storeNormsOfChange()
 {
+
 	if(params.saveConvergenceHistory != ConvHistoryEnum::none)
-		normHistory.rho.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho,
-														mesh.conservedVariables.rho) );
+	{
+		double normRho = 0;
+		for(const SubMesh& subMesh : mesh.subMeshes)
+			normRho += subMesh.getNormOfChange(subMesh.conservedVariablesOld.rho, subMesh.conservedVariables.rho);
+		normHistory.rho.push_back(normRho);
+	}
 
 	if(params.saveConvergenceHistory == ConvHistoryEnum::all)
 	{
-		normHistory.rho_u.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_u,
-														  mesh.conservedVariables   .rho_u) );
-
-		normHistory.rho_v.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_v,
-														  mesh.conservedVariables   .rho_v) );
-
-		normHistory.rho_w.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_w,
-														  mesh.conservedVariables   .rho_w) );
-
-		normHistory.rho_E.push_back( mesh.getNormOfChange(mesh.conservedVariablesOld.rho_E,
-														  mesh.conservedVariables   .rho_E) );
+		double normRhoU = 0;
+		double normRhoV = 0;
+		double normRhoW = 0;
+		double normRhoE = 0;
+		for(const SubMesh& subMesh : mesh.subMeshes)
+		{
+			const ConservedVariablesArrayGroup& conservedVarsOld = subMesh.conservedVariablesOld;
+			const ConservedVariablesArrayGroup& conservedVarsNew = subMesh.conservedVariables;
+			normRhoU += subMesh.getNormOfChange(conservedVarsOld.rho_u, conservedVarsNew.rho_u);
+			normRhoV += subMesh.getNormOfChange(conservedVarsOld.rho_v, conservedVarsNew.rho_v);
+			normRhoW += subMesh.getNormOfChange(conservedVarsOld.rho_w, conservedVarsNew.rho_w);
+			normRhoE += subMesh.getNormOfChange(conservedVarsOld.rho_E, conservedVarsNew.rho_E);
+		}
+		normHistory.rho_u.push_back(normRhoU);
+		normHistory.rho_v.push_back(normRhoV);
+		normHistory.rho_w.push_back(normRhoW);
+		normHistory.rho_E.push_back(normRhoE);
 	}
 }
+
+
 
 
 

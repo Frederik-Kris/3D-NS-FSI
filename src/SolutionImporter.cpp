@@ -171,7 +171,7 @@ void SolutionImporter::computeAllFlowVars(int i,
 	transportProps = deriveTransportProperties(primitiveVars, params);
 }
 
-void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory, long timeLevel)
+void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHistory, long unsigned timeLevel)
 {
 	vector<string> filenames = {StringLiterals::normRhoFile,
 								StringLiterals::normRhoUFile,
@@ -183,7 +183,7 @@ void SolutionImporter::importNormHistories(ConservedVariablesVectorGroup &normHi
 											&normHistory.rho_v,
 											&normHistory.rho_w,
 											&normHistory.rho_E };
-	for(int i{0}; i<filenames.size(); ++i)
+	for(size_t i{0}; i<filenames.size(); ++i)
 	{
 		std::filesystem::path filePath( StringLiterals::outputFolder + filenames.at(i) );
 		if( std::filesystem::exists(filePath) )
@@ -228,7 +228,7 @@ long SolutionImporter::getStartTimeLevel()
 	return timeLevel;
 }
 
-void SolutionImporter::importLiftDrag(vector<double> &lift, vector<double> &drag, long timeLevel)
+void SolutionImporter::importLiftDrag(vector<double> &lift, vector<double> &drag, long unsigned timeLevel)
 {
 	std::ifstream liftFile("./output/lift.dat");
 	if(!liftFile)

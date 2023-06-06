@@ -31,8 +31,8 @@ private:
 	Solver solver;				// Solver class, for handling numerical method.
 	OutputManager output;		// Class for managing output to screen and files.
 	double t;					// Simulated time
-	long timeLevel;			// No. of timesteps computed. Zero is IC.
-	long timeLevelStart;		// Time level to start from, if simulation is continued from previous result.
+	long unsigned timeLevel;		// No. of timesteps computed. Zero is IC.
+	long unsigned timeLevelStart;	// Time level to start from, if simulation is continued from previous result.
 };
 
 

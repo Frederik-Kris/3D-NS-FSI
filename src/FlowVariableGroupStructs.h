@@ -26,7 +26,7 @@ public:
 		rho{rho}, rho_u{rho_u}, rho_v{rho_v}, rho_w{rho_w}, rho_E{rho_E}
 	{}
 
-	ConservedVariablesScalars() = default;
+	ConservedVariablesScalars() : ConservedVariablesScalars(0,0,0,0,0) {}
 };
 
 // Package with scalar double values for the primitive variables
@@ -42,7 +42,7 @@ public:
 	PrimitiveVariablesScalars(double u, double v, double w, double p, double T) :
 		u{u}, v{v}, w{w}, p{p}, T{T}
 	{}
-	PrimitiveVariablesScalars() = default;
+	PrimitiveVariablesScalars() : PrimitiveVariablesScalars(0,0,0,0,0) {}
 };
 
 // Package with scalar double values for the transport properties
@@ -56,7 +56,7 @@ public:
 		mu{mu}, kappa{kappa}
 	{}
 
-	TransportPropertiesScalars() = default;
+	TransportPropertiesScalars() : TransportPropertiesScalars(0,0) {}
 };
 
 // Package with arrays containing the conserved variables

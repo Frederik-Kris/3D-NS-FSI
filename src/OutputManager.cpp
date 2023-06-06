@@ -19,7 +19,7 @@ previousProgression{0}
 }
 
 // Preparation before simulation start. Checking for output folder and deleting old results.
-void OutputManager::initialize(long _timeLevelStart)
+void OutputManager::initialize(long unsigned _timeLevelStart)
 {
 	timeLevelStart = _timeLevelStart;
 	bool outputFolderExists = false;
@@ -59,7 +59,7 @@ void OutputManager::initialize(long _timeLevelStart)
 }
 
 // Check if anything should be written before sim start.
-void OutputManager::processInitialOutput(const Mesh& mesh, double t, long timeLevel)
+void OutputManager::processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel)
 {
 	if ( params.saveIC )
 		storeCurrentSolution(mesh, t, timeLevel);
@@ -70,7 +70,7 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t, long timeLe
 // Thus, in general it saves too early, but the deviation is dt at most.
 void OutputManager::processIntermediateOutput(const Mesh& mesh,
 											  double t, // ← time
-											  long timeLevel,
+											  long unsigned timeLevel,
 											  double dt) // ← timestep size
 {
 	// Save to disk:
@@ -99,7 +99,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh,
 // If appropriate, process output after simulation has reached its end.
 void OutputManager::processFinalOutput(const Mesh& mesh,
 									   double t, // ← time
-									   long timeLevel,
+									   long unsigned timeLevel,
 									   double dt, // ← timestep size
 									   const ConservedVariablesVectorGroup& convergenceHistory,
 									   const vector<double>& lift,
@@ -126,17 +126,19 @@ void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, long timeLe
 // Get a string with the first lines we need in the .vtk file.
 string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 {
+	// DEBUG. ONLY SAVING IB SUBMESH
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	string vtkHeader;
 	vtkHeader += "# vtk DataFile Version 4.1\n";
 	vtkHeader += "Output at time t = " + to_string(t) + "\n";
 	vtkHeader += "ASCII\n";
 	vtkHeader += "DATASET STRUCTURED_POINTS\n";
 	vtkHeader += "DIMENSIONS " + to_string(mesh.NI) + " " + to_string(mesh.NJ) + " " + to_string(mesh.NK) + "\n";
-	vtkHeader += "ORIGIN " + to_string(mesh.positionOffset.x) + " "
-						   + to_string(mesh.positionOffset.y) + " "
-						   + to_string(mesh.positionOffset.z) + "\n";
-	vtkHeader += "SPACING " + to_string(mesh.dx) + " " + to_string(mesh.dy) + " " + to_string(mesh.dz) + "\n";
-	vtkHeader += "POINT_DATA " + to_string(mesh.nNodesTotal) + "\n";
+	vtkHeader += "ORIGIN " + to_string(subMesh.boundingBox.getMinPoint().x) + " "
+						   + to_string(subMesh.boundingBox.getMinPoint().y) + " "
+						   + to_string(subMesh.boundingBox.getMinPoint().z) + "\n";
+	vtkHeader += "SPACING " + to_string(subMesh.gridSpacings.x) + " " + to_string(subMesh.gridSpacings.y) + " " + to_string(subMesh.gridSpacings.z) + "\n";
+	vtkHeader += "POINT_DATA " + to_string(subMesh.nNodesTotal) + "\n";
 	return vtkHeader;
 }
 
@@ -144,6 +146,8 @@ string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
 									  ofstream& outputFile) // ← OUTPUT, vtk file
 {
+	// DEBUG. ONLY SAVING IB SUBMESH
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	outputFile << "SCALARS Node_Flag int 1\n";
 	outputFile << "LOOKUP_TABLE default\n";
 	for (int k{0}; k<mesh.NK; ++k)
@@ -151,15 +155,15 @@ void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
 			for (int i{0}; i<mesh.NI; ++i)
 			{
 				int flagValue = 0;
-				if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidInterior)
+				if(subMesh.nodeType(i,j,k) == NodeTypeEnum::FluidInterior)
 					flagValue = 0;
-				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidEdge)
+				else if(subMesh.nodeType(i,j,k) == NodeTypeEnum::FluidEdge)
 					flagValue = 1;
-				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::FluidGhost)
+				else if(subMesh.nodeType(i,j,k) == NodeTypeEnum::FluidGhost)
 					flagValue = 2;
-				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::SolidGhost)
+				else if(subMesh.nodeType(i,j,k) == NodeTypeEnum::SolidGhost)
 					flagValue = 3;
-				else if(mesh.nodeType(i,j,k) == NodeTypeEnum::SolidInactive)
+				else if(subMesh.nodeType(i,j,k) == NodeTypeEnum::SolidInactive)
 					flagValue = 4;
 				else
 					throw std::logic_error("Unexpected enum value.");
@@ -170,19 +174,21 @@ void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
 // Get pointers to the arrays containing scalar flow variables (non-vectors).
 vector<const Array3D_d*> OutputManager::getScalarVariablePointers(const Mesh& mesh)
 {
+	// DEBUG. ONLY SAVING IB SUBMESH
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	vector<const Array3D_d*> scalarFlowVariables;
 	if ( params.saveDensity )
-		scalarFlowVariables.push_back(&mesh.conservedVariables.rho);
+		scalarFlowVariables.push_back(&subMesh.conservedVariables.rho);
 	if ( params.saveEnergy )
-		scalarFlowVariables.push_back(&mesh.conservedVariables.rho_E);
+		scalarFlowVariables.push_back(&subMesh.conservedVariables.rho_E);
 	if ( params.savePressure )
-		scalarFlowVariables.push_back(&mesh.primitiveVariables.p);
+		scalarFlowVariables.push_back(&subMesh.primitiveVariables.p);
 	if ( params.saveTemperature )
-		scalarFlowVariables.push_back(&mesh.primitiveVariables.T);
+		scalarFlowVariables.push_back(&subMesh.primitiveVariables.T);
 	if ( params.saveViscosity )
-		scalarFlowVariables.push_back(&mesh.transportProperties.mu);
+		scalarFlowVariables.push_back(&subMesh.transportProperties.mu);
 	if ( params.saveThermalCond )
-		scalarFlowVariables.push_back(&mesh.transportProperties.kappa);
+		scalarFlowVariables.push_back(&subMesh.transportProperties.kappa);
 	return scalarFlowVariables;
 }
 
@@ -228,18 +234,20 @@ void OutputManager::writeVtkScalarData(const Mesh& mesh,
 // represents the 3D vectors' three components.
 vector<std::array<const Array3D_d*, 3>> OutputManager::getVectorVariablePointers(const Mesh& mesh)
 {
+	// DEBUG. ONLY SAVING IB SUBMESH
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables;
 	if ( params.saveMomentum )
 	{
-		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&mesh.conservedVariables.rho_u,
-																		&mesh.conservedVariables.rho_v,
-																		&mesh.conservedVariables.rho_w}) );
+		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&subMesh.conservedVariables.rho_u,
+																		&subMesh.conservedVariables.rho_v,
+																		&subMesh.conservedVariables.rho_w}) );
 	}
 	if ( params.saveVelocity )
 	{
-		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&mesh.primitiveVariables.u,
-																		&mesh.primitiveVariables.v,
-																		&mesh.primitiveVariables.w}) );
+		vectorFlowVariables.push_back( std::array<const Array3D_d*, 3>({&subMesh.primitiveVariables.u,
+																		&subMesh.primitiveVariables.v,
+																		&subMesh.primitiveVariables.w}) );
 	}
 	return vectorFlowVariables;
 }
@@ -416,7 +424,8 @@ void OutputManager::writeConvergenceHistoryFiles(const ConservedVariablesVectorG
 		normHistoriesToSave.push_back(&convergenceHistory.rho_E);
 		fileNames.push_back(StringLiterals::normRhoEFile);
 	}
-	for(int varIndex{0}; varIndex<fileNames.size(); ++varIndex)
+	int nFilenames = fileNames.size();
+	for(int varIndex{0}; varIndex<nFilenames; ++varIndex)
 	{
 		ofstream normFile;
 		normFile.open( StringLiterals::outputFolder + fileNames.at(varIndex) );

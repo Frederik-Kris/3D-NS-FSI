@@ -40,7 +40,7 @@ struct SubMeshDescriptor
 	const Vector3_d& spacings;
 	const IndexBoundingBox& arrayLimits;
 	const SpaceBoundingBox& boundingBox;
-	const Array3D<NodeTypeEnum>& nodeType;
+	Array3D<NodeTypeEnum>& nodeType;
 	AllFlowVariablesArrayGroup& flowVariables;
 	const int refinementLevel;
 	const Vector3_i& regionID;
@@ -62,8 +62,6 @@ struct SubMeshDescriptor
 	  refinementLevel{refinementLevel},
 	  regionID{regionID}
 	{}
-
-	SubMeshDescriptor() = default;
 };
 
 // Package struct with benchmark integral sizes, for cylinder and sphere test cases.
@@ -135,14 +133,25 @@ public:
 	virtual int nExtraNodeLayer() = 0; // ← PURE virtual
 
 	virtual void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
-									  Array3D<NodeTypeEnum>& nodeTypeArray,
-									  const Vector3_i& regionID,
 									  const Array3D<SubMeshDescriptor>& neighborSubMeshes);
 
-	// Implementation of the actual BC. Overwrites its owned nodes.
-	virtual void applyBoundaryCondition(double t, const ConfigSettings& params)	= 0; // ← PURE virtual
+	/**
+	 * Applies the boundary condition to the submesh.
+	 *
+	 * This is a pure virtual function that needs to be implemented in derived classes.
+	 * It defines the behavior of applying the boundary condition to the submesh.
+	 * The boundary conditions set the flow variables in its owned nodes.
+	 *
+	 * @param t The current time.
+	 * @param params The configuration settings for the simulation.
+	 */
+	virtual void applyBoundaryCondition(double t, const ConfigSettings& params) = 0;
+
 
 	Vector3_i getOutwardNormal() const;
+
+	AxisOrientationEnum normalAxis;			// The axis that is normal to the boundary plane
+	EdgeIndexEnum planeIndex;				// Denotes if the plane is at lowest or highest index side
 
 protected:
 
@@ -156,8 +165,6 @@ protected:
 
 	Vector3_i getPeriodicIndex(const Vector3_i& boundaryNode);
 
-	AxisOrientationEnum normalAxis;			// The axis that is normal to the boundary plane
-	EdgeIndexEnum planeIndex;				// Denotes if the plane is at lowest or highest index side
 	NodeTypeEnum ownedNodesType;			// The node type that is assigned to the owned nodes
 	RelatedNodesCollection relatedNodes;	// The nodes that the BC at this boundary uses
 	SubMeshDescriptor subMeshData;			// Info and flow variables for the parent submesh of the boundary
@@ -249,8 +256,12 @@ class SubmeshInterfaceBoundary : public MeshEdgeBoundary
 {
 public:
 	
-	SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis, EdgeIndexEnum planeIndex, const SubMeshDescriptor& subMeshData) :
-		MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost, subMeshData)
+	SubmeshInterfaceBoundary(AxisOrientationEnum normalAxis,
+							 EdgeIndexEnum planeIndex,
+							 const SubMeshDescriptor& subMeshData,
+							 const SubMeshDescriptor& neighborSubMesh) :
+		MeshEdgeBoundary(normalAxis, planeIndex, NodeTypeEnum::FluidGhost, subMeshData),
+		neighborSubMesh(neighborSubMesh)
 	{}
 
 	std::unique_ptr<MeshEdgeBoundary> getUniquePtrToCopy() override
@@ -259,8 +270,6 @@ public:
 	int nExtraNodeLayer() override;
 
 	void identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
-							  Array3D<NodeTypeEnum>& nodeTypeArray,
-							  const Vector3_i& regionID,
 							  const Array3D<SubMeshDescriptor>& neighborSubMeshes) override;
 
 	void applyBoundaryCondition(double t, const ConfigSettings& params)	override;
@@ -305,9 +314,6 @@ public:
 
 	virtual std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() = 0;
 
-	// Check if the immersed body is inside the given bounding box:
-	virtual bool isInsideBox(const SpaceBoundingBox& box) = 0;
-
 	virtual void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  	  	  const Vector3_d& gridSpacing,
 									  const Vector3_i& nMeshNodes,
@@ -317,13 +323,12 @@ public:
 
 	void applyBoundaryCondition(const ConfigSettings& params);
 
-	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) = 0;
+	virtual IntegralProperties getIntegralProperties(const ConfigSettings& params) = 0;
 
 protected:
 
 	vector<GhostNode> ghostNodes;		// The solid ghost nodes adjacent to this surface
 	std::map<int, int> ghostNodeMap;	// A codex from 1D index in the mesh, to index of corresponding entry in ghostNodes
-	vector<int> filterNodes;			// The closest interior fluid nodes. Filtered when BC is applied.
 	SubMeshDescriptor subMeshData;		// Info and flow variables for the submesh with this immersed surface.
 
 	void findGhostNodesWithFluidNeighbors(const vector<int>& solidNodeIndices);
@@ -365,9 +370,7 @@ private:
 	PrimitiveVariablesScalars simplifiedInterpolationAll(
 			const InterpolationValues& interpolationValues,
 			const Vector3_i& lowerIndexNode,
-			const Vector3_d& imagePointPosition,
-			const Vector3_d& gridSpacing,
-			const Vector3_d& meshOriginOffset );
+			const Vector3_d& imagePointPosition );
 
 	PrimitiveVariablesScalars getGhostNodeBCVariables(const PrimitiveVariablesScalars& imagePointBCVars);
 
@@ -406,8 +409,6 @@ public:
 	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<CylinderBody>(*this); }
 
-	bool isInsideBox(const SpaceBoundingBox& box) override;
-
 	void identifyRelatedNodes(const ConfigSettings& params,
 	   	   	   	   	    	  const Vector3_d& gridSpacing,
 							  const Vector3_i& nMeshNodes,
@@ -415,7 +416,7 @@ public:
 							  Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 							  ) override;
 
-	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
+	IntegralProperties getIntegralProperties(const ConfigSettings& params) override;
 
 private:
 	Vector3_d centroidPosition;	// Only 2 coordinates used, depending on axis orientation
@@ -425,17 +426,11 @@ private:
 	Vector3_d getNormalProbe(const Vector3_d& ghostNodePosition) override;
 
 	IndexBoundingBox getCylinderBoundingBox(const Vector3_d& gridSpacing,
-			  	  	  	  	  	  	  	  	const Vector3_i& nMeshNodes,
-											int filterNodesLayerWidth) const;
+			  	  	  	  	  	  	  	  	const Vector3_i& nMeshNodes) const;
 
-	void getSolidAndFilterNodesInCylinder(const ConfigSettings& params,
+	void getSolidNodesInCylinder(const ConfigSettings& params,
 			   	   	   	   	   	 	 	  const IndexBoundingBox& indicesToCheck,
-										  const Vector3_d& gridSpacing,
-										  const Vector3_i& nMeshNodes,
-										  const Vector3_d& meshOriginOffset,
-										  int nNodesFilterLayer,
-										  vector<int>& solidNodeIndices, // ← Output
-										  Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
+										  vector<int>& solidNodeIndices // ← Output
 			   	   	   	   	   	 	 	  );
 };
 
@@ -448,8 +443,6 @@ public:
 	std::unique_ptr<ImmersedBoundary> getUniquePtrToCopy() override
 	{ return std::make_unique<SphereBody>(*this); }
 
-	bool isInsideBox(const SpaceBoundingBox& box) override;
-
 	void identifyRelatedNodes(const ConfigSettings& params,
    	   	    	  	  	  	  const Vector3_d& gridSpacing,
 							  const Vector3_i& nMeshNodes,
@@ -457,7 +450,7 @@ public:
 							  Array3D<NodeTypeEnum>& nodeTypeArray	// ← Output
 			  	  	  	  	  ) override;
 
-	IntegralProperties getIntegralProperties(const ConfigSettings& params, const SubMeshDescriptor& mesh) override;
+	IntegralProperties getIntegralProperties(const ConfigSettings& params) override;
 
 private:
 	Vector3_d centerPosition;
@@ -467,15 +460,10 @@ private:
 
 	IndexBoundingBox getSphereBoundingBox(const Vector3_d& gridSpacing, int filterNodeLayerWidth) const;
 
-	void getSolidAndFilterNodesInSphere(const ConfigSettings& params,
-	   	   	   	   	   	   	   	   	    const IndexBoundingBox& indicesToCheck,
-										const Vector3_d& gridSpacing,
-										const Vector3_i& nMeshNodes,
-										const Vector3_d& meshOriginOffset,
-										int nNodesFilterLayer,
-										vector<int>& solidNodeIndices, // ← Output
-										Array3D<NodeTypeEnum>& nodeTypeArray   // ← Output
-	   	   	   	   	   	   	   	   	    );
+	void getSolidNodesInSphere(const ConfigSettings& params,
+	   	   	   	   	   	   	   const IndexBoundingBox& indicesToCheck,
+							   vector<int>& solidNodeIndices // ← Output
+	   	   	   	   	   	   	   );
 };
 
 #endif /* SRC_BOUNDARY_H_ */

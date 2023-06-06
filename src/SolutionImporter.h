@@ -30,9 +30,9 @@ public:
 							PrimitiveVariablesScalars& primitiveVars,
 							TransportPropertiesScalars& transportProps);
 
-	void importNormHistories(ConservedVariablesVectorGroup& normHistory, long timeLevel);
+	void importNormHistories(ConservedVariablesVectorGroup& normHistory, long unsigned timeLevel);
 
-	void importLiftDrag(vector<double>& lift, vector<double>& drag, long timeLevel);
+	void importLiftDrag(vector<double>& lift, vector<double>& drag, long unsigned timeLevel);
 
 	vector<double> getSolutionTimes();
 

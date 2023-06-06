@@ -28,7 +28,8 @@ public:
 		indexLimits(indexLimits),
 		length( indexLimits.iMax - indexLimits.iMin + 1 ),
 		width ( indexLimits.jMax - indexLimits.jMin + 1 ),
-		height( indexLimits.kMax - indexLimits.kMin + 1 )
+		height( indexLimits.kMax - indexLimits.kMin + 1 ),
+		data(length*width*height)
 	{}
 
 	// Constructor. Takes number of nodes in each direction.
@@ -45,15 +46,29 @@ public:
 
 	// Constructor. Sets index limits (which implicitly gives size) AND initializes all nodes with given value.
 	Array3D(const IndexBoundingBox& indexLimits, const T& value) :
-		Array3D(indexLimits),
-		data(length * width * height, value)
-	{}
+		Array3D(indexLimits)
+	{
+		data = std::vector<T>( length*width*height, value );
+	}
 
 	// Constructor. Sets number of nodes in each direction AND initializes all nodes with given value.
 	// Lower index limit in all directions is zero.
 	Array3D(int length, int width, int height, const T& value) :
 		Array3D( IndexBoundingBox(length-1, width-1, height-1), value )
 	{}
+
+	// Constructor. Takes the array limits and a data-vector with the per-element data.
+	// Size of the data-vector must be compatible with the array's dimensions.
+	Array3D(const IndexBoundingBox& indexLimits, const vector<T>& dataVector) :
+		indexLimits(indexLimits),
+		length( indexLimits.iMax - indexLimits.iMin + 1 ),
+		width ( indexLimits.jMax - indexLimits.jMin + 1 ),
+		height( indexLimits.kMax - indexLimits.kMin + 1 ),
+		data(dataVector)
+	{
+		if( static_cast<int>(dataVector.size()) != length*width*height )
+			throw std::runtime_error("Error when constructing Array3d<T>. Size of dataVector is inconsistent with size implied by indexLimits.");
+	}
 
 	// Get reference to a node using 3D indices
 	T& operator()(int i, int j, int k)
@@ -105,6 +120,7 @@ public:
 		vector<T> nodeValues( nodes.size() );
 		for(int node : nodes)
 			nodeValues.push_back( data[node] );
+		return nodeValues;
 	}
 
 	// Get portion of the array as new array. Index limits are relative to old array.
@@ -138,11 +154,17 @@ public:
 	void setAll(const T& value)
 	{ data.assign(data.size(), value); }
 
+	// Iterator to the element with 1D index 0:
+	typename std::vector<T>::iterator begin() { return data.begin(); }
+
+	// Iterator to the past-the-end-element of the underlying 1D vector:
+	typename std::vector<T>::iterator end() { return data.end(); }
+
 	// Const iterator to the element with 1D index 0:
-	std::vector::const_iterator begin() const { return data.begin(); }
+	typename std::vector<T>::const_iterator begin() const { return data.cbegin(); }
 
 	// Const iterator to the past-the-end-element of the underlying 1D vector:
-	std::vector::const_iterator end() const { return data.end(); }
+	typename std::vector<T>::const_iterator end() const { return data.cend(); }
 
 	// Swap contents of the array with another array, using move-semantics (no copy).
 	void dataSwap(Array3D& other)

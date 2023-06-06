@@ -23,21 +23,21 @@ continueSimulation = false
 
 // Number of grid points in x, y and z direction, respectively:
 // The minimum is 3 in inlet/outlet direction, 3 in periodic direction, 4 in symmetry direction
-NI = 1600
-NJ = 802
-NK = 3
+NI = 100
+NJ = 50
+NK = 1
 
 // Dimensionless size of the domain:
 L_x = 40.
 L_y = 20.
-L_z = 0.05
+L_z = 0.
 
 // Local grid refining regions:
 // These are the places where we split the domain into different regions with different refinement levels.
 // If empty list "[]" then there is no split in that direction. E.g., 2D cases etc.
 // The values are guiding. The actial borders must appear on actual grid lines.
-refineBoundX = [3., 4., 6., 7.]
-refineBoundY = [3., 4., 6., 7.]
+refineBoundX = [8., 9., 11., 12.]
+refineBoundY = [8., 9., 11., 12.]
 refineBoundZ = []
 
 // Regions where we set a given refinement level:
@@ -61,7 +61,7 @@ stopTimeLevel = 1
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 500.
+t_end = 200.
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -107,7 +107,7 @@ saveIntervals = true
 
 // Dimensionless time between each save (if saveIntervals=true):
 // If zero, saves every time level.
-savePeriod = 100.
+savePeriod = 20.
 
 // Dimensionless times to start and stop periodic saving (if saveIntervals=true):
 // If ...StartTime <= 0, then it saves periodically from simulation start.

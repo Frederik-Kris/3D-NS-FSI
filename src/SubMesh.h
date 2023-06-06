@@ -36,11 +36,13 @@ public:
 
 	void swapConservedVariables();
 
-	SubMeshDescriptor getSubMeshDescriptor() const;
+	SubMeshDescriptor getSubMeshDescriptor();
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
-	const ImmersedBoundaryCollection& getImmersedBoundaries() {return immersedBoundaries;}
+	double getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue) const;
+
+	const ImmersedBoundaryCollection& getImmersedBoundaries() const {return immersedBoundaries;}
 
 	Vector3_i regionID;				// Indices to this sub-mesh in a 3D array of sub-meshes.
 	Vector3_i nNodes;				// Number of nodes in x,y,z directions in the submesh, not including overlap nodes OUTSIDE of the region.

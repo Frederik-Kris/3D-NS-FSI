@@ -30,9 +30,9 @@ public:
 
 	Solver(const ConfigSettings& params);
 
-	void initialize(long timeLevel);
+	void initialize(long unsigned timeLevel);
 
-	void marchTimeStep(double& t, long& timeLevel);
+	void marchTimeStep(double& t, long unsigned& timeLevel);
 
 	const ConservedVariablesVectorGroup& getConvergenceHistory() const {return normHistory;}
 
@@ -88,6 +88,7 @@ private:
 								const Array3D_d& k2,
 								const Array3D_d& k3,
 								const Array3D_d& k4,
+								const vector<int>& interiorNodes,
 								const Array3D_d& conservedVar_old,
 								Array3D_d& conservedVar_new);
 

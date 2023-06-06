@@ -104,7 +104,7 @@ void testOutputFileStream()
 
 void fillArrayRandomNumbers(Array3D_d& array, double minVal, double maxVal)
 {
-	for (size_t i{0}; i<array.getSize(); ++i)
+	for (int i{0}; i<array.getSize(); ++i)
 	{
 		array(i) = (double)rand() / (double)RAND_MAX * (maxVal - minVal) + minVal ;
 	}
@@ -121,12 +121,12 @@ void testArrayTraversalOneOrThreeIndex()
 	fillArrayRandomNumbers(A3, 0, 10);
 
 	Clock timer;
-	for (size_t i{0}; i<A1.getLength(); ++i)
-		for (size_t j{0}; j<A1.getWidth(); ++j)
-			for (size_t k{0}; k<A1.getHeight(); ++k)
+	for (int i{0}; i<A1.getLength(); ++i)
+		for (int j{0}; j<A1.getWidth(); ++j)
+			for (int k{0}; k<A1.getHeight(); ++k)
 				A3(i,j,k) = A1(i,j,k) + A2(i,j,k);
 	Time t1 = timer.restart();
-	for (size_t i{0}; i<A1.getSize(); ++i)
+	for (int i{0}; i<A1.getSize(); ++i)
 		A3(i) = A1(i) + A2(i);
 	Time t2 = timer.getElapsedTime();
 
@@ -262,11 +262,11 @@ void testArrayWithSettings()
 		return;
 	Array3D_d u(settings.NI, settings.NJ, settings.NK);
 	size_t counter{0};
-	for(size_t i{0}; i<settings.NI; ++i)
+	for(int i{0}; i<settings.NI; ++i)
 	{
-		for(size_t j{0}; j<settings.NJ; ++j)
+		for(int j{0}; j<settings.NJ; ++j)
 		{
-			for(size_t k{0}; k<settings.NK; ++k)
+			for(int k{0}; k<settings.NK; ++k)
 			{
 				u(i,j,k) = counter;
 				++counter;

@@ -12,6 +12,7 @@ SubMesh::SubMesh() :
   nNodes(0,0,0),
   arrayLimits(0,0,0),
   nNodesTotal{0},
+  refinementLevel{0},
   gridSpacings(0,0,0),
   conservedVariables(arrayLimits),
   conservedVariablesOld(arrayLimits),
@@ -49,10 +50,10 @@ void SubMesh::setBoundaries(EdgeBoundaryCollection& _edgeBoundaries, ImmersedBou
 {
 	edgeBoundaries.clear();
 	for(auto&& boundary : _edgeBoundaries)
-		edgeBoundaries.push_back( boundary );
+		edgeBoundaries.push_back( boundary->getUniquePtrToCopy() );
 	immersedBoundaries.clear();
 	for(auto&& boundary : _immersedBoundaries)
-		immersedBoundaries.push_back( boundary );
+		immersedBoundaries.push_back( boundary->getUniquePtrToCopy() );
 }
 
 // Categorize mesh nodes based on boundary conditions. This includes finding image point positions.
@@ -61,17 +62,16 @@ void SubMesh::categorizeNodes(const ConfigSettings& params,
 {
 	nodeType.setAll(NodeTypeEnum::FluidInterior);
 
-	IndexBoundingBox unclaimedNodes = arrayLimits;						// At first, all nodes are unclaimed.
+	IndexBoundingBox unclaimedNodes = arrayLimits;							// At first, all nodes are unclaimed.
 	for(auto&& boundary : edgeBoundaries)									// Loop through mesh edge boundaries.
 	{
-		boundary->identifyRelatedNodes(unclaimedNodes, nNodes, nodeType);	// Each boundary flags and claims nodes.
-		boundary->identifyBorrowedNodes(neighborSubMeshReferences);			// Find nodes we need in neighbor submeshes
+		boundary->identifyRelatedNodes(unclaimedNodes, neighborSubMeshes);	// Each boundary flags and claims nodes.
 	}
 	std::reverse( edgeBoundaries.begin(), edgeBoundaries.end() );			// Reverse order, so last added is first applied.
 
 	// Then each immersed boundary finds its solid and ghost nodes, and body intercept and image points:
 	for(auto&& boundary : immersedBoundaries)
-		boundary->identifyRelatedNodes(params, gridSpacings, nMeshNodes, positionOffset, nodeType);
+		boundary->identifyRelatedNodes(params, gridSpacings, nNodes, boundingBox.getMinPoint(), nodeType);
 
 	// Finally we note the indices of interior fluid nodes and solid ghost nodes, so we can loop through only those:
 	for(int index1D{0}; index1D<nNodesTotal; ++index1D)
@@ -94,22 +94,40 @@ void SubMesh::swapConservedVariables()
 
 
 // Get info and flow variables for this sub-mesh region:
-SubMeshDescriptor SubMesh::getSubMeshDescriptor() const
+SubMeshDescriptor SubMesh::getSubMeshDescriptor()
 {
-	return SubMeshDescriptor( nNodes, arrayLimits, gridSpacings, nodeType, flowVariableReferences, refinementLevel, regionID);
+	return SubMeshDescriptor( nNodes, gridSpacings, arrayLimits, boundingBox, nodeType, flowVariableReferences, refinementLevel, regionID);
 }
 
 // Loop through boundaries, who are derived classes of MeshEdgeBoundary and ImmersedBoundary,
 // and apply their boundary conditions.
 void SubMesh::applyAllBoundaryConditions(double t, const ConfigSettings& params)
 {
-	const Vector3_i nMeshNodes(NI, NJ, NK);
-	const Vector3_d gridSpacing(dx, dy, dz);
-	SubMeshDescriptor meshData(nMeshNodes, gridSpacing, positionOffset, nodeType, flowVariableReferences);
 
 	for(auto&& boundary : edgeBoundaries)
-		boundary->applyBoundaryCondition(t, nMeshNodes, params, flowVariableReferences);
+		boundary->applyBoundaryCondition(t, params);
 
 	for(auto&& boundary : immersedBoundaries)
-		boundary->applyBoundaryCondition(params, meshData);
+		boundary->applyBoundaryCondition(params);
 }
+
+// Compute the 2-norm of the difference between two arrys. Intended to monitor the change between two consecutive time levels,
+// .g. to check convergence of solution. Could also be used to check error.
+double SubMesh::getNormOfChange(const Array3D_d& oldValue, const Array3D_d& newValue) const
+{
+	double sumOfSquaredDifferences = 0;
+	for(int i : indexByType.fluidInterior)
+		sumOfSquaredDifferences += pow(oldValue(i)-newValue(i), 2);
+	double dx = gridSpacings.x;
+	double dy = gridSpacings.y;
+	double dz = gridSpacings.z;
+	double normOfChange = sqrt( dx*dy*dz * sumOfSquaredDifferences );
+	return normOfChange;
+}
+
+
+
+
+
+
+
