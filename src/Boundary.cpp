@@ -72,7 +72,16 @@ IndexBoundingBox MeshEdgeBoundary::peelOffBoundaryPlane(IndexBoundingBox& inputB
 	return boundaryPlane;
 }
 
-// Claim all unclaimed nodes in the boundary plane, and assign them the appropriate type.
+/**
+ * Claims all unclaimed nodes in the boundary plane, and assign them the appropriate type.
+ *
+ * This function identifies and assigns the appropriate node types within the submesh that owns this boundary
+ * It claims one layer from the index bounding box of unclaimed nodes, by peeling off a layer of nodes on the side where the boundary is.
+ * It updates the `subMeshData` by setting the `ownedNodesType` for the `relatedNodes` claimed from `unclaimedNodes`.
+ *
+ * @param unclaimedNodes The index bounding box of unclaimed nodes. All nodes in the parent submesh, except those claimed by other boundaries.
+ * @param subMeshes The array of SubMeshDescriptors representing submeshes closest to the parent submesh of the boundary. I.e., a lattice centered on the parent submesh.
+ */
 void MeshEdgeBoundary::identifyRelatedNodes(IndexBoundingBox& unclaimedNodes,
 											const Array3D<SubMeshDescriptor>& neighborSubMeshes)
 {
@@ -626,7 +635,15 @@ void SubmeshInterfaceBoundary::applyBoundaryCondition(double t, const ConfigSett
 			}
 	for(SpecialTreatmentNodeInfo node : relatedNodes.specialTreatment)
 	{
-		node.
+		double rho   = getMeanNodeValue(node.borrowedNodes, node.borrowedSubMesh.conservedVariables.rho  );
+		double rho_u = getMeanNodeValue(node.borrowedNodes, node.borrowedSubMesh.conservedVariables.rho_u);
+		double rho_v = getMeanNodeValue(node.borrowedNodes, node.borrowedSubMesh.conservedVariables.rho_v);
+		double rho_w = getMeanNodeValue(node.borrowedNodes, node.borrowedSubMesh.conservedVariables.rho_w);
+		double rho_E = getMeanNodeValue(node.borrowedNodes, node.borrowedSubMesh.conservedVariables.rho_E);
+		ConservedVariablesScalars consVarsThisNode(rho, rho_u, rho_v, rho_w, rho_E);
+		PrimitiveVariablesScalars primVarsThisNode = derivePrimitiveVariables(consVarsThisNode, params);
+		TransportPropertiesScalars transPropsThisNode = deriveTransportProperties(primVarsThisNode, params);
+		setFlowVariablesAtNode(node.ownedNode, consVarsThisNode, primVarsThisNode, transPropsThisNode, subMeshData.flowVariables);
 	}
 }
 

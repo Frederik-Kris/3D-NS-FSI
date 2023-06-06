@@ -102,8 +102,8 @@ struct SpecialTreatmentNodeInfo
 		borrowedSubMesh(subMeshToBorrow)
 	{}
 
-	int ownedNode;
-	vector<int> borrowedNodes;
+	int ownedNode;				// Index in the parent submesh
+	vector<int> borrowedNodes;	// Indices in the submesh we borrow from
 	const AllFlowVariablesArrayGroup& borrowedSubMesh;
 };
 
