@@ -97,9 +97,9 @@ void ConfigSettings::readSettingValues(Config& cfg)
 		refineBoundZ.push_back( refineZSetting[i] );
 	Setting& refineLevelSetting = cfg.lookup("refineLevels");
 	for(int i=0; i<refineLevelSetting.getLength(); ++i)
-		specifiedRefinementLevels.push_back( RefinementSpecification{Vector3_i( refineLevelSetting[i].lookup("indices")[0],
-																				refineLevelSetting[i].lookup("indices")[1],
-																				refineLevelSetting[i].lookup("indices")[2] ),
+		specifiedRefinementLevels.push_back( RefinementSpecification{Vector3_i( static_cast<int>( refineLevelSetting[i].lookup("indices")[0] ),
+																				static_cast<int>( refineLevelSetting[i].lookup("indices")[1] ),
+																				static_cast<int>( refineLevelSetting[i].lookup("indices")[2] ) ),
 																	 	 	 	refineLevelSetting[i].lookup("level")} );
 
 	string stopCriterionString = cfg.lookup("stopCriterion").c_str();
