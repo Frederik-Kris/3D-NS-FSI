@@ -12,7 +12,7 @@ void Mesh::makeThresholdsCoincideWithGridLines()
 {
 	iThresholds = jThresholds = kThresholds = vector<int>(1, 0);
 	for (int i = 0; i < nRegions.i; ++i) {
-		iThresholds.at(i + 1) = round(xThresholds[i + 1] / dxBase);
+		iThresholds.push_back( round(xThresholds[i + 1] / dxBase) );
 		xThresholds[i] = iThresholds.at(i) * dxBase;
 		xThresholds[i + 1] = iThresholds.at(i + 1) * dxBase;
 		if (iThresholds.at(i + 1) - iThresholds.at(i) < 2 && nRegions.i > 1)
@@ -20,7 +20,7 @@ void Mesh::makeThresholdsCoincideWithGridLines()
 					"A submesh is too small in the x direction.");
 
 		for (int j = 0; j < nRegions.j; ++j) {
-			jThresholds.at(j + 1) = round(yThresholds[j + 1] / dyBase);
+			jThresholds.push_back( round(yThresholds[j + 1] / dyBase) );
 			yThresholds[j] = jThresholds.at(j) * dyBase;
 			yThresholds[j + 1] = jThresholds.at(j + 1) * dyBase;
 			if (jThresholds.at(j + 1) - jThresholds.at(j) < 2 && nRegions.j > 1)
@@ -28,7 +28,7 @@ void Mesh::makeThresholdsCoincideWithGridLines()
 						"A submesh is too small in the y direction.");
 
 			for (int k = 0; k < nRegions.k; ++k) {
-				kThresholds.at(i + 1) = round(zThresholds[k + 1] / dzBase);
+				kThresholds.push_back( round(zThresholds[k + 1] / dzBase) );
 				zThresholds[k] = kThresholds.at(i) * dzBase;
 				zThresholds[k + 1] = kThresholds.at(i + 1) * dzBase;
 				if (kThresholds.at(i + 1) - kThresholds.at(i) < 2
