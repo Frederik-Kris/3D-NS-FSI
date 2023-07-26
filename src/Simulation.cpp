@@ -28,11 +28,13 @@ void Simulation::run()
 {
 	solver.initialize(timeLevel);
 	output.initialize(timeLevel);
-	output.processInitialOutput(solver.mesh, t, timeLevel);
+	output.processInitialOutput(solver.mesh, t, timeLevel, solver.getConvergenceHistory(),
+			solver.liftHistory, solver.dragHistory, solver.separationAngles);
 	while ( !checkStoppingCriterion() )
 	{
 		solver.marchTimeStep(t, timeLevel);
-		output.processIntermediateOutput(solver.mesh, t, timeLevel, solver.dt);
+		output.processIntermediateOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory(),
+				solver.liftHistory, solver.dragHistory, solver.separationAngles);
 	}
 	output.processFinalOutput(solver.mesh, t, timeLevel, solver.dt, solver.getConvergenceHistory(),
 								solver.liftHistory, solver.dragHistory, solver.separationAngles);

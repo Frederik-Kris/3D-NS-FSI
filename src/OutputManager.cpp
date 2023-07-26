@@ -14,7 +14,8 @@ OutputManager::OutputManager(const ConfigSettings& params) :
 params(params),
 savedSolutions{0},
 timeLevelStart{0},
-previousProgression{0}
+previousProgression{0},
+lastStoredTimeLevel{0}
 {
 }
 
@@ -59,10 +60,14 @@ void OutputManager::initialize(long unsigned _timeLevelStart)
 }
 
 // Check if anything should be written before sim start.
-void OutputManager::processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel)
+void OutputManager::processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel,
+		   	   	   	   	   	   	   	   	 const ConservedVariablesVectorGroup& convergenceHistory,
+										 const vector<double>& lift,
+										 const vector<double>& drag,
+										 const vector<double>& separationAngles)
 {
 	if ( params.saveIC )
-		storeCurrentSolution(mesh, t, timeLevel);
+		storeCurrentSolution(mesh, t, timeLevel, convergenceHistory, lift, drag, separationAngles);
 }
 
 // Checks whether it is time to store the solution to disk, or write out a status report to screen and does it if appropriate.
@@ -71,7 +76,11 @@ void OutputManager::processInitialOutput(const Mesh& mesh, double t, long unsign
 void OutputManager::processIntermediateOutput(const Mesh& mesh,
 											  double t, // ← time
 											  long unsigned timeLevel,
-											  double dt) // ← timestep size
+											  double dt, // ← timestep size
+											  const ConservedVariablesVectorGroup& convergenceHistory,
+											  const vector<double>& lift,
+											  const vector<double>& drag,
+											  const vector<double>& separationAngles)
 {
 	// Save to disk:
 	if(params.saveIntervals)
@@ -85,7 +94,7 @@ void OutputManager::processIntermediateOutput(const Mesh& mesh,
 			enoughTimeSinceSave = timeSinceSave + dt >= params.savePeriod;
 		}
 		if ( withinRelevantTimeRegime && enoughTimeSinceSave )
-			storeCurrentSolution(mesh, t, timeLevel);
+			storeCurrentSolution(mesh, t, timeLevel, convergenceHistory, lift, drag, separationAngles);
 	}
 	// Write to screen:
 	double timeSinceStatusReport = statusReportTimer.getElapsedTime().asSeconds();
@@ -107,20 +116,25 @@ void OutputManager::processFinalOutput(const Mesh& mesh,
 									   const vector<double>& separationAngles)
 {
 	if ( params.saveFinal )
-		storeCurrentSolution(mesh, t, timeLevel);
+		storeCurrentSolution(mesh, t, timeLevel, convergenceHistory, lift, drag, separationAngles);
 	writeStatusReport_toScreen(t, timeLevel, dt);
-	writeOutputTimes();
-	writeConvergenceHistoryFiles(convergenceHistory);
-	writeIntegralProperties(lift, drag, separationAngles);
 }
 
 // Store selected variables from the solution at current time level, to disk, and remember the time.
-void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, long timeLevel)
+void OutputManager::storeCurrentSolution(const Mesh& mesh, double t, long timeLevel,
+		   	   	   	   	   	   	   	     const ConservedVariablesVectorGroup& convergenceHistory,
+										 const vector<double>& lift,
+										 const vector<double>& drag,
+										 const vector<double>& separationAngles)
 {
 	storeCurrentSolution_vtk(mesh, t);
 	++savedSolutions;
 	outputTimes.push_back(t);
 	writeTimeLevel(timeLevel);
+	writeOutputTimes();
+	writeIntegralProperties(lift, drag, separationAngles);
+	writeConvergenceHistoryFiles(convergenceHistory);
+	lastStoredTimeLevel = timeLevel;
 }
 
 // Get a string with the first lines we need in the .vtk file.
@@ -133,7 +147,7 @@ string OutputManager::getVtkHeader(const Mesh& mesh, double t)
 	vtkHeader += "Output at time t = " + to_string(t) + "\n";
 	vtkHeader += "ASCII\n";
 	vtkHeader += "DATASET STRUCTURED_POINTS\n";
-	vtkHeader += "DIMENSIONS " + to_string(mesh.NI) + " " + to_string(mesh.NJ) + " " + to_string(mesh.NK) + "\n";
+	vtkHeader += "DIMENSIONS " + to_string(subMesh.arrayLimits.nNodes().i) + " " + to_string(subMesh.arrayLimits.nNodes().j) + " " + to_string(subMesh.arrayLimits.nNodes().k) + "\n";
 	vtkHeader += "ORIGIN " + to_string(subMesh.boundingBox.getMinPoint().x) + " "
 						   + to_string(subMesh.boundingBox.getMinPoint().y) + " "
 						   + to_string(subMesh.boundingBox.getMinPoint().z) + "\n";
@@ -150,9 +164,9 @@ void OutputManager::writeVtkNodeFlags(const Mesh& mesh,
 	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	outputFile << "SCALARS Node_Flag int 1\n";
 	outputFile << "LOOKUP_TABLE default\n";
-	for (int k{0}; k<mesh.NK; ++k)
-		for (int j{0}; j<mesh.NJ; ++j)
-			for (int i{0}; i<mesh.NI; ++i)
+	for (int k{subMesh.arrayLimits.kMin}; k<=subMesh.arrayLimits.kMax; ++k)
+		for (int j{subMesh.arrayLimits.jMin}; j<=subMesh.arrayLimits.jMax; ++j)
+			for (int i{subMesh.arrayLimits.iMin}; i<=subMesh.arrayLimits.iMax; ++i)
 			{
 				int flagValue = 0;
 				if(subMesh.nodeType(i,j,k) == NodeTypeEnum::FluidInterior)
@@ -217,14 +231,15 @@ void OutputManager::writeVtkScalarData(const Mesh& mesh,
 {
 	vector<const Array3D_d*> scalarFlowVariables = getScalarVariablePointers(mesh);
 	vector<string> variableNames = getScalarVariableNames();
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	int counter = 0;
 	for (const Array3D_d* flowVariable : scalarFlowVariables)
 	{
 		outputFile << "SCALARS " << variableNames.at(counter) << " double 1\n";
 		outputFile << "LOOKUP_TABLE default\n";
-		for (int k{0}; k<mesh.NK; ++k)
-			for (int j{0}; j<mesh.NJ; ++j)
-				for (int i{0}; i<mesh.NI; ++i)
+		for (int k{subMesh.arrayLimits.kMin}; k<=subMesh.arrayLimits.kMax; ++k)
+			for (int j{subMesh.arrayLimits.jMin}; j<=subMesh.arrayLimits.jMax; ++j)
+				for (int i{subMesh.arrayLimits.iMin}; i<=subMesh.arrayLimits.iMax; ++i)
 					outputFile << flowVariable->at(i,j,k) << "\n";
 		++counter;
 	}
@@ -270,13 +285,14 @@ void OutputManager::writeVtkVectorData(const Mesh& mesh,
 	// The std::array with fixed size 3 represents the 3D vectors' three components:
 	vector<std::array<const Array3D_d*, 3>> vectorFlowVariables = getVectorVariablePointers(mesh);
 	vector<string> variableNames = getVectorVariableNames();
+	const SubMesh& subMesh = mesh.getSubMeshWithIB();
 	int counter = 0;
 	for (std::array<const Array3D_d*, 3> flowVariableVector : vectorFlowVariables)
 	{
 		outputFile << "VECTORS " << variableNames.at(counter) << " double\n";
-		for (int k{0}; k<mesh.NK; ++k)
-			for (int j{0}; j<mesh.NJ; ++j)
-				for (int i{0}; i<mesh.NI; ++i)
+		for (int k{subMesh.arrayLimits.kMin}; k<=subMesh.arrayLimits.kMax; ++k)
+			for (int j{subMesh.arrayLimits.jMin}; j<=subMesh.arrayLimits.jMax; ++j)
+				for (int i{subMesh.arrayLimits.iMin}; i<=subMesh.arrayLimits.iMax; ++i)
 					outputFile << flowVariableVector[0]->at(i,j,k) << " "	// ← x-component
 							   << flowVariableVector[1]->at(i,j,k) << " "	// ← y-component
 							   << flowVariableVector[2]->at(i,j,k) << "\n";	// ← z-component
@@ -344,15 +360,14 @@ void OutputManager::writeOutputTimes()
 {
 	ofstream timeFile;
 	string filename = string(StringLiterals::outputFolder) + StringLiterals::timesFile;
-	timeFile.open( filename );
+	timeFile.open( filename, std::ios_base::app );
 	if ( !timeFile )
 	{
 		cout << "Could not open file:  " + filename << endl
 		     << "Output times were not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 		return;
 	}
-	for (double time : outputTimes)
-		timeFile << setprecision(8) << time << endl;
+	timeFile << setprecision(8) << outputTimes.back() << endl;
 	timeFile.close();
 }
 
@@ -361,23 +376,41 @@ void OutputManager::writeIntegralProperties(const vector<double>& liftHistory,
 											const vector<double>& dragHistory,
 											const vector<double>& separationAngles)
 {
-	vector<string> names = {"lift", "drag", "separation_angles"};
-	vector<vector<double>> dataSets = {liftHistory, dragHistory, separationAngles};
-	for (int i : {0,1,2})
+	vector<string> names = {"lift", "drag"};
+	vector<const vector<double>*> dataSets = {&liftHistory, &dragHistory};
+	for (int varIdx : {0,1})
 	{
 		ofstream outputFile;
-		string filename = StringLiterals::outputFolder + names.at(i) + ".dat";
-		outputFile.open( filename );
+		string filename = StringLiterals::outputFolder + names.at(varIdx) + ".dat";
+		outputFile.open( filename, std::ios_base::app );
 		if ( !outputFile)
 		{
 			cout << "Could not open file:  " + filename << endl
-				 << names.at(i) + " was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
+				 << names.at(varIdx) + " was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 			return;
 		}
-		for (double scalar : dataSets.at(i))
+		for (size_t i=lastStoredTimeLevel; i<dataSets.at(varIdx)->size(); ++i)
+		{
+			double scalar = dataSets.at(varIdx)->at(i);
 			outputFile << scalar << endl;
+		}
 		outputFile.close();
 	}
+	ofstream outputFile;
+	string filename = string(StringLiterals::outputFolder) + "separation_angle.dat";
+	outputFile.open( filename, std::ios_base::app );
+	if ( !outputFile)
+	{
+		cout << "Could not open file:  " + filename << endl
+				<< "separation angle was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
+		return;
+	}
+	for (size_t i=lastStoredTimeLevel; i<separationAngles.size(); ++i)
+	{
+		double theta = separationAngles.at(i);
+		outputFile << theta << endl;
+	}
+	outputFile.close();
 }
 
 void OutputManager::writeTimeLevel(int timeLevel)
@@ -428,15 +461,18 @@ void OutputManager::writeConvergenceHistoryFiles(const ConservedVariablesVectorG
 	for(int varIndex{0}; varIndex<nFilenames; ++varIndex)
 	{
 		ofstream normFile;
-		normFile.open( StringLiterals::outputFolder + fileNames.at(varIndex) );
+		normFile.open( StringLiterals::outputFolder + fileNames.at(varIndex), std::ios_base::app );
 		if ( !normFile )
 		{
 			cout << "Could not open convergence history file for " + fileNames.at(varIndex) + ". " << endl
 					<< "Norm history was not written to .dat file. You may have to move the 'output' folder to the location of the source files or to the executable itself, depending on whether you run the executable through an IDE or by itself." << endl;
 		}
 		else
-			for (double norm : *normHistoriesToSave.at(varIndex))
+			for (size_t i=lastStoredTimeLevel; i<normHistoriesToSave.at(varIndex)->size(); ++i)
+			{
+				double norm = normHistoriesToSave.at(varIndex)->at(i);
 				normFile << norm << endl;
+			}
 
 		normFile.close();
 	}

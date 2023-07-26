@@ -24,12 +24,20 @@ public:
 
 	void initialize(long unsigned timeLevelStart);
 
-	void processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel);
+	void processInitialOutput(const Mesh& mesh, double t, long unsigned timeLevel,
+			   	   	   	   	  const ConservedVariablesVectorGroup& convergenceHistory,
+							  const vector<double>& lift,
+							  const vector<double>& drag,
+							  const vector<double>& separationAngles);
 
 	void processIntermediateOutput(const Mesh& mesh,
 								   double t,
 								   long unsigned timeLevel,
-								   double dt);
+								   double dt,
+								   const ConservedVariablesVectorGroup& convergenceHistory,
+								   const vector<double>& lift,
+								   const vector<double>& drag,
+								   const vector<double>& separationAngles);
 
 	void processFinalOutput(const Mesh& mesh,
 							double t,
@@ -42,7 +50,11 @@ public:
 
 private:
 
-	void storeCurrentSolution(const Mesh& mesh, double t, long timeLevel);
+	void storeCurrentSolution(const Mesh& mesh, double t, long timeLevel,
+			   	   	   	   	  const ConservedVariablesVectorGroup& convergenceHistory,
+							  const vector<double>& lift,
+							  const vector<double>& drag,
+							  const vector<double>& separationAngles);
 
 	string getVtkHeader(const Mesh&, double t);
 
@@ -77,12 +89,13 @@ private:
 	void writeConvergenceHistoryFiles(const ConservedVariablesVectorGroup& convergenceHistory);
 
 	const ConfigSettings params;	// Parameters and settings, imported from config file
-	int savedSolutions;			// No. of times saved to disk
+	int savedSolutions;				// No. of times saved to disk
 	vector<double> outputTimes;     // The exact times when solution was saved
 	long timeLevelStart;			// Time level when the simulation started. Zero unless simulation continued from earlier result.
 	Clock wallClockTimer;			// Wall clock time for the entire simulation
 	Clock statusReportTimer;		// Wall clock time since last status report to screen
 	double previousProgression;		// Store progression between status reports, to estimate runtime
+	long lastStoredTimeLevel;		// The time level of the previous write-out
 };
 
 #endif /* SRC_OUTPUTMANAGER_H_ */
