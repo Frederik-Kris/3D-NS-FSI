@@ -7,26 +7,70 @@
 
 #include "Mesh.h"
 
-// Constructor. Taking parameters in ConfigSettings.
-Mesh::Mesh(const ConfigSettings& params) :
-NI{params.NI}, NJ{params.NJ}, NK{params.NK}
+// Make the thresholds coincide with gridlines, and assert that all regions are at least three nodes wide:
+void Mesh::makeThresholdsCoincideWithGridLines()
 {
-	vector<double> xThresholds = params.refineBoundX;
-	vector<double> yThresholds = params.refineBoundY;
-	vector<double> zThresholds = params.refineBoundZ;
-	xThresholds.insert( xThresholds.begin(), 0 );
-	yThresholds.insert( yThresholds.begin(), 0 );
-	zThresholds.insert( zThresholds.begin(), 0 );
+	iThresholds = jThresholds = kThresholds = vector<int>(1, 0);
+	for (int i = 0; i < nRegions.i; ++i) {
+		iThresholds.at(i + 1) = round(xThresholds[i + 1] / dxBase);
+		xThresholds[i] = iThresholds.at(i) * dxBase;
+		xThresholds[i + 1] = iThresholds.at(i + 1) * dxBase;
+		if (iThresholds.at(i + 1) - iThresholds.at(i) < 2 && nRegions.i > 1)
+			throw std::runtime_error(
+					"A submesh is too small in the x direction.");
+
+		for (int j = 0; j < nRegions.j; ++j) {
+			jThresholds.at(j + 1) = round(yThresholds[j + 1] / dyBase);
+			yThresholds[j] = jThresholds.at(j) * dyBase;
+			yThresholds[j + 1] = jThresholds.at(j + 1) * dyBase;
+			if (jThresholds.at(j + 1) - jThresholds.at(j) < 2 && nRegions.j > 1)
+				throw std::runtime_error(
+						"A submesh is too small in the y direction.");
+
+			for (int k = 0; k < nRegions.k; ++k) {
+				kThresholds.at(i + 1) = round(zThresholds[k + 1] / dzBase);
+				zThresholds[k] = kThresholds.at(i) * dzBase;
+				zThresholds[k + 1] = kThresholds.at(i + 1) * dzBase;
+				if (kThresholds.at(i + 1) - kThresholds.at(i) < 2
+						&& nRegions.k > 1)
+					throw std::runtime_error(
+							"A submesh is too small in the z direction.");
+			}
+		}
+	}
+}
+
+// Get the requested thresholds, :
+void Mesh::getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &params)
+{
+	xThresholds = params.refineBoundX;
+	yThresholds = params.refineBoundY;
+	zThresholds = params.refineBoundZ;
+	xThresholds.insert(xThresholds.begin(), 0);
+	yThresholds.insert(yThresholds.begin(), 0);
+	zThresholds.insert(zThresholds.begin(), 0);
 	xThresholds.push_back(params.L_x);
 	yThresholds.push_back(params.L_y);
 	zThresholds.push_back(params.L_z);
-	double dxBase = NI>1 ? params.L_x/(NI-1) : 1;
-	double dyBase = NJ>1 ? params.L_y/(NJ-1) : 1;
-	double dzBase = NK>1 ? params.L_z/(NK-1) : 1;
-	nRegions.i = xThresholds.size()-1;
-	nRegions.j = yThresholds.size()-1;
-	nRegions.k = zThresholds.size()-1;
+	dxBase = NI > 1 ? params.L_x / (NI - 1) : 1;
+	dyBase = NJ > 1 ? params.L_y / (NJ - 1) : 1;
+	dzBase = NK > 1 ? params.L_z / (NK - 1) : 1;
+	nRegions.i = xThresholds.size() - 1;
+	nRegions.j = yThresholds.size() - 1;
+	nRegions.k = zThresholds.size() - 1;
+}
+
+// Decide on division into submeshes
+void Mesh::initializeThresholds(const ConfigSettings& params)
+{
+	getRequestedThresholdsAndBaseGridSpacings(params);
 	subMeshes.setSize(nRegions.i, nRegions.j, nRegions.k);
+	makeThresholdsCoincideWithGridLines();
+}
+
+// Set refinement level in all submeshes
+void Mesh::setRefinementLevels(const ConfigSettings& params)
+{
 	refinementLevels = Array3D<int>(nRegions.i, nRegions.j, nRegions.k, 0);
 	for(const RefinementSpecification& refSpec : params.specifiedRefinementLevels)
 	{
@@ -48,34 +92,131 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 	}
 	for(SubMesh& subMesh : subMeshes)
 		subMesh.refinementLevel = refinementLevels(subMesh.regionID);
+}
 
-	setupBoundaries(params);
-	double BIGG = std::numeric_limits<double>::max();
-	smallestGridSpacings = Vector3_d( BIGG, BIGG, BIGG );
-	for(int i=0; i<nRegions.i; ++i)
+// Use the boundary proxies of the Mesh to create boundaries for a submesh
+void Mesh::createBoundariesFromProxies(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits, EdgeBoundaryCollection& subMeshEdgeBCs)
+{
+	int iPrev = iThresholds.at(i), iNext = iThresholds.at(i+1);
+	int jPrev = jThresholds.at(j), jNext = jThresholds.at(j+1);
+	int kPrev = kThresholds.at(k), kNext = kThresholds.at(k+1);
+	for(auto&& boundaryProxy : edgeBoundaries)
 	{
-		int iPrev = round(xThresholds[i  ]/dxBase);
-		int iNext = round(xThresholds[i+1]/dxBase);
-		xThresholds[i  ] = iPrev * dxBase;
-		xThresholds[i+1] = iNext * dxBase;
-		if(iNext-iPrev < 2 && nRegions.i > 1)
-			throw std::runtime_error("A submesh is too small in the x direction.");
-		for(int j=0; j<nRegions.j; ++j)
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::x && boundaryProxy->planeIndex == EdgeIndexEnum::min && iPrev == 0)
 		{
-			int jPrev = round(yThresholds[j  ]/dyBase);
-			int jNext = round(yThresholds[j+1]/dyBase);
-			yThresholds[j  ] = jPrev * dyBase;
-			yThresholds[j+1] = jNext * dyBase;
-			if(jNext-jPrev < 2 && nRegions.j > 1)
-				throw std::runtime_error("A submesh is too small in the y direction.");
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::x && boundaryProxy->planeIndex == EdgeIndexEnum::max && iNext == NI-1)
+		{
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::y && boundaryProxy->planeIndex == EdgeIndexEnum::min && jPrev == 0)
+		{
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::y && boundaryProxy->planeIndex == EdgeIndexEnum::max && jNext == NJ-1)
+		{
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::z && boundaryProxy->planeIndex == EdgeIndexEnum::min && kPrev == 0)
+		{
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+		if(boundaryProxy->normalAxis == AxisOrientationEnum::z && boundaryProxy->planeIndex == EdgeIndexEnum::max && kNext == NK-1)
+		{
+			subMeshEdgeBCs.push_back( boundaryProxy->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
+			subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+		}
+	}
+}
+
+// Create boundary conditions at inerfaces to other submeshes
+void Mesh::createSubmeshInterfacBoundaries(int i, int j, int k,
+		EdgeBoundaryCollection &subMeshEdgeBCs,
+		IndexBoundingBox &subMeshArrayLimits)
+{
+	int iPrev = iThresholds.at(i), iNext = iThresholds.at(i + 1);
+	int jPrev = jThresholds.at(j), jNext = jThresholds.at(j + 1);
+	int kPrev = kThresholds.at(k), kNext = kThresholds.at(k + 1);
+	if (iPrev > 0) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::x, EdgeIndexEnum::min,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i - 1, j, k).getSubMeshDescriptor()));
+		subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+	if (iNext < NI - 1) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::x, EdgeIndexEnum::max,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i + 1, j, k).getSubMeshDescriptor()));
+		subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+	if (jPrev > 0) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::y, EdgeIndexEnum::min,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i, j - 1, k).getSubMeshDescriptor()));
+		subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+	if (jNext < NJ - 1) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::y, EdgeIndexEnum::max,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i, j + 1, k).getSubMeshDescriptor()));
+		subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+	if (kPrev > 0) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::z, EdgeIndexEnum::min,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i, j, k - 1).getSubMeshDescriptor()));
+		subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+	if (kNext < NK - 1) {
+		subMeshEdgeBCs.push_back(
+				std::make_unique<SubmeshInterfaceBoundary>(
+						AxisOrientationEnum::z, EdgeIndexEnum::max,
+						subMeshes(i, j, k).getSubMeshDescriptor(),
+						subMeshes(i, j, k + 1).getSubMeshDescriptor()));
+		subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
+	}
+}
+
+// Set the edge boundary conditions for the submeshes based on the boundary proxies of the Mesh.
+// Side-effect: Depending on BC types the submeshes may need extra node layers on some edges. This is also taken care of here.
+EdgeBoundaryCollection Mesh::setupSubMeshEdgeBoundaries(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits)
+{
+	EdgeBoundaryCollection subMeshEdgeBCs;
+	createBoundariesFromProxies(i, j, k, subMeshArrayLimits, subMeshEdgeBCs);
+	createSubmeshInterfacBoundaries(i, j, k, subMeshEdgeBCs, subMeshArrayLimits);
+	return subMeshEdgeBCs;
+}
+
+// Create the submesh node arrays and boundaries
+void Mesh::setupSubMeshes(const ConfigSettings& params)
+{
+	for(int i=0; i<nRegions.i; ++i)
+		for(int j=0; j<nRegions.j; ++j)
 			for(int k=0; k<nRegions.k; ++k)
 			{
-				int kPrev = round(zThresholds[k  ]/dzBase);
-				int kNext = round(zThresholds[k+1]/dzBase);
-				zThresholds[k  ] = kPrev * dzBase;
-				zThresholds[k+1] = kNext * dzBase;
-				if(kNext-kPrev < 2 && nRegions.k > 1)
-					throw std::runtime_error("A submesh is too small in the z direction.");
+				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
+				int iPrev = iThresholds.at(i  );
+				int iNext = iThresholds.at(i+1);
+				int jPrev = jThresholds.at(j  );
+				int jNext = jThresholds.at(j+1);
+				int kPrev = kThresholds.at(k  );
+				int kNext = kThresholds.at(k+1);
 				int subMeshSizeX = (iNext-iPrev) * pow(2, refinementLevels(i,j,k)) + 1;
 				int subMeshSizeY = (jNext-jPrev) * pow(2, refinementLevels(i,j,k)) + 1;
 				int subMeshSizeZ = (kNext-kPrev) * pow(2, refinementLevels(i,j,k)) + 1;
@@ -87,111 +228,42 @@ NI{params.NI}, NJ{params.NJ}, NK{params.NK}
 				subMeshVolume.yMax = yThresholds[j+1];
 				subMeshVolume.zMin = zThresholds[k];
 				subMeshVolume.zMax = zThresholds[k+1];
-				EdgeBoundaryCollection subMeshEdgeBCs;
-				for(auto&& boundary : edgeBoundaries)
-				{
-					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::min && iPrev == 0)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-					if(boundary->normalAxis == AxisOrientationEnum::x && boundary->planeIndex == EdgeIndexEnum::max && iNext == NI-1)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::min && jPrev == 0)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-					if(boundary->normalAxis == AxisOrientationEnum::y && boundary->planeIndex == EdgeIndexEnum::max && jNext == NJ-1)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::min && kPrev == 0)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-					if(boundary->normalAxis == AxisOrientationEnum::z && boundary->planeIndex == EdgeIndexEnum::max && kNext == NK-1)
-					{
-						subMeshEdgeBCs.push_back( boundary->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
-						subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-					}
-				}
-				if(iPrev > 0)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::x,
-								EdgeIndexEnum::min,
-								subMeshes(i  ,j,k).getSubMeshDescriptor(),
-								subMeshes(i-1,j,k).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.iMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
-				if(iNext < NI-1)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::x,
-								EdgeIndexEnum::max,
-								subMeshes(i  ,j,k).getSubMeshDescriptor(),
-								subMeshes(i+1,j,k).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.iMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
-				if(jPrev > 0)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::y,
-								EdgeIndexEnum::min,
-								subMeshes(i,j  ,k).getSubMeshDescriptor(),
-								subMeshes(i,j-1,k).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.jMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
-				if(jNext < NJ-1)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::y,
-								EdgeIndexEnum::max,
-								subMeshes(i,j  ,k).getSubMeshDescriptor(),
-								subMeshes(i,j+1,k).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.jMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
-				if(kPrev > 0)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::z,
-								EdgeIndexEnum::min,
-								subMeshes(i,j,k  ).getSubMeshDescriptor(),
-								subMeshes(i,j,k-1).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.kMin -= subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
-				if(kNext < NK-1)
-				{
-					subMeshEdgeBCs.push_back( std::make_unique<SubmeshInterfaceBoundary>(
-								AxisOrientationEnum::z,
-								EdgeIndexEnum::max,
-								subMeshes(i,j,k  ).getSubMeshDescriptor(),
-								subMeshes(i,j,k+1).getSubMeshDescriptor() ) );
-					subMeshArrayLimits.kMax += subMeshEdgeBCs.back()->nExtraNodeLayer();
-				}
+
+				EdgeBoundaryCollection subMeshEdgeBCs = setupSubMeshEdgeBoundaries(i, j, k, subMeshArrayLimits);
 				ImmersedBoundaryCollection subMeshImmersedBCs;
 				for(auto&& surface : immersedBoundaries)
 				{
 					if( surface->isInsideBox(subMeshVolume) )
 						subMeshImmersedBCs.push_back( surface->createBoundary( subMeshes(i,j,k).getSubMeshDescriptor() ) );
 				}
-				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
 				subMeshes(i,j,k).setSize(subMeshSizeX, subMeshSizeY, subMeshSizeZ, subMeshArrayLimits, subMeshVolume);
 				subMeshes(i,j,k).setBoundaries(subMeshEdgeBCs, subMeshImmersedBCs);
-				smallestGridSpacings.x = min(smallestGridSpacings.x, subMeshes(i,j,k).gridSpacings.x);
-				smallestGridSpacings.y = min(smallestGridSpacings.y, subMeshes(i,j,k).gridSpacings.y);
-				smallestGridSpacings.z = min(smallestGridSpacings.z, subMeshes(i,j,k).gridSpacings.z);
 			}
-		}
+}
+
+// Find the smallest grid spacing in the mesh.
+void Mesh::findSmallestGridSpacings()
+{
+	double BIGG = std::numeric_limits<double>::max();
+	smallestGridSpacings = Vector3_d( BIGG, BIGG, BIGG );
+	for(const SubMesh& subMesh : subMeshes)
+	{
+		smallestGridSpacings.x = min(smallestGridSpacings.x, subMesh.gridSpacings.x);
+		smallestGridSpacings.y = min(smallestGridSpacings.y, subMesh.gridSpacings.y);
+		smallestGridSpacings.z = min(smallestGridSpacings.z, subMesh.gridSpacings.z);
 	}
 }
 
+// Constructor. Taking parameters in ConfigSettings.
+Mesh::Mesh(const ConfigSettings& params) :
+NI{params.NI}, NJ{params.NJ}, NK{params.NK}
+{
+	initializeThresholds(params);
+	setRefinementLevels(params);
+	setupBoundaries(params);
+	setupSubMeshes(params);
+	findSmallestGridSpacings();
+}
 
 // Construct the objects that define the boundary conditions (BCs) and set the grid spacings based on that.
 void Mesh::setupBoundaries(const ConfigSettings &params)

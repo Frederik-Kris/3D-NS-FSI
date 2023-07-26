@@ -87,9 +87,28 @@ public:
 	Array3D<int> refinementLevels;	// Refinement levels of the submesh regions in the mesh
 private:
 	// Boundary conditions. These are just proxies to represent what BCs we want. The actual BCs are applied in the submeshes.
-	// TODO: consider making a separate class for these proxies, for clarity, so we don't try to applyBC() from these by accident.
 	EdgeBoundaryProxyCollection edgeBoundaries;			// Boundaries at the edges of the Cartesian mesh
 	ImmersedBoundaryProxyCollection immersedBoundaries;	// Boundaries at immersed bodies
+
+    vector<double> xThresholds;	// ↰
+    vector<double> yThresholds;	// ← Coordinates for thresholds dividing submeshes
+    vector<double> zThresholds;	// ↲
+    vector<int> iThresholds;	// ↰
+    vector<int> jThresholds;	// ← indices for thresholds dividing submeshes
+    vector<int> kThresholds;	// ↲
+    double dxBase;	// ↰
+    double dyBase;	// ← Grid spacings at refinement level 0
+    double dzBase;	// ↲
+
+    void initializeThresholds(const ConfigSettings& params);
+    void setRefinementLevels(const ConfigSettings& params);
+    EdgeBoundaryCollection setupSubMeshEdgeBoundaries(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits);
+    void setupSubMeshes(const ConfigSettings& params);
+    void findSmallestGridSpacings();
+	void makeThresholdsCoincideWithGridLines();
+	void getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &params);
+	void createBoundariesFromProxies(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits, EdgeBoundaryCollection& subMeshEdgeBCs);
+	void createSubmeshInterfacBoundaries(int i, int j, int k, EdgeBoundaryCollection& subMeshEdgeBCs, IndexBoundingBox& subMeshArrayLimits);
 };
 
 #endif /* SRC_MESH_H_ */
