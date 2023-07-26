@@ -41,7 +41,7 @@ using std::max;
 using std::min;
 using std::fmod;
 
-using sf::Clock; // Probably use std:chrono instead
+using sf::Clock; // Probably use std::chrono instead
 using sf::Time;
 
 using libconfig::Config;
