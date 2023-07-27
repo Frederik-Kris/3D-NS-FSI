@@ -101,11 +101,12 @@ private:
     double dzBase;	// ↲
 
     void initializeThresholds(const ConfigSettings& params);
+    void setRegionIDs();
+	void makeThresholdsCoincideWithGridLines();
     void setRefinementLevels(const ConfigSettings& params);
     EdgeBoundaryCollection setupSubMeshEdgeBoundaries(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits);
     void setupSubMeshes(const ConfigSettings& params);
     void findSmallestGridSpacings();
-	void makeThresholdsCoincideWithGridLines();
 	void getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &params);
 	void createBoundariesFromProxies(int i, int j, int k, IndexBoundingBox& subMeshArrayLimits, EdgeBoundaryCollection& subMeshEdgeBCs);
 	void createSubmeshInterfacBoundaries(int i, int j, int k, EdgeBoundaryCollection& subMeshEdgeBCs, IndexBoundingBox& subMeshArrayLimits);

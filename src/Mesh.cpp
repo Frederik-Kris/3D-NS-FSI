@@ -40,6 +40,14 @@ void Mesh::makeThresholdsCoincideWithGridLines()
 	}
 }
 
+void Mesh::setRegionIDs()
+{
+	for(int i=0; i<nRegions.i; ++i)
+		for(int j=0; j<nRegions.j; ++j)
+			for(int k=0; k<nRegions.k; ++k)
+				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
+}
+
 // Get the requested thresholds, :
 void Mesh::getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &params)
 {
@@ -64,6 +72,7 @@ void Mesh::getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &param
 void Mesh::initializeThresholds(const ConfigSettings& params)
 {
 	getRequestedThresholdsAndBaseGridSpacings(params);
+	setRegionIDs();
 	subMeshes.setSize(nRegions.i, nRegions.j, nRegions.k);
 	makeThresholdsCoincideWithGridLines();
 }
@@ -210,7 +219,6 @@ void Mesh::setupSubMeshes(const ConfigSettings& params)
 		for(int j=0; j<nRegions.j; ++j)
 			for(int k=0; k<nRegions.k; ++k)
 			{
-				subMeshes(i,j,k).regionID = Vector3_i(i,j,k);
 				int iPrev = iThresholds.at(i  );
 				int iNext = iThresholds.at(i+1);
 				int jPrev = jThresholds.at(j  );
