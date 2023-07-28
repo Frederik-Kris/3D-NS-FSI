@@ -72,8 +72,8 @@ void Mesh::getRequestedThresholdsAndBaseGridSpacings(const ConfigSettings &param
 void Mesh::initializeThresholds(const ConfigSettings& params)
 {
 	getRequestedThresholdsAndBaseGridSpacings(params);
-	setRegionIDs();
 	subMeshes.setSize(nRegions.i, nRegions.j, nRegions.k);
+	setRegionIDs();
 	makeThresholdsCoincideWithGridLines();
 }
 
@@ -368,7 +368,7 @@ void Mesh::applyFilter_ifAppropriate(const ConfigSettings& params, long timeLeve
 										 ) / 12;
 			}
 			rho.dataSwap(rhoTemporary);	// Swap the arrays using move-sematics (super-fast)
-			applyAllBoundaryConditions(t, params);
+			subMesh.applyAllBoundaryConditions(t, params);
 		}
 	}
 }

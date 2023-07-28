@@ -62,15 +62,16 @@ private:
 	void compute_RK4_step_continuity(const Array3D_d& rho_u,
 									 const Array3D_d& rho_v,
 									 const Array3D_d& rho_w,
+									 const SubMesh& subMesh,
 									 Array3D_d& RK4_slope);
 
-	void compute_RK4_step_xMomentum(const Array3D_d& rho_u, Array3D_d& RK4_slope);
+	void compute_RK4_step_xMomentum(const Array3D_d& rho_u, const SubMesh& subMesh, Array3D_d& RK4_slope);
 
-	void compute_RK4_step_yMomentum(const Array3D_d& rho_v, Array3D_d& RK4_slope);
+	void compute_RK4_step_yMomentum(const Array3D_d& rho_v, const SubMesh& subMesh, Array3D_d& RK4_slope);
 
-	void compute_RK4_step_zMomentum(const Array3D_d& rho_w, Array3D_d& RK4_slope);
+	void compute_RK4_step_zMomentum(const Array3D_d& rho_w, const SubMesh& subMesh, Array3D_d& RK4_slope);
 
-	void compute_RK4_step_energy(const Array3D_d& E, Array3D_d& RK4_slope);
+	void compute_RK4_step_energy(const Array3D_d& E, const SubMesh& subMesh, Array3D_d& RK4_slope);
 
 	void computeAllIntermediateSolutions(ChooseSlopeStage slopeStage, double timeIncrement);
 

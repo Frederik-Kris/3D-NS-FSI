@@ -26,6 +26,7 @@ struct Vector3_i
 	Vector3_i operator-(int scalar)		 const { return Vector3_i(i-scalar, j-scalar, k-scalar); }
 	Vector3_i operator*(int factor) 	 const { return Vector3_i(i*factor, j*factor, k*factor); }
 	Vector3_i operator%(int divisor)	 const { return Vector3_i(i%divisor, j%divisor, k%divisor); }
+	bool operator==(const Vector3_i& other) const { return i==other.i && j==other.j && k==other.k; }
 };
 
 inline Vector3_i operator*(int factor, Vector3_i vector) { return vector*factor; }

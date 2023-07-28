@@ -61,7 +61,7 @@ stopTimeLevel = 1
 // How long to simulate. The last timestep is adapted to hit this time exactly. If t_end is zero
 // or negative, the simulation result will be the initial condition.
 // This setting is only used if stopCriterion = "end_time".
-t_end = 200.
+t_end = 200.1
 
 // Constant specifying the inviscid stability criterion.
 // Theoretically, it should work as long as it's <2, but some margin may be necessary.
@@ -100,7 +100,7 @@ saveThermalCond = false
 saveIC = false
 
 // Save final solution? (Last time level, at time t_end)
-saveFinal = true
+saveFinal = false
 
 // Save at constant intervals? (Not including IC, interval length specified below)
 saveIntervals = true
