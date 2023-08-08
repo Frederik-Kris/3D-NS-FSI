@@ -72,11 +72,11 @@ struct IndexBoundingBox
 
 	// Get node with the lowest indices
 	Vector3_i getMinIndices() const
-	{	return Vector3_d(iMin, jMin, kMin); }
+	{	return Vector3_i(iMin, jMin, kMin); }
 
 	// Get node with the highest indices
 	Vector3_i getMaxIndices() const
-	{	return Vector3_d(iMax, jMax, kMax); }
+	{	return Vector3_i(iMax, jMax, kMax); }
 
 	// Get box that's centered on the given node, and stretches 'radius' nodes in each direction.
 	static IndexBoundingBox boxAroundNode(const Vector3_i& centerNode, int radius)

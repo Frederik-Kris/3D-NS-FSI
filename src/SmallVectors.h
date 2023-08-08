@@ -22,10 +22,11 @@ struct Vector3_i
 	Vector3_i operator+(const Vector3_i& other) const { return Vector3_i(i+other.i, j+other.j, k+other.k); }
 	Vector3_i operator-(const Vector3_i& other) const { return Vector3_i(i-other.i, j-other.j, k-other.k); }
 	Vector3_i operator%(const Vector3_i& other)	const { return Vector3_i(i%other.i, j%other.j, k%other.k); }
-	Vector3_i operator+(int scalar)		 const { return Vector3_i(i+scalar, j+scalar, k+scalar); }
-	Vector3_i operator-(int scalar)		 const { return Vector3_i(i-scalar, j-scalar, k-scalar); }
-	Vector3_i operator*(int factor) 	 const { return Vector3_i(i*factor, j*factor, k*factor); }
-	Vector3_i operator%(int divisor)	 const { return Vector3_i(i%divisor, j%divisor, k%divisor); }
+	Vector3_i operator+(int scalar)	const { return Vector3_i(i+scalar, j+scalar, k+scalar); }
+	Vector3_i operator-(int scalar)	const { return Vector3_i(i-scalar, j-scalar, k-scalar); }
+	Vector3_i operator*(int factor)	const { return Vector3_i(i*factor, j*factor, k*factor); }
+	Vector3_i operator%(int divisor) const { return Vector3_i(i%divisor, j%divisor, k%divisor); }
+	Vector3_i operator*(Vector3_i other) const { return Vector3_i(i*other.i, j*other.j, k*other.k); }
 	bool operator==(const Vector3_i& other) const { return i==other.i && j==other.j && k==other.k; }
 };
 
