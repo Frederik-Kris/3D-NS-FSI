@@ -106,8 +106,8 @@ void MeshEdgeBoundary::getAdjacentIndices(const Vector3_i& boundaryNode, 		// â†
 Vector3_i MeshEdgeBoundary::getPeriodicIndex(const Vector3_i& boundaryNode)
 {
 	const Vector3_i& nNodes = subMeshData.arrayLimits.nNodes();
-	Vector3_i shiftedIndex = boundaryNode + nNodes + getOutwardNormal();
-	return shiftedIndex % nNodes;
+	Vector3_i shiftedIndex = boundaryNode - nNodes*getOutwardNormal() + 2*getOutwardNormal();
+	return shiftedIndex;
 }
 
 Vector3_i MeshEdgeBoundary::getOutwardNormal() const
@@ -1208,10 +1208,13 @@ IndexBoundingBox CylinderBody::getCylinderBoundingBox(const Vector3_d& gridSpaci
 	int indexRadiusX { static_cast<int>(ceil(radius / gridSpacing.x)) + 1 };
 	int indexRadiusY { static_cast<int>(ceil(radius / gridSpacing.y)) + 1 };
 	int indexRadiusZ { static_cast<int>(ceil(radius / gridSpacing.z)) + 1 };
-	int centroidClosestIndexX { static_cast<int>(round(centroidPosition.x / gridSpacing.x)) };
-	int centroidClosestIndexY { static_cast<int>(round(centroidPosition.y / gridSpacing.y)) };
-	int centroidClosestIndexZ { static_cast<int>(round(centroidPosition.z / gridSpacing.z)) };
-	IndexBoundingBox indicesToCheck(nMeshNodes.i-1, nMeshNodes.j-1, nMeshNodes.k-1);
+	double relativeCentroidPositionX = centroidPosition.x - subMeshData.boundingBox.getMinPoint().x;
+	double relativeCentroidPositionY = centroidPosition.y - subMeshData.boundingBox.getMinPoint().y;
+	double relativeCentroidPositionZ = centroidPosition.z - subMeshData.boundingBox.getMinPoint().z;
+	int centroidClosestIndexX { static_cast<int>(round(relativeCentroidPositionX / gridSpacing.x)) };
+	int centroidClosestIndexY { static_cast<int>(round(relativeCentroidPositionY / gridSpacing.y)) };
+	int centroidClosestIndexZ { static_cast<int>(round(relativeCentroidPositionZ / gridSpacing.z)) };
+	IndexBoundingBox indicesToCheck = subMeshData.arrayLimits;
 	if (axis != AxisOrientationEnum::x)
 	{
 		indicesToCheck.iMin = centroidClosestIndexX - indexRadiusX;
@@ -1402,9 +1405,12 @@ IndexBoundingBox SphereBody::getSphereBoundingBox(const Vector3_d& gridSpacing, 
 	int indexRadiusX { static_cast<int>(ceil(radius / gridSpacing.x)) + 1 + filterNodeLayerWidth };
 	int indexRadiusY { static_cast<int>(ceil(radius / gridSpacing.y)) + 1 + filterNodeLayerWidth };
 	int indexRadiusZ { static_cast<int>(ceil(radius / gridSpacing.z)) + 1 + filterNodeLayerWidth };
-	int centerClosestIndexX { static_cast<int>(round(centerPosition.x / gridSpacing.x)) };
-	int centerClosestIndexY { static_cast<int>(round(centerPosition.y / gridSpacing.y)) };
-	int centerClosestIndexZ { static_cast<int>(round(centerPosition.z / gridSpacing.z)) };
+	double relativeCenterPositionX = centerPosition.x - subMeshData.boundingBox.getMinPoint().x;
+	double relativeCenterPositionY = centerPosition.y - subMeshData.boundingBox.getMinPoint().y;
+	double relativeCenterPositionZ = centerPosition.z - subMeshData.boundingBox.getMinPoint().z;
+	int centerClosestIndexX { static_cast<int>(round(relativeCenterPositionX / gridSpacing.x)) };
+	int centerClosestIndexY { static_cast<int>(round(relativeCenterPositionY / gridSpacing.y)) };
+	int centerClosestIndexZ { static_cast<int>(round(relativeCenterPositionZ / gridSpacing.z)) };
 	IndexBoundingBox indicesToCheck;
 	indicesToCheck.iMin = centerClosestIndexX - indexRadiusX;
 	indicesToCheck.iMax = centerClosestIndexX + indexRadiusX;
