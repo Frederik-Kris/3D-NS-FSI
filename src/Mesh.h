@@ -39,8 +39,22 @@ public:
 
 	void applyAllBoundaryConditions(double t, const ConfigSettings& params);
 
+	void checkFinityAll() const
+	{
+		for(const SubMesh& subMesh : subMeshes)
+		{
+			checkFinity(subMesh.conservedVariables);
+			checkFinity(subMesh.conservedVariablesOld);
+			checkFinity(subMesh.primitiveVariables);
+			checkFinity(subMesh.RK4slopes.k1);
+			checkFinity(subMesh.RK4slopes.k2);
+			checkFinity(subMesh.RK4slopes.k3);
+			checkFinity(subMesh.RK4slopes.k4);
+		}
+	}
+
 	// Check whether any value is NaN or infinite.
-	void checkFinity(const ConservedVariablesArrayGroup& arrays)
+	void checkFinity(const ConservedVariablesArrayGroup& arrays) const
 	{
 		string message("Non-finite value found in ");
 		if( !arrays.rho.allFinite() )
@@ -56,7 +70,7 @@ public:
 	}
 
 	// Check whether any value is NaN or infinite.
-	void checkFinity(const PrimitiveVariablesArrayGroup& arrays)
+	void checkFinity(const PrimitiveVariablesArrayGroup& arrays) const
 	{
 		string message("Non-finite value found in ");
 		if( !arrays.u.allFinite() )

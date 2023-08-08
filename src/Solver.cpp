@@ -182,6 +182,7 @@ double Solver::getViscousTimeStepLimit()
 void Solver::marchTimeStep(double& t, 			// ← IN-/OUTPUT, time
 						   long unsigned& timeLevel)	// ← OUTPUT
 {
+	mesh.checkFinityAll();
 	mesh.applyFilter_ifAppropriate(params, timeLevel, t);
 	mesh.swapConservedVariables();	// Swap conserved variables and "old" arrays by move-semantics.
 	// Now, the previously calculated variables (current time level) are stored in conservedVariablesOld.
@@ -208,9 +209,7 @@ void Solver::marchTimeStep(double& t, 			// ← IN-/OUTPUT, time
 	updatePrimitiveVariables();
 	mesh.applyAllBoundaryConditions(t+dt, params);
 
-	SubMesh& subMeshWithIB = mesh.getSubMeshWithIB();
-	if( subMeshWithIB.getImmersedBoundaries().empty() )
-		throw std::runtime_error("'subMmeshWithIB' does not have any immersed boundary.");
+	const SubMesh& subMeshWithIB = mesh.getSubMeshWithIB();
 	IntegralProperties integralProperties = subMeshWithIB.getImmersedBoundaries().front()->getIntegralProperties(params);
 	liftHistory.push_back(integralProperties.lift);
 	dragHistory.push_back(integralProperties.drag);
@@ -251,6 +250,7 @@ void Solver::computeRK4slopes(ChooseSolutionStage solutionStage, 	// ← Current
 		default:
 			throw std::logic_error("Unexpected enum value for 'ChooseSlopeStage' when computing RK4 slopes");
 		}
+		mesh.checkFinity(*conservedVars);
 		compute_RK4_step_continuity(conservedVars->rho_u, conservedVars->rho_v, conservedVars->rho_w, subMesh, RK4Slopes->rho  );
 		compute_RK4_step_xMomentum (conservedVars->rho_u,               							  subMesh, RK4Slopes->rho_u);
 		compute_RK4_step_yMomentum (conservedVars->rho_v,               							  subMesh, RK4Slopes->rho_v);
